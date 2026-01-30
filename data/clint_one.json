@@ -3,18 +3,39 @@
   "items": [
     {
       "id": 1,
-      "name": "Relax Park",
-      "price": "Free",
-      "model": "clint_one/park.glb",
+      "name": "Perk ka Dabba",
+      "price": "INR 500",
+      "model": "clint_one/perk.glb",
       "scale": "1 1 1",
-      "rotation": "0 270 270", 
+      "rotation": "0 90 90", 
+      "position": "0 0 0"
+    },
+    {
+      "id": 2,
+      "name": "Casio Vintage",
+      "price": "INR 7999",
+      "model": "clint_one/casio.glb",
+      "scale": "1 1 1",
+      "rotation": "0 90 90", 
+      "position": "0 0 0"
+    },
+    {
+      "id": 3,
+      "name": "Donut",
+      "price": "INR 79",
+      "model": "clint_one/Donut.glb",
+      "scale": "1 1 1",
+      "rotation": "0 90 90", 
+      "position": "0 0 0"
+    },
+    {
+      "id": 4,
+      "name": "Something",
+      "price": "INR 000",
+      "model": "clint_one/nonut.glb",
+      "scale": "1 1 1",
+      "rotation": "0 90 90", 
       "position": "0 0 0"
     }
   ]
 }
-
-
-
-
-
-
