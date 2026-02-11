@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ data.restaurant.name }} - {{ data.restaurant.tagline }}</title>
+    <link href="https://fonts.googleapis.com/css2?family={{ data.theme.font_primary.replace(' ', '+') }}:wght@400;600;700&family={{ data.theme.font_secondary.replace(' ', '+') }}:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: {{ data.theme.primary_color }};
+            --secondary: {{ data.theme.secondary_color }};
+            --accent: {{ data.theme.accent_color }};
+            --text: {{ data.theme.text_color }};
+            --bg: {{ data.theme.background }};
+            --font-primary: '{{ data.theme.font_primary }}', serif;
+            --font-secondary: '{{ data.theme.font_secondary }}', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-secondary);
+            color: var(--text);
+            background: var(--bg);
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            height: 100vh;
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                        url('{{ data.restaurant.banner }}') center/cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+        }
+
+        .hero-logo {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            margin-bottom: 20px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .hero h1 {
+            font-family: var(--font-primary);
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            animation: fadeInUp 1s ease 0.2s both;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 40px;
+            animation: fadeInUp 1s ease 0.4s both;
+        }
+
+        .cta-btn {
+            padding: 18px 45px;
+            background: var(--primary);
+            color: var(--secondary);
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            animation: fadeInUp 1s ease 0.6s both;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        /* About Section */
+        .about {
+            padding: 80px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .section-title {
+            font-family: var(--font-primary);
+            font-size: 2.8rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: var(--accent);
+        }
+
+        .about-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .about-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .about-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .about-card i {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .about-card h3 {
+            font-family: var(--font-primary);
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--secondary);
+        }
+
+        .about-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Menu Preview */
+        .menu-preview {
+            padding: 80px 20px;
+            background: #f9f9f9;
+        }
+
+        .menu-preview .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .dishes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .dish-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .dish-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        .dish-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .dish-info {
+            padding: 25px;
+        }
+
+        .dish-name {
+            font-family: var(--font-primary);
+            font-size: 1.8rem;
+            color: var(--secondary);
+            margin-bottom: 10px;
+        }
+
+        .dish-desc {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .dish-price {
+            font-size: 1.5rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Contact Section */
+        .contact {
+            padding: 80px 20px;
+            background: var(--secondary);
+            color: white;
+        }
+
+        .contact .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .contact .section-title {
+            color: var(--primary);
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .contact-item {
+            text-align: center;
+        }
+
+        .contact-item i {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .contact-item h3 {
+            font-family: var(--font-primary);
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .contact-item p, .contact-item a {
+            color: #ccc;
+            text-decoration: none;
+            line-height: 1.8;
+        }
+
+        .contact-item a:hover {
+            color: var(--primary);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .social-links a {
+            font-size: 1.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .social-links a:hover {
+            transform: scale(1.2);
+        }
+
+        /* Footer */
+        footer {
+            background: #000;
+            color: #888;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            .hero p {
+                font-size: 1rem;
+            }
+            .section-title {
+                font-size: 2rem;
+            }
+            .dishes-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <img src="{{ data.restaurant.logo }}" alt="{{ data.restaurant.name }} Logo" class="hero-logo">
+        <h1>{{ data.restaurant.name }}</h1>
+        <p>{{ data.restaurant.tagline }}</p>
+        <a href="/{{ client_id }}/ar-menu" class="cta-btn">
+            <i class="fas fa-camera"></i> Experience in AR
+        </a>
+    </section>
+
+    <!-- About Section -->
+    <section class="about">
+        <h2 class="section-title">About Us</h2>
+        <p style="max-width: 800px; margin: 30px auto; font-size: 1.1rem; line-height: 1.8; color: #555;">
+            {{ data.restaurant.description }}
+        </p>
+        
+        <div class="about-content">
+            <div class="about-card">
+                <i class="fas fa-utensils"></i>
+                <h3>Cuisine</h3>
+                <p>{{ data.restaurant.cuisine_type }}</p>
+            </div>
+            
+            <div class="about-card">
+                <i class="fas fa-clock"></i>
+                <h3>Timings</h3>
+                <p><strong>Lunch:</strong> {{ data.restaurant.timings.lunch }}</p>
+                <p><strong>Dinner:</strong> {{ data.restaurant.timings.dinner }}</p>
+                <p style="color: #d32f2f; margin-top: 10px;">Closed on {{ data.restaurant.timings.closed }}</p>
+            </div>
+            
+            <div class="about-card">
+                <i class="fas fa-map-marker-alt"></i>
+                <h3>Location</h3>
+                <p>{{ data.restaurant.address }}</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu Preview -->
+    <section class="menu-preview">
+        <div class="container">
+            <h2 class="section-title">Our Signature Dishes</h2>
+            <p style="font-size: 1.1rem; color: #666; margin-top: 20px;">
+                Discover our most loved creations
+            </p>
+            
+            <div class="dishes-grid">
+                {% for dish in data.featured_dishes %}
+                <div class="dish-card">
+                    <img src="{{ dish.image }}" alt="{{ dish.name }}" class="dish-image">
+                    <div class="dish-info">
+                        <h3 class="dish-name">{{ dish.name }}</h3>
+                        <p class="dish-desc">{{ dish.description }}</p>
+                        <p class="dish-price">{{ dish.price }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="margin-top: 60px;">
+                <a href="/{{ client_id }}/ar-menu" class="cta-btn">
+                    <i class="fas fa-camera"></i> View Full Menu in AR
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact">
+        <div class="container">
+            <h2 class="section-title">Get in Touch</h2>
+            
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <h3>Phone</h3>
+                    <p><a href="tel:{{ data.restaurant.phone }}">{{ data.restaurant.phone }}</a></p>
+                </div>
+                
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <h3>Email</h3>
+                    <p><a href="mailto:{{ data.restaurant.email }}">{{ data.restaurant.email }}</a></p>
+                </div>
+                
+                <div class="contact-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <h3>Address</h3>
+                    <p>{{ data.restaurant.address }}</p>
+                </div>
+                
+                <div class="contact-item">
+                    <i class="fas fa-share-alt"></i>
+                    <h3>Follow Us</h3>
+                    <div class="social-links">
+                        {% if data.restaurant.social.instagram %}
+                        <a href="{{ data.restaurant.social.instagram }}" target="_blank">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        {% endif %}
+                        {% if data.restaurant.social.facebook %}
+                        <a href="{{ data.restaurant.social.facebook }}" target="_blank">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        {% endif %}
+                        {% if data.restaurant.social.twitter %}
+                        <a href="{{ data.restaurant.social.twitter }}" target="_blank">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 {{ data.restaurant.name }}. All rights reserved.</p>
+    </footer>
+</body>
+</html>
