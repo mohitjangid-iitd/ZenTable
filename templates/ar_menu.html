@@ -1,460 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <title>AR Menu - Premium Experience</title>
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>AR Menu</title>
 
-    <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            font-family: 'Poppins', sans-serif; 
-            background: #000; 
-        }
-        
-        /* Loading Screen */
-        #loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
+<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
 
-        #loading-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
+<style>
+body { margin:0; overflow:hidden; background:#000; font-family:Arial; }
 
-        .loader {
-            width: 60px;
-            height: 60px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+/* Top Controls */
+#top-controls{
+    position:fixed;
+    top:15px;
+    left:0;
+    right:0;
+    display:flex;
+    justify-content:space-between;
+    padding:0 15px;
+    box-sizing:border-box;
+    z-index:1000;
+}
 
-        .loading-text {
-            color: white;
-            margin-top: 20px;
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
+.control-btn{
+    width:45px;
+    height:45px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.2);
+    backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.3);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    flex-shrink:0;
+}
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+/* Bottom Carousel */
+#ui-layer{
+    position:fixed;
+    bottom:20px;
+    left:0;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    z-index:1000;
+}
 
-        /* Top Controls Bar */
-        #top-controls {
-            position: fixed;
-            top: 20px;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            align-items: center;
-        }
+#carousel-wrapper{
+    display:flex;
+    gap:10px;
+    overflow-x:auto;
+    padding:10px;
+    max-width:95%;
+}
 
-        .control-btn {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            font-size: 1.2rem;
-        }
+.dish-btn{
+    min-width:100px;
+    padding:10px;
+    background:rgba(255,255,255,0.15);
+    border-radius:15px;
+    color:white;
+    text-align:center;
+    cursor:pointer;
+}
 
-        .control-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-
-        .control-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* Bottom UI Layer */
-        #ui-layer {
-            position: fixed; 
-            bottom: 30px; 
-            left: 0; 
-            width: 100%; 
-            z-index: 1000; 
-            display: flex; 
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        /* Action Buttons */
-        #action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-
-        .action-btn {
-            padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 25px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .action-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .action-btn i {
-            font-size: 1rem;
-        }
-
-        /* Carousel */
-        #carousel-wrapper {
-            display: flex; 
-            gap: 10px; 
-            overflow-x: auto; 
-            padding: 10px; 
-            max-width: 95%; 
-            scroll-behavior: smooth; 
-            scrollbar-width: none;
-        }
-        
-        #carousel-wrapper::-webkit-scrollbar { 
-            display: none; 
-        }
-
-        .dish-btn {
-            min-width: 100px; 
-            padding: 10px 15px;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(12px); 
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 18px; 
-            color: white; 
-            text-align: center;
-            cursor: pointer; 
-            transition: all 0.3s ease; 
-            flex-shrink: 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .dish-name { 
-            display: block; 
-            font-size: 13px; 
-            font-weight: 600; 
-        }
-        
-        .dish-price { 
-            display: block; 
-            font-size: 10px; 
-            opacity: 0.8; 
-        }
-
-        .active { 
-            background: #ffffff !important; 
-            color: #000 !important; 
-            transform: translateY(-5px); 
-            border-color: #ffffff;
-            box-shadow: 0 8px 15px rgba(255,255,255,0.2);
-        }
-
-        /* Rotation Control */
-        #rotation-control {
-            position: fixed;
-            bottom: 50%;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 1000;
-        }
-
-        .rotation-btn {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 1.2rem;
-        }
-
-        .rotation-btn:active {
-            transform: scale(0.9);
-            background: rgba(255, 255, 255, 0.4);
-        }
-
-        /* Toast Notification */
-        #toast {
-            position: fixed;
-            top: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
-            z-index: 10000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        #toast.show {
-            opacity: 1;
-        }
-    </style>
+.active{
+    background:white !important;
+    color:black !important;
+}
+</style>
 </head>
+
 <body>
 
-    <!-- Loading Screen -->
-    <div id="loading-screen">
-        <div class="loader"></div>
-        <div class="loading-text">Loading AR Experience...</div>
+<div id="top-controls">
+    <a href="/{{ client_id }}" class="control-btn">🏠</a>
+    <div style="display:flex; gap:10px;">
+        <div class="control-btn" id="screenshot-btn">📷</div>
+        <div class="control-btn" id="share-btn">🔗</div>
     </div>
+</div>
 
-    <!-- Toast Notification -->
-    <div id="toast"></div>
+<div id="ui-layer">
+    <div id="carousel-wrapper"></div>
+</div>
 
-    <!-- Top Controls -->
-    <div id="top-controls">
-        <a href="/{{ client_id }}" class="control-btn" title="View Restaurant Menu">
-            <i class="fas fa-home"></i>
-        </a>
-        <div style="display: flex; gap: 10px;">
-            <div class="control-btn" id="screenshot-btn" title="Take Screenshot">
-                <i class="fas fa-camera"></i>
-            </div>
-            <div class="control-btn" id="share-btn" title="Share">
-                <i class="fas fa-share-alt"></i>
-            </div>
-        </div>
-    </div>
+<a-scene
+    mindar-image="imageTargetSrc: /static/assets/{{ client_id }}/targets.mind; autoStart: true; uiLoading: no;"
+    color-space="sRGB"
+    renderer="colorManagement:true, physicallyCorrectLights:true"
+    vr-mode-ui="enabled:false"
+    device-orientation-permission-ui="enabled:false">
 
-    <!-- Bottom UI Layer -->
-    <div id="ui-layer">
-        <div id="carousel-wrapper"></div>
-    </div>
+    <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-    <!-- Manual Rotation Controls -->
-    <div id="rotation-control">
-        <div class="rotation-btn" id="rotate-left" title="Rotate Left">
-            <i class="fas fa-undo"></i>
-        </div>
-        <div class="rotation-btn" id="rotate-right" title="Rotate Right">
-            <i class="fas fa-redo"></i>
-        </div>
-    </div>
+    <a-entity id="target-anchor" mindar-image-target="targetIndex: 0">
+        <a-gltf-model id="ar-model"></a-gltf-model>
+    </a-entity>
 
-    <a-scene 
-        mindar-image="imageTargetSrc: /static/assets/{{ client_id }}/targets.mind; autoStart: true; uiLoading: no; filterMinCF:0.0001; filterBeta: 0.001;" 
-        color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights: true" 
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
-        
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity light="type:ambient; intensity:1.2"></a-entity>
+    <a-entity light="type:directional; intensity:0.8" position="1 2 1"></a-entity>
 
-        <a-entity id="target-anchor" mindar-image-target="targetIndex: 0">
-            <a-gltf-model id="ar-model"></a-gltf-model>
-        </a-entity>
+</a-scene>
 
-        <a-entity light="type: ambient; intensity: 1.2"></a-entity>
-        <a-entity light="type: directional; intensity: 0.8" position="1 2 1"></a-entity>
-    </a-scene>
+<script>
+const clientId = "{{ client_id }}";
+const modelEl = document.querySelector("#ar-model");
+const sceneEl = document.querySelector("a-scene");
 
-    <script>
-        const clientId = "{{ client_id }}";
-        let currentRotation = { x: 0, y: 0, z: 0 };
-        let isAutoRotating = false;
-        let currentItem = null;
+let currentRotation = {x:0, y:0, z:0};
+let isAutoRotating = false;
+let currentScale = 1;
 
-        // Show toast notification
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
-        }
+// ======================
+// LOAD MENU
+// ======================
+async function loadMenu(){
+    const res = await fetch(`/api/menu/${clientId}`);
+    const data = await res.json();
+    const carousel = document.getElementById("carousel-wrapper");
 
-        // Screenshot functionality
-        document.getElementById('screenshot-btn').addEventListener('click', async () => {
-            try {
-                const canvas = document.querySelector('a-scene').components.screenshot.getCanvas('perspective');
-                const dataURL = canvas.toDataURL('image/png');
-                
-                // Create download link
-                const link = document.createElement('a');
-                link.download = `AR-Menu-${Date.now()}.png`;
-                link.href = dataURL;
-                link.click();
-                
-                showToast('Screenshot saved! ✓');
-            } catch (error) {
-                console.error('Screenshot error:', error);
-                showToast('Screenshot failed');
-            }
-        });
+    data.items.forEach((item,index)=>{
+        const btn = document.createElement("div");
+        btn.className="dish-btn";
+        btn.innerHTML=`${item.name}<br>${item.price}`;
 
-        // Share functionality
-        document.getElementById('share-btn').addEventListener('click', async () => {
-            const shareData = {
-                title: 'Check out this AR Menu!',
-                text: 'Experience this amazing restaurant menu in AR',
-                url: window.location.href
-            };
+        btn.onclick=()=>{
+            modelEl.setAttribute("gltf-model", `/static/assets/${item.model}`);
+            modelEl.setAttribute("position", item.position || "0 0 0");
+            modelEl.setAttribute("scale", item.scale || "1 1 1");
 
-            try {
-                if (navigator.share) {
-                    await navigator.share(shareData);
-                    showToast('Shared successfully! ✓');
-                } else {
-                    // Fallback - copy to clipboard
-                    await navigator.clipboard.writeText(window.location.href);
-                    showToast('Link copied to clipboard! ✓');
-                }
-            } catch (error) {
-                console.error('Share error:', error);
-            }
-        });
+            currentRotation = {x:0,y:0,z:0};
+            currentScale = parseFloat((item.scale || "1 1 1").split(" ")[0]);
 
-        // Manual rotation controls
-        document.getElementById('rotate-left').addEventListener('click', () => {
-            const modelEl = document.querySelector('#ar-model');
-            if (isAutoRotating) {
-                modelEl.removeAttribute('animation');
-                isAutoRotating = false;
-            }
-            currentRotation.y -= 30;
-            modelEl.setAttribute('rotation', `${currentRotation.x} ${currentRotation.y} ${currentRotation.z}`);
-        });
-
-        document.getElementById('rotate-right').addEventListener('click', () => {
-            const modelEl = document.querySelector('#ar-model');
-            if (isAutoRotating) {
-                modelEl.removeAttribute('animation');
-                isAutoRotating = false;
-            }
-            currentRotation.y += 30;
-            modelEl.setAttribute('rotation', `${currentRotation.x} ${currentRotation.y} ${currentRotation.z}`);
-        });
-
-        // Load menu
-        async function loadMenu() {
-            try {
-                const res = await fetch(`/api/menu/${clientId}`);
-                const data = await res.json();
-                const carousel = document.getElementById('carousel-wrapper');
-                const modelEl = document.querySelector('#ar-model');
-
-                // Hide loading screen
-                setTimeout(() => {
-                    document.getElementById('loading-screen').classList.add('hidden');
-                }, 1500);
-
-                data.items.forEach((item, index) => {
-                    const btn = document.createElement('div');
-                    btn.className = 'dish-btn';
-                    btn.innerHTML = `<span class="dish-name">${item.name}</span><span class="dish-price">${item.price}</span>`;
-                    
-                    btn.onclick = () => {
-                        currentItem = item;
-                        
-                        // Load Model
-                        modelEl.setAttribute('gltf-model', `/static/assets/${item.model}`); 
-                        
-                        // Set transforms
-                        modelEl.setAttribute('position', item.position || "0 0 0");
-                        modelEl.setAttribute('scale', item.scale || "1 1 1");
-                        
-                        // Parse rotation
-                        const rotArray = (item.rotation || "0 0 0").split(' ').map(Number);
-                        currentRotation = { x: rotArray[0], y: rotArray[1], z: rotArray[2] };
-                        
-                        // Auto-rotate or manual
-                        if(item.auto_rotate === true) {
-                            isAutoRotating = true;
-                            modelEl.setAttribute('animation', {
-                                property: 'rotation',
-                                from: item.rotation || "0 0 0",
-                                to: `0 ${currentRotation.y + 360} 0`,
-                                dur: item.rotate_speed || 10000,
-                                easing: 'linear',
-                                loop: true
-                            });
-                        } else {
-                            isAutoRotating = false;
-                            modelEl.removeAttribute('animation');
-                            modelEl.setAttribute('rotation', item.rotation || "0 0 0");
-                        }
-                        
-                        // UI Active State
-                        document.querySelectorAll('.dish-btn').forEach((b, i) => {
-                            b.classList.toggle('active', i === index);
-                        });
-                        btn.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                    };
-                    
-                    carousel.appendChild(btn);
-                    if(index === 0) btn.click(); 
+            if(item.auto_rotate===true){
+                isAutoRotating=true;
+                modelEl.setAttribute("animation",{
+                    property:"rotation",
+                    to:`0 360 0`,
+                    dur:item.rotate_speed || 10000,
+                    easing:"linear",
+                    loop:true
                 });
-
-                if (data.items.length < 4) carousel.style.justifyContent = 'center';
-
-            } catch (error) {
-                console.error("Error loading menu:", error);
-                showToast('Failed to load menu');
+            }else{
+                isAutoRotating=false;
+                modelEl.removeAttribute("animation");
             }
-        }
 
-        loadMenu();
-    </script>
+            document.querySelectorAll(".dish-btn")
+                .forEach((b,i)=>b.classList.toggle("active",i===index));
+        };
+
+        carousel.appendChild(btn);
+        if(index===0) btn.click();
+    });
+}
+loadMenu();
+
+// ======================
+// RESTRICTED TOUCH ROTATION (Y-AXIS ONLY)
+// ======================
+
+let isDragging = false;
+let previousTouchX = 0;
+
+function stopAutoRotate(){
+    if(isAutoRotating){
+        modelEl.removeAttribute("animation");
+        isAutoRotating = false;
+    }
+}
+
+sceneEl.addEventListener("touchstart", (e) => {
+    stopAutoRotate();
+
+    if(e.touches.length === 1){
+        isDragging = true;
+        previousTouchX = e.touches[0].clientX;
+    }
+});
+
+sceneEl.addEventListener("touchmove", (e) => {
+    if(!modelEl.getAttribute("gltf-model")) return;
+
+    if(e.touches.length === 1 && isDragging){
+        const currentX = e.touches[0].clientX;
+        const deltaX = currentX - previousTouchX;
+
+        // Only Y-axis rotation (left-right)
+        currentRotation.y += deltaX * 0.5;
+
+        modelEl.setAttribute(
+            "rotation",
+            `0 ${currentRotation.y} 0`
+        );
+
+        previousTouchX = currentX;
+    }
+});
+
+sceneEl.addEventListener("touchend", () => {
+    isDragging = false;
+});
+
+
+// ======================
+// SCREENSHOT
+// ======================
+document.getElementById("screenshot-btn").onclick=()=>{
+    const canvas=sceneEl.components.screenshot.getCanvas("perspective");
+    const link=document.createElement("a");
+    link.download="AR.png";
+    link.href=canvas.toDataURL();
+    link.click();
+};
+
+// ======================
+// SHARE
+// ======================
+document.getElementById("share-btn").onclick=async()=>{
+    if(navigator.share){
+        await navigator.share({
+            title:"AR Menu",
+            text:"Check this AR Menu!",
+            url:window.location.href
+        });
+    }else{
+        navigator.clipboard.writeText(window.location.href);
+        alert("Link copied!");
+    }
+};
+</script>
+
 </body>
 </html>
