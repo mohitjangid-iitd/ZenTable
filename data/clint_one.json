@@ -1,49 +1,89 @@
 {
-  "marker_file": "clint_one/targets.mind",
+  "restaurant": {
+    "name": "The Golden Spoon",
+    "tagline": "Where Tradition Meets Innovation",
+    "logo": "/static/assets/clint_one/logo.png",
+    "banner": "/static/assets/clint_one/banner.jpg",
+    "description": "Experience authentic Indian cuisine with a modern twist. Our chefs blend traditional recipes with contemporary techniques to create unforgettable dining experiences.",
+    "cuisine_type": "North Indian & Mughlai",
+    "phone": "+91 98765 43210",
+    "email": "contact@goldenspoon.com",
+    "address": "123 MG Road, Jaipur, Rajasthan 302001",
+    "timings": {
+      "lunch": "12:00 PM - 3:30 PM",
+      "dinner": "7:00 PM - 11:30 PM",
+      "closed": "Monday"
+    },
+    "social": {
+      "instagram": "https://instagram.com/goldenspoon",
+      "facebook": "https://facebook.com/goldenspoon",
+      "twitter": "https://twitter.com/goldenspoon"
+    }
+  },
+  "theme": {
+    "primary_color": "#D4AF37",
+    "secondary_color": "#1a1a1a",
+    "accent_color": "#8B4513",
+    "text_color": "#333333",
+    "background": "#ffffff",
+    "font_primary": "Playfair Display",
+    "font_secondary": "Poppins"
+  },
+  "featured_dishes": [
+    {
+      "name": "Butter Chicken",
+      "image": "/static/assets/clint_one/butter_chicken.jpg",
+      "price": "INR 450",
+      "description": "Tender chicken in rich tomato-butter gravy"
+    },
+    {
+      "name": "Dal Makhani",
+      "image": "/static/assets/clint_one/dal_makhani.jpg",
+      "price": "INR 320",
+      "description": "Slow-cooked black lentils with butter and cream"
+    },
+    {
+      "name": "Paneer Tikka",
+      "image": "/static/assets/clint_one/paneer_tikka.jpg",
+      "price": "INR 380",
+      "description": "Grilled cottage cheese with aromatic spices"
+    }
+  ],
   "items": [
     {
-      "id": 1,
-      "name": "Perk ka Dabba",
-      "price": "&#8377;500",
-      "model": "clint_one/perk.glb",
-      "scale": "3 3 3",
-      "rotation": "0 90 45", 
-      "position": "0 0 0",
-      "auto_rotate": true,
-      "rotate_speed": 12000
-    },
-    {
-      "id": 2,
-      "name": "Casio Vintage",
-      "price": "&#8377;7999",
+      "name": "Butter Chicken",
+      "price": "INR 450",
       "model": "clint_one/casio.glb",
-      "scale": "3 3 3",
-      "rotation": "0 90 45", 
       "position": "0 0 0",
+      "scale": "2 2 2",
+      "rotation": "0 0 0",
       "auto_rotate": true,
-      "rotate_speed": 8000
+      "rotate_speed": 8000,
+      "ingredients": "Chicken, Tomatoes, Butter, Cream, Spices",
+      "category": "Main Course"
     },
     {
-      "id": 3,
-      "name": "Donut",
-      "price": "&#8377;79",
+      "name": "Paneer Tikka",
+      "price": "INR 380",
       "model": "clint_one/Donut.glb",
-      "scale": "3 3 3",
-      "rotation": "0 90 45", 
       "position": "0 0 0",
+      "scale": "0.4 0.4 0.4",
+      "rotation": "0 45 0",
       "auto_rotate": true,
-      "rotate_speed": 10000
+      "rotate_speed": 10000,
+      "ingredients": "Paneer, Bell Peppers, Onions, Yogurt, Spices",
+      "category": "Starters"
     },
     {
-      "id": 4,
-      "name": "Something",
-      "price": "&#8377;000",
-      "model": "clint_one/nonut.glb",
-      "scale": "3 3 3",
-      "rotation": "0 90 45", 
+      "name": "Dal Makhani",
+      "price": "INR 320",
+      "model": "clint_one/perk.glb",
       "position": "0 0 0",
+      "scale": "0.6 0.6 0.6",
+      "rotation": "0 0 0",
       "auto_rotate": false,
-      "rotate_speed": 10000
+      "ingredients": "Black Lentils, Kidney Beans, Butter, Cream",
+      "category": "Main Course"
     }
   ]
 }
