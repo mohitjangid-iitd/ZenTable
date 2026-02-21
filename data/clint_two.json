@@ -1,0 +1,75 @@
+{
+  "restaurant": {
+    "name": "Spice Garden",
+    "tagline": "A Journey Through Authentic Flavors",
+    "logo": "/static/assets/clint_two/logo.png",
+    "banner": "/static/assets/clint_two/banner.jpg",
+    "description": "Step into a world where every dish tells a story. Our culinary artisans bring together fresh ingredients and time-honored recipes to create memorable dining experiences.",
+    "cuisine_type": "Multi-Cuisine (Indian, Chinese, Continental)",
+    "phone": "+91 97654 32109",
+    "email": "hello@spicegarden.com",
+    "address": "456 Park Street, Kolkata, West Bengal 700016",
+    "timings": {
+      "lunch": "11:30 AM - 3:00 PM",
+      "dinner": "6:30 PM - 11:00 PM",
+      "closed": "None - Open All Week"
+    },
+    "social": {
+      "instagram": "https://instagram.com/spicegarden",
+      "facebook": "https://facebook.com/spicegarden",
+      "twitter": "https://twitter.com/spicegarden"
+    }
+  },
+  "theme": {
+    "primary_color": "#FF6B6B",
+    "secondary_color": "#2C3E50",
+    "accent_color": "#F39C12",
+    "text_color": "#2C3E50",
+    "background": "#FAFAFA",
+    "font_primary": "Merriweather",
+    "font_secondary": "Open Sans"
+  },
+  "featured_dishes": [
+    {
+      "name": "Chicken Tikka Masala",
+      "image": "/static/assets/clint_two/tikka_masala.jpg",
+      "price": "INR 420",
+      "description": "Grilled chicken in creamy tomato sauce"
+    },
+    {
+      "name": "Veg Hakka Noodles",
+      "image": "/static/assets/clint_two/noodles.jpg",
+      "price": "INR 280",
+      "description": "Indo-Chinese stir-fried noodles"
+    },
+    {
+      "name": "Mushroom Risotto",
+      "image": "/static/assets/clint_two/risotto.jpg",
+      "price": "INR 480",
+      "description": "Creamy Italian rice with mushrooms"
+    }
+  ],
+  "items": [
+    {
+      "name": "Chicken Tikka",
+      "price": "INR 420",
+      "model": "clint_two/Donut.glb",
+      "position": "0 0 0",
+      "scale": "0.45 0.45 0.45",
+      "rotation": "0 0 0",
+      "auto_rotate": true,
+      "rotate_speed": 9000,
+      "category": "Main Course"
+    },
+    {
+      "name": "Veg Noodles",
+      "price": "INR 280",
+      "model": "clint_two/Donut.glb",
+      "position": "0 0 0",
+      "scale": "0.5 0.5 0.5",
+      "rotation": "0 30 0",
+      "auto_rotate": false,
+      "category": "Chinese"
+    }
+  ]
+}
