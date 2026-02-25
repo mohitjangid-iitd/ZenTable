@@ -285,7 +285,7 @@ python-multipart>=0.0.6
 
 For issues or questions:
 - Create an issue on GitHub
-- Email: support@yourplatform.com
+- Email: mohitjangid.phs.iitd@gmail.com
 
 ## 📜 License
 
