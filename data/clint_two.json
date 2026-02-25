@@ -29,6 +29,11 @@
     "font_primary": "Merriweather",
     "font_secondary": "Open Sans"
   },
+  "staff": {
+    "owner_pin": "1234",
+    "kitchen_pin": "5678",
+    "waiter_pin": "9012"
+  },
   "items": [
     {
       "name": "Chicken Tikka Masala",

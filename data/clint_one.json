@@ -29,6 +29,11 @@
     "font_primary": "Playfair Display",
     "font_secondary": "Poppins"
   },
+  "staff": {
+    "owner_pin": "1234",
+    "kitchen_pin": "5678",
+    "waiter_pin": "9012"
+  },
   "items": [
     {
       "name": "Butter Chicken",

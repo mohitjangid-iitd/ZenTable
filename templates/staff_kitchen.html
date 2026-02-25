@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Kitchen — {{ data.restaurant.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family={{ data.theme.font_secondary.replace(' ', '+') }}:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: {{ data.theme.primary_color }};
+            --secondary: {{ data.theme.secondary_color }};
+            --font-primary: '{{ data.theme.font_primary }}', serif;
+            --font-secondary: '{{ data.theme.font_secondary }}', sans-serif;
+            --radius: 14px;
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; }
+
+        .topbar { background:var(--secondary); color:white; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+        .topbar-left { display:flex; align-items:center; gap:10px; }
+        .topbar-left img { width:34px; height:34px; border-radius:50%; object-fit:cover; }
+        .topbar h1 { font-family:var(--font-primary); font-size:1rem; }
+        .role-badge { font-size:0.7rem; background:var(--primary); color:var(--secondary); padding:3px 10px; border-radius:20px; font-weight:700; }
+        .logout-btn { background:rgba(255,255,255,0.1); border:none; color:white; padding:7px 14px; border-radius:20px; font-size:0.78rem; cursor:pointer; font-family:var(--font-secondary); }
+
+        .body { padding:16px; max-width:700px; margin:0 auto; }
+
+        .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+        .toolbar h2 { font-family:var(--font-primary); font-size:1.1rem; color:var(--secondary); }
+        .refresh-btn { padding:8px 16px; background:var(--primary); color:var(--secondary); border:none; border-radius:10px; font-family:var(--font-secondary); font-size:0.82rem; font-weight:600; cursor:pointer; }
+
+        .order-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; border-left:4px solid #ddd; }
+        .order-card.pending   { border-left-color:#ff9800; }
+        .order-card.preparing { border-left-color:#2196f3; }
+        .order-card.ready     { border-left-color:#4caf50; }
+
+        .order-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .order-table { font-size:1.1rem; font-weight:700; color:var(--secondary); }
+        .order-time { font-size:0.75rem; color:#aaa; }
+        .order-id { font-size:0.75rem; color:#bbb; }
+
+        .order-items { margin-bottom:12px; }
+        .order-item-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:0.88rem; }
+        .order-item-row:last-child { border-bottom:none; }
+        .item-name { font-weight:500; color:#333; }
+        .item-qty { font-weight:700; color:var(--primary); font-size:1rem; }
+
+        .order-foot { display:flex; justify-content:space-between; align-items:center; }
+        .order-total { font-weight:700; color:var(--secondary); }
+
+        .status-select { padding:8px 12px; border-radius:10px; border:2px solid var(--primary); font-family:var(--font-secondary); font-size:0.85rem; background:white; cursor:pointer; color:var(--secondary); font-weight:600; outline:none; }
+
+        .empty-state { text-align:center; padding:60px 20px; color:#bbb; }
+        .empty-state i { font-size:3rem; display:block; margin-bottom:12px; }
+        .empty-state p { font-size:0.9rem; }
+
+        .auto-tag { font-size:0.7rem; color:#aaa; }
+
+        #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--secondary); color:white; padding:12px 24px; border-radius:30px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.3s; white-space:nowrap; }
+        #toast.show { transform:translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-left">
+        <img src="{{ data.restaurant.logo }}" alt="logo">
+        <h1>{{ data.restaurant.name }}</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+        <span class="role-badge">KITCHEN</span>
+        <a href="/{{ client_id }}/staff" class="logout-btn">Logout</a>
+    </div>
+</div>
+
+<div class="body">
+    <div class="toolbar">
+        <h2>🔥 Live Orders</h2>
+        <button class="refresh-btn" onclick="load()"><i class="fas fa-rotate"></i> Refresh</button>
+    </div>
+    <div id="orders-list">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const clientId = "{{ client_id }}";
+
+async function load() { /* overridden below by loadWithNotif */ }
+
+async function updateStatus(orderId, status) {
+    const res = await fetch(`/api/order/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ status })
+    });
+    if (res.ok) {
+        toast(`Order #${orderId} → ${status}`);
+        if (status === 'ready') load(); // remove from list when ready
+    }
+}
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── NOTIFICATIONS ──
+let notifPermission = Notification.permission;
+let knownOrderIds = new Set();
+let firstLoad = true;
+
+async function requestNotifPermission() {
+    if (notifPermission === 'default') {
+        notifPermission = await Notification.requestPermission();
+    }
+}
+
+function sendNotif(title, body) {
+    if (notifPermission === 'granted') {
+        const n = new Notification(title, {
+            body,
+            icon: '{{ data.restaurant.logo }}',
+            badge: '{{ data.restaurant.logo }}',
+            tag: 'kitchen-order',
+            requireInteraction: true
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+    }
+}
+
+async function loadWithNotif() {
+    const res = await fetch(`/api/orders/${clientId}`);
+    const orders = await res.json();
+    const active = orders.filter(o => !['done','cancelled'].includes(o.status));
+
+    if (!firstLoad) {
+        // Check for new orders since last poll
+        const newPending = active.filter(o => o.status === 'pending' && !knownOrderIds.has(o.id));
+        if (newPending.length > 0) {
+            const tables = [...new Set(newPending.map(o => o.table_no))].join(', ');
+            sendNotif(
+                `🔥 ${newPending.length} New Order${newPending.length>1?'s':''}!`,
+                `Table${newPending.length>1?'s':''} ${tables} — tap to view`
+            );
+            // Play a beep
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.4);
+            } catch(e) {}
+        }
+    }
+
+    // Update known IDs
+    active.forEach(o => knownOrderIds.add(o.id));
+    firstLoad = false;
+
+    // Render
+    const list = document.getElementById('orders-list');
+    if (!active.length) {
+        list.innerHTML = `<div class="empty-state">
+            <i class="fas fa-check-circle" style="color:#4caf50"></i>
+            <p>No pending orders!</p>
+        </div>`;
+        return;
+    }
+    list.innerHTML = active.map(o => {
+        const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+        const time = (o.created_at || '').substring(11, 16);
+        return `<div class="order-card ${o.status}">
+            <div class="order-head">
+                <div>
+                    <div class="order-table">Table ${o.table_no}</div>
+                    <div class="order-id">#${o.id} &nbsp;·&nbsp; ${o.source}</div>
+                </div>
+                <div class="order-time">${time}</div>
+            </div>
+            <div class="order-items">
+                ${items.map(i => `
+                    <div class="order-item-row">
+                        <span class="item-name">${i.name}</span>
+                        <span class="item-qty">×${i.qty}</span>
+                    </div>`).join('')}
+            </div>
+            <div class="order-foot">
+                <div class="order-total">₹${o.total}</div>
+                <select class="status-select" onchange="updateStatus(${o.id}, this.value)">
+                    <option value="pending"   ${o.status==='pending'   ?'selected':''}>⏳ Pending</option>
+                    <option value="preparing" ${o.status==='preparing' ?'selected':''}>👨‍🍳 Preparing</option>
+                    <option value="ready"     ${o.status==='ready'     ?'selected':''}>✅ Ready</option>
+                </select>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Notif permission button
+const topbar = document.querySelector('.topbar > div:last-child');
+const notifBtn = document.createElement('button');
+notifBtn.className = 'logout-btn';
+notifBtn.id = 'notif-btn';
+notifBtn.innerHTML = '🔔 Alerts';
+notifBtn.onclick = async () => {
+    await requestNotifPermission();
+    notifBtn.innerHTML = notifPermission === 'granted' ? '🔔 On' : '🔕 Off';
+    toast(notifPermission === 'granted' ? '✅ Notifications enabled!' : '❌ Notifications blocked');
+};
+topbar.insertBefore(notifBtn, topbar.firstChild);
+if (notifPermission === 'granted') notifBtn.innerHTML = '🔔 On';
+
+// Override the old load function
+async function load() { await loadWithNotif(); }
+
+// Load on start + auto refresh every 20s
+requestNotifPermission();
+load();
+setInterval(load, 20000);
+</script>
+</body>
+</html>

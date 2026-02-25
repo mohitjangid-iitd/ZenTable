@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Waiter — {{ data.restaurant.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family={{ data.theme.font_primary.replace(' ', '+') }}:wght@400;600;700&family={{ data.theme.font_secondary.replace(' ', '+') }}:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: {{ data.theme.primary_color }};
+            --secondary: {{ data.theme.secondary_color }};
+            --font-primary: '{{ data.theme.font_primary }}', serif;
+            --font-secondary: '{{ data.theme.font_secondary }}', sans-serif;
+            --radius: 14px;
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; }
+
+        /* TOPBAR */
+        .topbar { background:var(--secondary); color:white; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+        .topbar-left { display:flex; align-items:center; gap:10px; }
+        .topbar-left img { width:34px; height:34px; border-radius:50%; object-fit:cover; }
+        .topbar h1 { font-family:var(--font-primary); font-size:1rem; }
+        .role-badge { font-size:0.7rem; background:var(--primary); color:var(--secondary); padding:3px 10px; border-radius:20px; font-weight:700; }
+        .logout-btn { background:rgba(255,255,255,0.1); border:none; color:white; padding:7px 14px; border-radius:20px; font-size:0.78rem; cursor:pointer; font-family:var(--font-secondary); text-decoration:none; }
+
+        /* TABS */
+        .tab-nav { background:white; border-bottom:1px solid #eee; display:flex; position:sticky; top:62px; z-index:99; }
+        .tab-btn { flex:1; padding:12px 8px; border:none; background:transparent; font-family:var(--font-secondary); font-size:0.82rem; font-weight:500; cursor:pointer; color:#999; border-bottom:3px solid transparent; transition:all 0.2s; }
+        .tab-btn.active { color:var(--secondary); border-bottom-color:var(--primary); font-weight:600; }
+
+        .body { padding:16px; max-width:700px; margin:0 auto; }
+
+        /* TABLES GRID */
+        .tables-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .table-box { border-radius:12px; padding:16px 8px; text-align:center; border:2px solid #eee; cursor:pointer; transition:all 0.2s; position:relative; }
+        .table-num { font-family:var(--font-primary); font-size:1.4rem; font-weight:700; }
+        .table-status { font-size:0.65rem; margin-top:4px; font-weight:600; text-transform:uppercase; }
+        .table-box.inactive { border-color:#eee; color:#ccc; }
+        .table-box.active   { border-color:#81c784; color:#2e7d32; background:#f1f8f1; }
+        .table-box.occupied { border-color:#ffb74d; color:#e65100; background:#fff8f0; }
+        .table-box.ready    { border-color:#4caf50; color:#1b5e20; background:#e8f5e9; animation:pulse 1.5s infinite; }
+        .table-box.done     { border-color:#90caf9; color:#1565c0; background:#e3f2fd; }
+        .table-box.billed   { border-color:var(--primary); color:var(--secondary); background:#fffbf0; }
+        .table-box.paid     { border-color:#bdbdbd; color:#9e9e9e; background:#fafafa; }
+        @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(76,175,80,0.3)} 50%{box-shadow:0 0 0 6px rgba(76,175,80,0)} }
+
+        .legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; font-size:0.72rem; color:#666; }
+        .legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:4px; }
+
+        /* ORDERS TAB */
+        .table-group { background:white; border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden; }
+        .table-group-head { padding:14px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #f0f0f0; }
+        .table-group-title { font-family:var(--font-primary); font-size:1rem; color:var(--secondary); }
+        .table-group-body { padding:8px 16px 14px; }
+
+        .order-row { border-radius:10px; padding:12px; margin-top:10px; border-left:4px solid #ddd; background:#fafafa; }
+        .order-row.pending   { border-left-color:#ff9800; }
+        .order-row.preparing { border-left-color:#2196f3; }
+        .order-row.ready     { border-left-color:#4caf50; background:#f1fff3; }
+        .order-row.done      { border-left-color:#9e9e9e; }
+
+        .order-row-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+        .badge { font-size:0.68rem; padding:2px 8px; border-radius:10px; font-weight:600; }
+        .badge.pending   { background:#fff3e0; color:#e65100; }
+        .badge.preparing { background:#e3f2fd; color:#1565c0; }
+        .badge.ready     { background:#e8f5e9; color:#1b5e20; }
+        .badge.done      { background:#f5f5f5; color:#616161; }
+        .badge.customer  { background:#e3f2fd; color:#1565c0; }
+        .badge.waiter    { background:#f3e5f5; color:#6a1b9a; }
+        .badge.unpaid    { background:#fff3e0; color:#e65100; }
+        .badge.paid-tag  { background:#e8f5e9; color:#2e7d32; }
+
+        .order-items-text { font-size:0.82rem; color:#555; margin-bottom:8px; }
+        .order-row-foot { display:flex; justify-content:space-between; align-items:center; }
+        .order-total-sm { font-weight:700; color:var(--primary); font-size:0.9rem; }
+        .deliver-btn { padding:6px 14px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; font-family:var(--font-secondary); }
+        .deliver-btn:active { opacity:0.8; }
+
+        .bill-btn { padding:8px 16px; background:var(--primary); color:var(--secondary); border:none; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; font-family:var(--font-secondary); }
+        .bill-tag-unpaid { font-size:0.72rem; padding:3px 10px; border-radius:10px; background:#fff3e0; color:#e65100; font-weight:600; }
+        .bill-tag-paid   { font-size:0.72rem; padding:3px 10px; border-radius:10px; background:#e8f5e9; color:#2e7d32; font-weight:600; }
+
+        /* PLACE ORDER TAB */
+        .section-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:14px; }
+        .section-head { padding:14px 16px; border-bottom:1px solid #f0f0f0; font-family:var(--font-primary); font-size:1rem; color:var(--secondary); }
+        .section-body { padding:14px 16px; }
+        .form-group { margin-bottom:12px; }
+        .form-group label { display:block; font-size:0.75rem; color:#888; margin-bottom:5px; font-weight:500; }
+        .form-group input, .form-group select { width:100%; padding:10px 12px; border:1.5px solid #eee; border-radius:10px; font-family:var(--font-secondary); font-size:0.88rem; outline:none; }
+        .form-group input:focus, .form-group select:focus { border-color:var(--primary); }
+        .menu-item-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f5f5; }
+        .menu-item-row:last-child { border-bottom:none; }
+        .item-info { flex:1; }
+        .item-info-name { font-size:0.88rem; font-weight:500; color:var(--secondary); }
+        .item-info-price { font-size:0.75rem; color:var(--primary); font-weight:600; margin-top:2px; }
+        .qty-ctrl { display:flex; align-items:center; gap:8px; }
+        .qty-btn { width:28px; height:28px; border-radius:50%; border:1.5px solid var(--primary); background:transparent; color:var(--primary); font-size:1.1rem; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; }
+        .qty-num { font-weight:700; min-width:20px; text-align:center; }
+        .submit-btn { width:100%; padding:14px; background:var(--primary); color:var(--secondary); border:none; border-radius:var(--radius); font-size:1rem; font-weight:700; cursor:pointer; font-family:var(--font-secondary); margin-top:4px; }
+
+        /* MODAL */
+        #modal { position:fixed; inset:0; z-index:300; display:none; }
+        #modal.open { display:flex; flex-direction:column; }
+        .modal-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); }
+        .modal-sheet { position:absolute; bottom:0; left:0; right:0; background:white; border-radius:24px 24px 0 0; max-height:88vh; display:flex; flex-direction:column; }
+        .modal-handle { width:40px; height:4px; background:#ddd; border-radius:2px; margin:14px auto 0; }
+        .modal-header { padding:14px 20px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #f0f0f0; }
+        .modal-title { font-family:var(--font-primary); font-size:1.1rem; color:var(--secondary); }
+        .modal-close { width:32px; height:32px; border-radius:50%; background:#f5f5f5; border:none; font-size:1rem; cursor:pointer; }
+        .modal-body { overflow-y:auto; flex:1; padding:16px 20px; }
+        .modal-footer { padding:14px 20px; border-top:1px solid #f0f0f0; display:flex; flex-direction:column; gap:10px; }
+
+        /* BILL */
+        .bill-form-row { display:flex; gap:10px; }
+        .bill-form-row .form-group { flex:1; }
+        .bill-preview { background:#fafafa; border-radius:10px; padding:16px; border:1px dashed #ddd; margin-top:4px; }
+        .bill-row { display:flex; justify-content:space-between; font-size:0.85rem; padding:4px 0; color:#555; }
+        .bill-row.total { font-weight:700; font-size:1rem; color:var(--secondary); border-top:1px solid #eee; padding-top:10px; margin-top:6px; }
+        .pay-btn { width:100%; padding:14px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:var(--radius); font-size:1rem; font-weight:700; cursor:pointer; font-family:var(--font-secondary); }
+        .cancel-btn { width:100%; padding:12px; background:#f5f5f5; color:#666; border:none; border-radius:var(--radius); font-size:0.9rem; font-weight:600; cursor:pointer; font-family:var(--font-secondary); }
+
+        /* TOOLBAR */
+        .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+        .toolbar h2 { font-family:var(--font-primary); font-size:1.05rem; color:var(--secondary); }
+        .refresh-sm { padding:7px 14px; background:var(--primary); color:var(--secondary); border:none; border-radius:10px; font-size:0.78rem; font-weight:600; cursor:pointer; font-family:var(--font-secondary); }
+
+        .filter-pill { flex-shrink:0; padding:7px 16px; border-radius:20px; border:1.5px solid #ddd; background:white; font-family:var(--font-secondary); font-size:0.8rem; font-weight:500; cursor:pointer; color:#666; white-space:nowrap; }
+        .filter-pill.active { background:var(--secondary); color:white; border-color:var(--secondary); }
+
+        .empty-state { text-align:center; padding:40px 20px; color:#bbb; }
+        .empty-state i { font-size:2.5rem; display:block; margin-bottom:10px; }
+
+        #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--secondary); color:white; padding:12px 24px; border-radius:30px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.3s; white-space:nowrap; }
+        #toast.show { transform:translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-left">
+        <img src="{{ data.restaurant.logo }}" alt="logo">
+        <h1>{{ data.restaurant.name }}</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+        <span class="role-badge">WAITER</span>
+        <a href="/{{ client_id }}/staff" class="logout-btn">Logout</a>
+    </div>
+</div>
+
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('tables', this)">🪑 Tables</button>
+    <button class="tab-btn" onclick="switchTab('orders', this)">📋 Orders</button>
+    <button class="tab-btn" onclick="switchTab('place', this)">➕ Place Order</button>
+</div>
+
+<div class="body">
+
+    <!-- TABLES TAB -->
+    <div id="tab-tables">
+        <div class="legend">
+            <span><span class="legend-dot" style="background:#81c784"></span>Active</span>
+            <span><span class="legend-dot" style="background:#ffb74d"></span>Pending</span>
+            <span><span class="legend-dot" style="background:#4caf50"></span>Ready ✨</span>
+            <span><span class="legend-dot" style="background:#90caf9"></span>Delivered</span>
+            <span><span class="legend-dot" style="background:var(--primary)"></span>Billed</span>
+            <span><span class="legend-dot" style="background:#bdbdbd"></span>Paid</span>
+        </div>
+        <div class="tables-grid" id="tables-grid">
+            <div style="grid-column:span 3;text-align:center;padding:30px;color:#bbb">Loading...</div>
+        </div>
+    </div>
+
+    <!-- ORDERS TAB -->
+    <div id="tab-orders" style="display:none">
+        <div class="toolbar">
+            <h2>Orders</h2>
+            <button class="refresh-sm" onclick="loadOrders()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px">
+            <button class="filter-pill active" onclick="setFilter('active', this)">🔥 Active</button>
+            <button class="filter-pill" onclick="setFilter('ready', this)">✅ Ready</button>
+            <button class="filter-pill" onclick="setFilter('done', this)">📦 Delivered</button>
+            <button class="filter-pill" onclick="setFilter('billed', this)">🧾 Billed</button>
+            <button class="filter-pill" onclick="setFilter('paid', this)">💚 Paid Today</button>
+        </div>
+        <div id="orders-list">
+            <div class="empty-state"><i class="fas fa-receipt"></i>Loading...</div>
+        </div>
+    </div>
+
+    <!-- PLACE ORDER TAB -->
+    <div id="tab-place" style="display:none">
+        <div class="section-card">
+            <div class="section-head">Place Order</div>
+            <div class="section-body">
+                <div class="form-group">
+                    <label>Table Number</label>
+                    <input type="number" id="wo-table" placeholder="e.g. 2" min="1">
+                </div>
+                <div id="menu-items-list"></div>
+                <button class="submit-btn" onclick="placeOrder()">
+                    <i class="fas fa-paper-plane"></i> Place Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TABLE ACTION MODAL -->
+<div id="modal">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <div class="modal-title" id="modal-title">Table</div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer" id="modal-footer"></div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const clientId = "{{ client_id }}";
+const menuItems = {{ data['items'] | tojson }};
+const waiterQtys = {};
+let pendingBillId = null;
+
+// ── TABS ──
+function switchTab(tab, btn) {
+    ['tables','orders','place'].forEach(t => {
+        document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+    });
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (tab === 'tables') loadTables();
+    if (tab === 'orders') loadOrders();
+    if (tab === 'place')  renderMenu();
+}
+
+// ── TABLES ──
+async function loadTables() {
+    const res = await fetch(`/api/tables/${clientId}/summary`);
+    const tables = await res.json();
+    const map = {};
+    tables.forEach(t => map[t.table_no] = t);
+
+    const grid = document.getElementById('tables-grid');
+    const labels = { inactive:'Inactive', active:'Active', occupied:'Pending',
+                     ready:'Ready', done:'Delivered', billed:'Billed', paid:'Paid' };
+    grid.innerHTML = Array.from({length:6}, (_, i) => {
+        const n = i + 1;
+        const t = map[n];
+        const ds = t ? t.display_status : 'inactive';
+        return `<div class="table-box ${ds}" onclick="openModal(${n})">
+            <div class="table-num">T${n}</div>
+            <div class="table-status">${labels[ds]||ds}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── ORDERS ──
+let currentFilter = 'active';
+
+function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadOrders();
+}
+
+async function loadOrders() {
+    const [ordersRes, summaryRes] = await Promise.all([
+        fetch(`/api/orders/${clientId}`),
+        fetch(`/api/tables/${clientId}/summary`)
+    ]);
+    const all     = await ordersRes.json();
+    const summary = await summaryRes.json();
+
+    const tMap = {};
+    summary.forEach(t => tMap[String(t.table_no)] = t);
+
+    const list = document.getElementById('orders-list');
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // ── Apply filter ──
+    let filtered = all.filter(o => o.status !== 'cancelled');
+
+    if (currentFilter === 'active') {
+        // Active = pending + preparing + ready (sab jo kitchen mein hain)
+        filtered = filtered.filter(o => ['pending','preparing','ready'].includes(o.status));
+
+    } else if (currentFilter === 'ready') {
+        // Ready = kitchen done, waiter needs to serve
+        filtered = filtered.filter(o => o.status === 'ready');
+
+    } else if (currentFilter === 'done') {
+        // Delivered = sirf wahi done orders jo abhi tak paid nahi hue
+        // summary mein unpaid_done_ids aata hai per table
+        const unpaidDoneSet = new Set();
+        summary.forEach(t => {
+            if (t.display_status === 'done' && t.unpaid_done_ids) {
+                t.unpaid_done_ids.forEach(id => unpaidDoneSet.add(id));
+            }
+        });
+        filtered = filtered.filter(o => unpaidDoneSet.has(o.id));
+
+    } else if (currentFilter === 'billed') {
+        // Billed = sirf wahi orders jo current unpaid bill mein hain
+        const billedOrderSet = new Set();
+        summary.forEach(t => {
+            if (t.display_status === 'billed' && t.billed_order_ids) {
+                t.billed_order_ids.forEach(id => billedOrderSet.add(id));
+            }
+        });
+        filtered = filtered.filter(o => billedOrderSet.has(o.id));
+
+    } else if (currentFilter === 'paid') {
+        // Paid today = tables jinke bills aaj paid hue
+        // Bills API se check karo — display_status 'paid' ya table jo aaj paid hua
+        const paidTodayTables = new Set(
+            summary.filter(t => {
+                // Table ka payment_status paid ho
+                return t.payment_status === 'paid';
+            }).map(t => String(t.table_no))
+        );
+        filtered = filtered.filter(o => {
+            const created = (o.created_at || '').substring(0, 10);
+            return paidTodayTables.has(String(o.table_no)) && created === today;
+        });
+    }
+
+    // Group by table
+    const byTable = {};
+    filtered.forEach(o => {
+        const key = String(o.table_no);
+        if (!byTable[key]) byTable[key] = [];
+        byTable[key].push(o);
+    });
+
+    if (!Object.keys(byTable).length) {
+        const emptyMsg = {
+            active:    'Koi active order nahi',
+            ready:     'Koi order ready nahi',
+            done:      'Koi delivered order nahi',
+            billed:    'Koi billed table nahi',
+            paid:      'Aaj koi paid table nahi',
+        };
+        list.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#4caf50"></i><p>${emptyMsg[currentFilter]||'Koi order nahi'}</p></div>`;
+        return;
+    }
+
+    let html = '';
+    for (const [tableNo, orders] of Object.entries(byTable)) {
+        const tInfo = tMap[tableNo] || {};
+        const ds    = tInfo.display_status || 'occupied';
+
+        // ── Right side badge/button per filter ──
+        let rightEl = '';
+
+        if (currentFilter === 'active') {
+            // Show count
+            rightEl = `<span style="font-size:0.75rem;color:#888">${orders.length} order${orders.length>1?'s':''}</span>`;
+
+        } else if (currentFilter === 'ready') {
+            // No extra button — deliver buttons are on each order row
+
+        } else if (currentFilter === 'done') {
+            // All done orders for this table — show "Generate Bill" button
+            const doneTotal = orders.reduce((s,o) => s + o.total, 0);
+            rightEl = `<button class="bill-btn" onclick="closeModal && closeModal(); openBillingSheet(${tableNo}, ${doneTotal})">
+                Bill ₹${doneTotal}</button>`;
+
+        } else if (currentFilter === 'billed') {
+            const tSum = tMap[tableNo] || {};
+            const billId = tSum.bill_id;
+            const billTotal = tSum.bill_total;
+            rightEl = `
+                <div style="display:flex;align-items:center;gap:8px">
+                    <select id="pay-mode-${tableNo}" style="padding:6px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.78rem;outline:none;font-family:var(--font-secondary)">
+                        <option value="cash">💵 Cash</option>
+                        <option value="upi">📱 UPI</option>
+                        <option value="card">💳 Card</option>
+                    </select>
+                    <button class="pay-btn" style="padding:7px 14px;font-size:0.8rem;border-radius:8px;white-space:nowrap"
+                        onclick="markPaidFromList(${billId}, ${tableNo})">
+                        ✅ Pay ₹${billTotal}
+                    </button>
+                </div>`;
+
+        } else if (currentFilter === 'paid') {
+            rightEl = `<span class="bill-tag-paid">✅ PAID</span>`;
+        }
+
+        html += `<div class="table-group">
+            <div class="table-group-head">
+                <div class="table-group-title">Table ${tableNo}</div>
+                ${rightEl}
+            </div>
+            <div class="table-group-body">
+            ${orders.map(o => {
+                const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+                const itemsText = items.map(i => `${i.name} ×${i.qty}`).join(', ');
+                const canDeliver = o.status === 'ready';
+                // For active filter show pending/preparing badge color
+                const badgeClass = o.status === 'pending' ? 'badge-pending' : o.status === 'preparing' ? 'badge-preparing' : o.status;
+                return `<div class="order-row ${o.status}">
+                    <div class="order-row-top">
+                        <div style="display:flex;gap:5px">
+                            <span class="badge ${o.status}">${o.status}</span>
+                            <span class="badge ${o.source}">${o.source}</span>
+                        </div>
+                        <span style="font-size:0.72rem;color:#bbb">${(o.created_at||'').substring(11,16)}</span>
+                    </div>
+                    <div class="order-items-text">${itemsText}</div>
+                    <div class="order-row-foot">
+                        <span class="order-total-sm">₹${o.total}</span>
+                        ${canDeliver
+                            ? `<button class="deliver-btn" onclick="markDelivered(${o.id})">✓ Delivered</button>`
+                            : ''}
+                    </div>
+                </div>`;
+            }).join('')}
+            </div>
+        </div>`;
+    }
+    list.innerHTML = html;
+}
+
+async function markDelivered(orderId) {
+    const res = await fetch(`/api/order/${orderId}/status`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status: 'done' })
+    });
+    if (res.ok) {
+        toast('✅ Delivered!');
+        await loadOrders();
+        loadTables();
+    }
+}
+
+// ── TABLE MODAL ──
+async function openModal(tableNo) {
+    document.getElementById('modal-title').textContent = `Table ${tableNo}`;
+    document.getElementById('modal-body').innerHTML = '<div style="text-align:center;padding:20px;color:#bbb"><i class="fas fa-spinner fa-spin"></i></div>';
+    document.getElementById('modal-footer').innerHTML = '';
+    document.getElementById('modal').classList.add('open');
+
+    const [summaryRes, detailRes] = await Promise.all([
+        fetch(`/api/tables/${clientId}/summary`),
+        fetch(`/api/table/${clientId}/${tableNo}/detail`)
+    ]);
+    const summary = await summaryRes.json();
+    const detail  = await detailRes.json();
+
+    const tInfo  = summary.find(t => t.table_no === tableNo) || {};
+    const ds     = tInfo.display_status || 'inactive';
+    const orders = detail.orders || [];
+    const bills  = detail.bills  || [];
+
+    // ── Modal body — current session orders ──
+    let bodyHtml = '';
+    const activeOrders = orders.filter(o => o.status !== 'cancelled');
+
+    if (!activeOrders.length) {
+        bodyHtml = '<div class="empty-state" style="padding:20px"><i class="fas fa-utensils"></i><p>Is session mein koi order nahi</p></div>';
+    } else {
+        // Group orders by status for clarity
+        const statusOrder = ['pending','preparing','ready','done'];
+        const sorted = [...activeOrders].sort((a,b) =>
+            statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
+        );
+
+        bodyHtml = sorted.map(o => {
+            const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+            const statusEmoji = { pending:'⏳', preparing:'👨‍🍳', ready:'✅', done:'📦' }[o.status] || '';
+            return `<div class="order-row ${o.status}" style="margin-bottom:10px">
+                <div class="order-row-top">
+                    <div style="display:flex;gap:5px;align-items:center">
+                        <span class="badge ${o.status}">${statusEmoji} ${o.status}</span>
+                        <span class="badge ${o.source}">${o.source}</span>
+                    </div>
+                    <span style="font-size:0.72rem;color:#bbb">${(o.created_at||'').substring(11,16)}</span>
+                </div>
+                <div class="order-items-text" style="margin:6px 0">
+                    ${items.map(i=>`${i.name} ×${i.qty}`).join(', ')}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span class="order-total-sm">₹${o.total}</span>
+                    ${o.status === 'ready'
+                        ? `<button class="deliver-btn" onclick="markDelivered(${o.id});openModal(${tableNo})">✓ Delivered</button>`
+                        : ''}
+                </div>
+            </div>`;
+        }).join('');
+
+        // Show current session bill if exists
+        if (bills.length) {
+            bodyHtml += `<div style="font-size:0.75rem;font-weight:600;color:#999;margin:14px 0 8px;text-transform:uppercase;letter-spacing:0.5px">Bill</div>`;
+            bodyHtml += bills.map(b => `
+                <div style="background:#fafafa;border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-weight:600;font-size:0.9rem">Bill #${b.id} — ₹${b.total}</div>
+                        <div style="font-size:0.72rem;color:#aaa;margin-top:2px">${(b.created_at||'').substring(0,16)}</div>
+                    </div>
+                    <span class="${b.payment_status==='paid'?'bill-tag-paid':'bill-tag-unpaid'}">
+                        ${b.payment_status === 'paid' ? '✅ PAID' : '⏳ UNPAID'}</span>
+                </div>`).join('');
+        }
+    }
+    document.getElementById('modal-body').innerHTML = bodyHtml;
+
+    // ── Footer actions based on display_status ──
+    const footer = document.getElementById('modal-footer');
+
+    if (ds === 'inactive') {
+        footer.innerHTML = `<button class="submit-btn" onclick="activateTable(${tableNo})">✅ Activate Table</button>`;
+
+    } else if (ds === 'active') {
+        // Active but no orders — can close
+        footer.innerHTML = `<button class="cancel-btn" onclick="closeTable(${tableNo})">Close Table</button>`;
+
+    } else if (ds === 'occupied' || ds === 'ready') {
+        // Orders in progress — show info, waiter can't bill yet
+        const readyCount = activeOrders.filter(o => o.status === 'ready').length;
+        if (readyCount > 0) {
+            footer.innerHTML = `<div style="text-align:center;font-size:0.85rem;color:#2e7d32;font-weight:600">
+                ${readyCount} order${readyCount>1?'s':''} ready to serve! ✅</div>`;
+        } else {
+            footer.innerHTML = `<div style="text-align:center;font-size:0.82rem;color:#999">Kitchen mein hai... wait karo</div>`;
+        }
+
+    } else if (ds === 'done') {
+        // All delivered, not yet billed
+        const doneTotal = activeOrders.reduce((s,o) => s + o.total, 0);
+        footer.innerHTML = `<button class="submit-btn" onclick="closeModal(); openBillingSheet(${tableNo}, ${doneTotal})">
+            🧾 Generate Bill — ₹${doneTotal}</button>`;
+
+    } else if (ds === 'billed') {
+        const unpaid = bills.find(b => b.payment_status === 'unpaid');
+        if (unpaid) {
+            footer.innerHTML = `
+                <div class="form-group" style="margin-bottom:10px">
+                    <label>Payment Mode</label>
+                    <select id="modal-pay-mode" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none">
+                        <option value="cash">💵 Cash</option>
+                        <option value="upi">📱 UPI</option>
+                        <option value="card">💳 Card</option>
+                    </select>
+                </div>
+                <button class="pay-btn" onclick="markPaid(${unpaid.id}, ${tableNo})">
+                    ✅ Mark as Paid — ₹${unpaid.total}</button>`;
+        }
+
+    } else if (ds === 'paid') {
+        footer.innerHTML = `<button class="submit-btn" onclick="clearTable(${tableNo})">🔄 Clear & New Session</button>`;
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+}
+
+async function activateTable(tableNo) {
+    await fetch(`/api/table/${clientId}/${tableNo}/activate`, { method:'POST' });
+    toast(`✅ Table ${tableNo} activated`);
+    closeModal(); loadTables();
+}
+
+async function closeTable(tableNo) {
+    if (!confirm(`Close Table ${tableNo}?`)) return;
+    await fetch(`/api/table/${clientId}/${tableNo}/close`, { method:'POST' });
+    toast(`Table ${tableNo} closed`);
+    closeModal(); loadTables();
+}
+
+async function clearTable(tableNo) {
+    if (!confirm(`Clear Table ${tableNo} and mark as Active?`)) return;
+    // Activate directly — this resets the table for new customers
+    await fetch(`/api/table/${clientId}/${tableNo}/activate`, { method:'POST' });
+    toast(`✅ Table ${tableNo} cleared and active!`);
+    closeModal();
+    await loadTables();
+}
+
+async function markPaid(billId, tableNo) {
+    const modeEl = document.getElementById('modal-pay-mode');
+    const mode = modeEl ? modeEl.value : 'cash';
+    const res = await fetch(`/api/bill/${billId}/pay`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ payment_mode: mode })
+    });
+    if (res.ok) {
+        toast('✅ Payment received!');
+        closeModal();
+        await loadTables();
+        loadOrders();
+    } else {
+        const err = await res.json().catch(() => ({}));
+        const errMsg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        toast('❌ ' + (errMsg || 'Payment failed'));
+    }
+}
+
+// Orders tab ke billed section se direct payment
+async function markPaidFromList(billId, tableNo) {
+    const modeEl = document.getElementById(`pay-mode-${tableNo}`);
+    const mode = modeEl ? modeEl.value : 'cash';
+    const res = await fetch(`/api/bill/${billId}/pay`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ payment_mode: mode })
+    });
+    if (res.ok) {
+        toast(`✅ Table ${tableNo} — Payment received!`);
+        await loadTables();
+        loadOrders();
+    } else {
+        const err = await res.json().catch(() => ({}));
+        toast('❌ ' + (err.detail || 'Payment failed'));
+    }
+}
+
+// ── BILLING SHEET ──
+function openBillingSheet(tableNo, estimatedTotal) {
+    const sheet = document.createElement('div');
+    sheet.id = 'bill-sheet';
+    sheet.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;display:flex;align-items:flex-end';
+    sheet.innerHTML = `
+        <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px;max-height:85vh;overflow-y:auto">
+            <div style="font-family:var(--font-primary);font-size:1.1rem;color:var(--secondary);margin-bottom:18px">
+                Bill — Table ${tableNo}</div>
+            <div class="bill-form-row">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="bf-name" placeholder="Optional">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="bf-phone" placeholder="Optional">
+                </div>
+            </div>
+            <div class="bill-form-row">
+                <div class="form-group">
+                    <label>Tax %</label>
+                    <input type="number" id="bf-tax" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Discount ₹</label>
+                    <input type="number" id="bf-discount" value="0" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Mode</label>
+                <select id="bf-mode">
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="card">Card</option>
+                </select>
+            </div>
+            <div id="bf-preview" style="display:none" class="bill-preview"></div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+                <button id="bf-gen-btn" class="submit-btn" onclick="generateBill(${tableNo})">Generate Bill</button>
+                <button id="bf-pay-btn" class="pay-btn" style="display:none" onclick="payBill(${tableNo})">✅ Mark as Paid</button>
+                <button class="cancel-btn" onclick="document.getElementById('bill-sheet').remove()">Cancel</button>
+            </div>
+        </div>`;
+    document.body.appendChild(sheet);
+}
+
+async function generateBill(tableNo) {
+    const body = {
+        customer_name:  document.getElementById('bf-name').value    || null,
+        customer_phone: document.getElementById('bf-phone').value   || null,
+        tax_percent:    parseFloat(document.getElementById('bf-tax').value)    || 0,
+        discount:       parseInt(document.getElementById('bf-discount').value) || 0,
+        payment_mode:   document.getElementById('bf-mode').value
+    };
+    const res = await fetch(`/api/bill/${clientId}/${tableNo}`, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        toast('❌ ' + (err.detail || 'Error')); return;
+    }
+    const bill = await res.json();
+    pendingBillId = bill.bill_id;
+
+    const orders = bill.orders || [];
+    const itemLines = orders.flatMap(o => {
+        const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+        return items.map(i => `<div class="bill-row"><span>${i.name} ×${i.qty}</span><span>₹${i.price*i.qty}</span></div>`);
+    }).join('');
+
+    const preview = document.getElementById('bf-preview');
+    preview.style.display = 'block';
+    preview.innerHTML = `
+        ${bill.customer_name?`<div class="bill-row"><span>Customer</span><span>${bill.customer_name}</span></div>`:''}
+        <div style="border-top:1px dashed #ddd;margin:8px 0"></div>
+        ${itemLines}
+        <div class="bill-row"><span>Subtotal</span><span>₹${bill.subtotal}</span></div>
+        ${bill.tax?`<div class="bill-row"><span>Tax</span><span>₹${bill.tax}</span></div>`:''}
+        ${bill.discount?`<div class="bill-row"><span>Discount</span><span>−₹${bill.discount}</span></div>`:''}
+        <div class="bill-row total"><span>Total</span><span>₹${bill.total}</span></div>`;
+
+    document.getElementById('bf-gen-btn').style.display = 'none';
+    document.getElementById('bf-pay-btn').style.display = 'block';
+    toast('✅ Bill generated!');
+    loadTables();
+}
+
+async function payBill(tableNo) {
+    if (!pendingBillId) return;
+    const mode = document.getElementById('bf-mode').value;
+    const res = await fetch(`/api/bill/${pendingBillId}/pay`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ payment_mode: mode })
+    });
+    if (res.ok) {
+        toast('✅ Payment received!');
+        pendingBillId = null;
+        document.getElementById('bill-sheet').remove();
+        await loadTables();
+        loadOrders();
+    }
+}
+
+// ── PLACE ORDER ──
+function renderMenu() {
+    const wrap = document.getElementById('menu-items-list');
+    wrap.innerHTML = menuItems.map((item, i) => `
+        <div class="menu-item-row">
+            <div class="item-info">
+                <div class="item-info-name">${item.name}</div>
+                <div class="item-info-price">${item.price}</div>
+            </div>
+            <div class="qty-ctrl">
+                <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+                <span class="qty-num" id="qty-${i}">0</span>
+                <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+            </div>
+        </div>`).join('');
+}
+
+function changeQty(i, delta) {
+    waiterQtys[i] = Math.max(0, (waiterQtys[i] || 0) + delta);
+    document.getElementById(`qty-${i}`).textContent = waiterQtys[i];
+}
+
+async function placeOrder() {
+    const tableNo = parseInt(document.getElementById('wo-table').value);
+    if (!tableNo) { toast('Table number bharo'); return; }
+    const items = menuItems
+        .map((item, i) => ({ name: item.name, qty: waiterQtys[i]||0, price: parsePrice(item.price) }))
+        .filter(i => i.qty > 0);
+    if (!items.length) { toast('Koi item select karo'); return; }
+    const total = items.reduce((s,i) => s + i.qty*i.price, 0);
+
+    const res = await fetch(`/api/order/${clientId}/${tableNo}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ items, total, source:'waiter' })
+    });
+    if (res.ok) {
+        toast('✅ Order placed!');
+        Object.keys(waiterQtys).forEach(k => waiterQtys[k] = 0);
+        document.querySelectorAll('[id^="qty-"]').forEach(el => el.textContent = '0');
+        document.getElementById('wo-table').value = '';
+        loadTables();
+    } else {
+        const err = await res.json();
+        toast('❌ ' + (err.detail||'Error'));
+    }
+}
+
+// ── HELPERS ──
+function parsePrice(p) { return parseInt(String(p).replace(/[^0-9]/g,'')) || 0; }
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Init + auto-refresh
+loadTables();
+setInterval(loadTables, 15000);
+setInterval(() => {
+    if (document.getElementById('tab-orders').style.display !== 'none') loadOrders();
+}, 15000);
+</script>
+</body>
+</html>

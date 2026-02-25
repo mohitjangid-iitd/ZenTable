@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Owner — {{ data.restaurant.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family={{ data.theme.font_primary.replace(' ', '+') }}:wght@400;600;700&family={{ data.theme.font_secondary.replace(' ', '+') }}:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: {{ data.theme.primary_color }};
+            --secondary: {{ data.theme.secondary_color }};
+            --font-primary: '{{ data.theme.font_primary }}', serif;
+            --font-secondary: '{{ data.theme.font_secondary }}', sans-serif;
+            --radius: 14px;
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; }
+
+        .topbar { background:var(--secondary); color:white; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+        .topbar-left { display:flex; align-items:center; gap:10px; }
+        .topbar-left img { width:34px; height:34px; border-radius:50%; object-fit:cover; }
+        .topbar h1 { font-family:var(--font-primary); font-size:1rem; }
+        .role-badge { font-size:0.7rem; background:var(--primary); color:var(--secondary); padding:3px 10px; border-radius:20px; font-weight:700; }
+        .logout-btn { background:rgba(255,255,255,0.1); border:none; color:white; padding:7px 14px; border-radius:20px; font-size:0.78rem; cursor:pointer; font-family:var(--font-secondary); text-decoration:none; }
+
+        .tab-nav { background:white; border-bottom:1px solid #eee; display:flex; overflow-x:auto; scrollbar-width:none; position:sticky; top:62px; z-index:99; }
+        .tab-nav::-webkit-scrollbar { display:none; }
+        .tab-btn { flex:1; min-width:80px; padding:12px 8px; border:none; background:transparent; font-family:var(--font-secondary); font-size:0.8rem; font-weight:500; cursor:pointer; color:#999; border-bottom:3px solid transparent; white-space:nowrap; }
+        .tab-btn.active { color:var(--secondary); border-bottom-color:var(--primary); font-weight:700; }
+
+        .body { padding:16px; max-width:760px; margin:0 auto; }
+
+        .date-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+        .date-label { font-size:0.78rem; color:#999; }
+        .refresh-btn { padding:7px 14px; background:var(--primary); color:var(--secondary); border:none; border-radius:10px; font-family:var(--font-secondary); font-size:0.78rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; }
+
+        .stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px; }
+        .stat-card { background:white; border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+        .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--primary); }
+        .stat-card.alt::before { background:var(--secondary); }
+        .stat-icon { font-size:1.4rem; margin-bottom:8px; }
+        .stat-val { font-family:var(--font-primary); font-size:1.7rem; font-weight:700; color:var(--secondary); line-height:1; }
+        .stat-label { font-size:0.72rem; color:#999; margin-top:4px; }
+        .stat-change { font-size:0.7rem; margin-top:6px; font-weight:600; }
+        .stat-change .up   { color:#2e7d32; }
+        .stat-change .down { color:#c62828; }
+        .stat-change .flat { color:#999; }
+
+        .section-hd { font-family:var(--font-primary); font-size:0.95rem; color:var(--secondary); margin:18px 0 10px; display:flex; align-items:center; gap:8px; }
+        .section-hd::after { content:''; flex:1; height:1px; background:#e8e8e8; }
+
+        .chart-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:14px; }
+
+        .items-list { background:white; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:14px; }
+        .item-row { display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid #f5f5f5; }
+        .item-row:last-child { border-bottom:none; }
+        .item-rank { width:22px; height:22px; border-radius:50%; background:var(--secondary); color:white; font-size:0.68rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .item-rank.gold   { background:#D4AF37; color:#fff; }
+        .item-rank.silver { background:#9e9e9e; color:#fff; }
+        .item-rank.bronze { background:#cd7f32; color:#fff; }
+        .item-name { flex:1; font-size:0.86rem; font-weight:500; color:#333; }
+        .item-qty  { font-size:0.78rem; color:#888; }
+        .item-rev  { font-size:0.82rem; font-weight:700; color:var(--primary); min-width:60px; text-align:right; }
+        .bar-wrap  { width:70px; background:#f0f0f0; border-radius:4px; height:5px; overflow:hidden; }
+        .bar-fill  { height:5px; border-radius:4px; background:var(--primary); }
+
+        .pay-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+        .pay-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; text-align:center; }
+        .pay-icon { font-size:1.5rem; margin-bottom:6px; }
+        .pay-val  { font-family:var(--font-primary); font-size:1.2rem; font-weight:700; color:var(--secondary); }
+        .pay-label { font-size:0.68rem; color:#999; margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
+        .pay-cnt   { font-size:0.72rem; color:var(--primary); font-weight:600; margin-top:2px; }
+
+        .source-bar-box { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; margin-bottom:14px; }
+        .source-bar-title { font-size:0.78rem; color:#999; margin-bottom:10px; font-weight:600; }
+        .split-bar { height:10px; border-radius:6px; overflow:hidden; display:flex; margin-bottom:8px; }
+        .split-customer { background:#2196f3; transition:width 0.5s ease; }
+        .split-waiter   { background:#9c27b0; transition:width 0.5s ease; }
+        .split-legend { display:flex; gap:16px; font-size:0.72rem; color:#666; }
+        .legend-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
+
+        .filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .filter-sel { padding:8px 12px; border-radius:10px; border:1.5px solid #eee; font-family:var(--font-secondary); font-size:0.82rem; background:white; outline:none; }
+        .filter-sel:focus { border-color:var(--primary); }
+
+        .order-card { background:white; border-radius:10px; padding:14px; margin-bottom:10px; border-left:4px solid #ddd; box-shadow:var(--shadow); }
+        .order-card.pending   { border-left-color:#ff9800; }
+        .order-card.preparing { border-left-color:#2196f3; }
+        .order-card.ready     { border-left-color:#4caf50; }
+        .order-card.done      { border-left-color:#9e9e9e; }
+        .order-card.cancelled { border-left-color:#ef5350; opacity:0.6; }
+        .order-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+        .badges { display:flex; gap:5px; flex-wrap:wrap; }
+        .badge { font-size:0.68rem; padding:2px 8px; border-radius:10px; font-weight:600; }
+        .badge.status-pending   { background:#fff3e0; color:#e65100; }
+        .badge.status-preparing { background:#e3f2fd; color:#1565c0; }
+        .badge.status-ready     { background:#e8f5e9; color:#1b5e20; }
+        .badge.status-done      { background:#f5f5f5; color:#616161; }
+        .badge.status-cancelled { background:#ffebee; color:#c62828; }
+        .badge.src-customer { background:#e3f2fd; color:#1565c0; }
+        .badge.src-waiter   { background:#f3e5f5; color:#6a1b9a; }
+        .badge.pay-paid   { background:#e8f5e9; color:#2e7d32; }
+        .badge.pay-billed { background:#fff3e0; color:#e65100; }
+        .order-meta { font-size:0.72rem; color:#bbb; text-align:right; }
+        .order-items-text { font-size:0.82rem; color:#555; margin:6px 0; }
+        .order-foot { display:flex; justify-content:space-between; }
+        .order-total { font-weight:700; color:var(--primary); }
+
+        .tables-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .table-box { border-radius:10px; padding:14px 8px; text-align:center; border:2px solid #eee; background:white; }
+        .table-num { font-family:var(--font-primary); font-size:1.3rem; font-weight:700; }
+        .table-status { font-size:0.65rem; margin-top:4px; font-weight:600; text-transform:uppercase; }
+        .table-orders { font-size:0.65rem; color:#bbb; margin-top:3px; }
+        .table-box.inactive { border-color:#eee; color:#ccc; }
+        .table-box.active   { border-color:#81c784; color:#2e7d32; background:#f1f8f1; }
+        .table-box.occupied { border-color:#ffb74d; color:#e65100; background:#fff8f0; }
+        .table-box.ready    { border-color:#4caf50; color:#1b5e20; background:#e8f5e9; }
+        .table-box.done     { border-color:#90caf9; color:#1565c0; background:#e3f2fd; }
+        .table-box.billed   { border-color:var(--primary); color:var(--secondary); background:#fffbf0; }
+        .table-box.paid     { border-color:#bdbdbd; color:#9e9e9e; background:#fafafa; }
+
+        .group-label { font-size:0.72rem; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; margin-top:4px; }
+
+        .empty-state { text-align:center; padding:40px 20px; color:#bbb; }
+        .empty-state i { font-size:2.5rem; display:block; margin-bottom:12px; }
+
+        #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--secondary); color:white; padding:12px 24px; border-radius:30px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.3s; white-space:nowrap; }
+        #toast.show { transform:translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-left">
+        <img src="{{ data.restaurant.logo }}" alt="logo">
+        <h1>{{ data.restaurant.name }}</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+        <span class="role-badge">OWNER</span>
+        <a href="/{{ client_id }}/staff" class="logout-btn">Logout</a>
+    </div>
+</div>
+
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
+    <button class="tab-btn" onclick="switchTab('analytics',this)">📈 Analytics</button>
+    <button class="tab-btn" onclick="switchTab('orders',this)">🧾 Orders</button>
+    <button class="tab-btn" onclick="switchTab('tables',this)">🪑 Tables</button>
+</div>
+
+<div class="body">
+
+    <!-- OVERVIEW -->
+    <div id="tab-overview">
+        <div class="date-row">
+            <span class="date-label" id="today-label"></span>
+            <button class="refresh-btn" onclick="loadAll()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+
+        <div class="group-label">Today</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">🛒</div>
+                <div class="stat-val" id="s-today-orders">—</div>
+                <div class="stat-label">Orders Today</div>
+                <div class="stat-change" id="s-today-orders-chg"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-val" id="s-today-rev">—</div>
+                <div class="stat-label">Revenue Today</div>
+                <div class="stat-change" id="s-today-rev-chg"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🧾</div>
+                <div class="stat-val" id="s-today-avg">—</div>
+                <div class="stat-label">Avg Order Value</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-val" id="s-pending">—</div>
+                <div class="stat-label">Pending Now</div>
+            </div>
+        </div>
+
+        <div class="group-label">All Time</div>
+        <div class="stats-grid">
+            <div class="stat-card alt">
+                <div class="stat-icon">📦</div>
+                <div class="stat-val" id="s-alltime-orders">—</div>
+                <div class="stat-label">Total Orders</div>
+            </div>
+            <div class="stat-card alt">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-val" id="s-alltime-rev">—</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+        </div>
+
+        <div class="section-hd">🕐 Orders by Hour — Today</div>
+        <div class="chart-card">
+            <div style="position:relative;height:160px">
+                <canvas id="chart-hourly"></canvas>
+            </div>
+        </div>
+
+        <div class="section-hd">📱 Order Sources — Today</div>
+        <div class="source-bar-box">
+            <div class="source-bar-title">Customer app vs Waiter-placed</div>
+            <div class="split-bar">
+                <div class="split-customer" id="split-c" style="width:50%"></div>
+                <div class="split-waiter"   id="split-w" style="width:50%"></div>
+            </div>
+            <div class="split-legend">
+                <span><span class="legend-dot" style="background:#2196f3"></span><span id="split-c-lbl">Customer: —</span></span>
+                <span><span class="legend-dot" style="background:#9c27b0"></span><span id="split-w-lbl">Waiter: —</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="tab-analytics" style="display:none">
+        <div class="date-row">
+            <span class="date-label">Last 7 Days + All Time</span>
+            <button class="refresh-btn" onclick="loadAll()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+
+        <div class="section-hd">📅 Daily Revenue — Last 7 Days</div>
+        <div class="chart-card">
+            <div style="position:relative;height:180px">
+                <canvas id="chart-daily-rev"></canvas>
+            </div>
+        </div>
+
+        <div class="section-hd">📦 Daily Orders — Last 7 Days</div>
+        <div class="chart-card">
+            <div style="position:relative;height:150px">
+                <canvas id="chart-daily-orders"></canvas>
+            </div>
+        </div>
+
+        <div class="section-hd">🏅 Top Selling Items</div>
+        <div class="items-list" id="top-items-list">
+            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+
+        <div class="section-hd">💳 Payment Breakdown — All Time</div>
+        <div class="pay-grid" id="pay-grid">
+            <div class="pay-card" style="height:90px"></div>
+            <div class="pay-card" style="height:90px"></div>
+            <div class="pay-card" style="height:90px"></div>
+        </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div id="tab-orders" style="display:none">
+        <div class="filter-bar">
+            <select class="filter-sel" id="f-status" onchange="loadOrders()">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="preparing">Preparing</option>
+                <option value="ready">Ready</option>
+                <option value="done">Done</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <select class="filter-sel" id="f-source" onchange="loadOrders()">
+                <option value="">All Sources</option>
+                <option value="customer">Customer</option>
+                <option value="waiter">Waiter</option>
+            </select>
+            <select class="filter-sel" id="f-table" onchange="loadOrders()">
+                <option value="">All Tables</option>
+            </select>
+            <button class="refresh-btn" onclick="loadOrders()"><i class="fas fa-rotate"></i></button>
+        </div>
+        <div id="orders-list">
+            <div class="empty-state"><i class="fas fa-receipt"></i>Loading...</div>
+        </div>
+    </div>
+
+    <!-- TABLES -->
+    <div id="tab-tables" style="display:none">
+        <div class="date-row">
+            <span class="date-label">Live Table Status</span>
+            <button class="refresh-btn" onclick="loadTables()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+        <div class="tables-grid" id="tables-grid">
+            <div style="grid-column:span 3;text-align:center;padding:30px;color:#bbb">Loading...</div>
+        </div>
+    </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+const clientId = "{{ client_id }}";
+
+// Read CSS vars after render
+function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+Chart.defaults.font.family = cssVar('--font-secondary') || 'sans-serif';
+Chart.defaults.color = '#999';
+
+const charts = {};
+let analyticsData = null;
+
+// Date label
+const now = new Date();
+document.getElementById('today-label').textContent =
+    now.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+// ── TABS ──
+function switchTab(tab, btn) {
+    ['overview','analytics','orders','tables'].forEach(t => {
+        document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+    });
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (tab === 'overview')  { loadAll(); }
+    if (tab === 'analytics') { if (!analyticsData) loadAll(); else renderAnalyticsTab(); }
+    if (tab === 'orders')    loadOrders();
+    if (tab === 'tables')    loadTables();
+}
+
+// ── LOAD ALL ──
+async function loadAll() {
+    try {
+        const res = await fetch(`/api/admin/analytics/${clientId}`);
+        if (!res.ok) throw new Error();
+        analyticsData = await res.json();
+        renderOverviewTab();
+        renderAnalyticsTab();
+    } catch(e) {
+        toast('❌ Failed to load data');
+    }
+}
+
+function fmt(n) {
+    n = n || 0;
+    if (n >= 100000) return '₹' + (n/100000).toFixed(1) + 'L';
+    if (n >= 1000)   return '₹' + (n/1000).toFixed(1) + 'K';
+    return '₹' + n;
+}
+
+function changeHtml(pct) {
+    if (pct === null || pct === undefined) return '';
+    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '→';
+    const cls   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+    return `<span class="${cls}">${arrow} ${Math.abs(pct)}% vs yesterday</span>`;
+}
+
+// ── OVERVIEW TAB ──
+function renderOverviewTab() {
+    const d = analyticsData;
+    const t = d.today;
+    const a = d.alltime;
+
+    document.getElementById('s-today-orders').textContent = t.orders;
+    document.getElementById('s-today-rev').textContent    = fmt(t.revenue);
+    document.getElementById('s-today-avg').textContent    = fmt(t.avg_order_value);
+    document.getElementById('s-pending').textContent      = a.pending_now;
+    document.getElementById('s-today-orders-chg').innerHTML = changeHtml(t.orders_change_pct);
+    document.getElementById('s-today-rev-chg').innerHTML    = changeHtml(t.revenue_change_pct);
+    document.getElementById('s-alltime-orders').textContent = a.orders;
+    document.getElementById('s-alltime-rev').textContent    = fmt(a.revenue);
+
+    // Source split
+    const cust   = t.source_breakdown?.customer || 0;
+    const waiter = t.source_breakdown?.waiter   || 0;
+    const total  = (cust + waiter) || 1;
+    const cpct   = Math.round(cust / total * 100);
+    document.getElementById('split-c').style.width = cpct + '%';
+    document.getElementById('split-w').style.width = (100 - cpct) + '%';
+    document.getElementById('split-c-lbl').textContent = `Customer: ${cust}`;
+    document.getElementById('split-w-lbl').textContent = `Waiter: ${waiter}`;
+
+    // Hourly bar chart
+    const hours   = d.hourly_today.map(h => h.hour + ':00');
+    const hOrders = d.hourly_today.map(h => h.orders);
+    renderBarChart('chart-hourly', hours, hOrders, 'Orders', cssVar('--primary'));
+}
+
+// ── ANALYTICS TAB ──
+function renderAnalyticsTab() {
+    if (!analyticsData) return;
+    const d = analyticsData;
+    const PRIMARY   = cssVar('--primary');
+    const SECONDARY = cssVar('--secondary');
+
+    // Daily revenue line
+    const days    = d.daily_last7.map(x => x.label);
+    const dayRevs = d.daily_last7.map(x => x.revenue);
+    const dayOrds = d.daily_last7.map(x => x.orders);
+    renderLineChart('chart-daily-rev',    days, dayRevs, 'Revenue (₹)', PRIMARY);
+    renderBarChart ('chart-daily-orders', days, dayOrds, 'Orders',       SECONDARY, 150);
+
+    // Top items
+    const items  = d.top_items || [];
+    const maxQty = items[0]?.qty || 1;
+    const rankCls = ['gold','silver','bronze'];
+    document.getElementById('top-items-list').innerHTML = items.length
+        ? items.map((it, i) => `
+            <div class="item-row">
+                <div class="item-rank ${rankCls[i]||''}">${i+1}</div>
+                <div class="item-name">${it.name}</div>
+                <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(it.qty/maxQty*100)}%"></div></div>
+                <div class="item-qty">${it.qty}×</div>
+                <div class="item-rev">${fmt(it.revenue)}</div>
+            </div>`).join('')
+        : '<div class="empty-state"><i class="fas fa-chart-bar"></i><p>No orders yet</p></div>';
+
+    // Payment breakdown — always show cash/upi/card
+    const payIcons = { cash:'💵', upi:'📱', card:'💳' };
+    const payMap = {};
+    (d.payment_breakdown||[]).forEach(p => payMap[p.mode] = p);
+    document.getElementById('pay-grid').innerHTML = ['cash','upi','card'].map(m => {
+        const p = payMap[m] || { count:0, revenue:0 };
+        return `<div class="pay-card">
+            <div class="pay-icon">${payIcons[m]}</div>
+            <div class="pay-val">${fmt(p.revenue)}</div>
+            <div class="pay-label">${m}</div>
+            <div class="pay-cnt">${p.count} bill${p.count!==1?'s':''}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── CHART HELPERS ──
+function renderBarChart(id, labels, data, label, color, height=160) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    charts[id] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label, data, backgroundColor: color + 'bb', borderRadius:6, borderSkipped:false }] },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ display:false } },
+            scales: {
+                x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } },
+                y:{ grid:{ color:'#f0f0f0' }, ticks:{ font:{ size:10 }, precision:0 } }
+            }
+        }
+    });
+}
+
+function renderLineChart(id, labels, data, label, color) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    charts[id] = new Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets:[{
+            label, data,
+            borderColor:color, backgroundColor:color+'25',
+            fill:true, tension:0.4, pointBackgroundColor:color,
+            pointRadius:4, borderWidth:2
+        }]},
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ display:false } },
+            scales:{
+                x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } },
+                y:{ grid:{ color:'#f0f0f0' }, ticks:{ font:{ size:10 }, callback: v => '₹'+v } }
+            }
+        }
+    });
+}
+
+// ── ORDERS ──
+async function loadOrders() {
+    const status  = document.getElementById('f-status').value;
+    const source  = document.getElementById('f-source').value;
+    const tableNo = document.getElementById('f-table').value;
+    let url = `/api/orders/${clientId}/filter?`;
+    if (status)  url += `status=${status}&`;
+    if (source)  url += `source=${source}&`;
+    if (tableNo) url += `table_no=${tableNo}&`;
+
+    const [ordersRes, summaryRes] = await Promise.all([
+        fetch(url), fetch(`/api/tables/${clientId}/summary`)
+    ]);
+    const orders  = await ordersRes.json();
+    const summary = await summaryRes.json();
+    const tMap = {};
+    summary.forEach(t => tMap[String(t.table_no)] = t);
+
+    const list = document.getElementById('orders-list');
+    if (!orders.length) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No orders found</p></div>';
+        return;
+    }
+    list.innerHTML = orders.map(o => {
+        const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+        const itemsText = items.map(i => `${i.name} ×${i.qty}`).join(', ');
+        const tInfo = tMap[String(o.table_no)] || {};
+        const payBadge = tInfo.payment_status === 'paid'
+            ? `<span class="badge pay-paid">PAID</span>`
+            : tInfo.payment_status === 'unpaid'
+            ? `<span class="badge pay-billed">BILLED</span>` : '';
+        return `<div class="order-card ${o.status}">
+            <div class="order-top">
+                <div class="badges">
+                    <span class="badge status-${o.status}">${o.status}</span>
+                    <span class="badge src-${o.source}">${o.source}</span>
+                    ${payBadge}
+                </div>
+                <div class="order-meta">T${o.table_no} · #${o.id}<br>${(o.created_at||'').substring(0,16)}</div>
+            </div>
+            <div class="order-items-text">${itemsText}</div>
+            <div class="order-foot"><div class="order-total">₹${o.total}</div></div>
+        </div>`;
+    }).join('');
+}
+
+// ── TABLES ──
+async function loadTables() {
+    const res = await fetch(`/api/tables/${clientId}/summary`);
+    const tables = await res.json();
+    const map = {};
+    tables.forEach(t => map[t.table_no] = t);
+
+    // Populate table filter dynamically (once)
+    const sel = document.getElementById('f-table');
+    if (sel.options.length <= 1 && tables.length) {
+        tables.forEach(t => {
+            const o = document.createElement('option');
+            o.value = t.table_no; o.textContent = `Table ${t.table_no}`;
+            sel.appendChild(o);
+        });
+    }
+
+    const maxTable = tables.length ? Math.max(...tables.map(t => t.table_no)) : 0;
+    const count = Math.max(maxTable, 6);
+    const labels = { inactive:'Inactive', active:'Active', occupied:'Occupied',
+                     ready:'Ready', done:'Done', billed:'Billed', paid:'Paid' };
+
+    document.getElementById('tables-grid').innerHTML = Array.from({length:count}, (_, i) => {
+        const n = i + 1;
+        const t = map[n];
+        const ds = t ? t.display_status : 'inactive';
+        return `<div class="table-box ${ds}">
+            <div class="table-num">T${n}</div>
+            <div class="table-status">${labels[ds]||ds}</div>
+            <div class="table-orders">${t ? t.order_count+' orders' : ''}</div>
+        </div>`;
+    }).join('');
+}
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Init
+loadAll();
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>
