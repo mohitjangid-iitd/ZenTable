@@ -55,6 +55,11 @@ def init_db():
     except Exception:
         pass
 
+    try:
+        cur.execute("ALTER TABLE orders ADD COLUMN ready_items TEXT DEFAULT '[]'")
+    except Exception:
+        pass
+    
     cur.execute("""
         CREATE TABLE IF NOT EXISTS bills (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,6 +272,14 @@ def update_order_status(order_id: int, status: str):
         UPDATE orders SET status=?, updated_at=datetime('now','localtime')
         WHERE id=?
     """, (status, order_id))
+    conn.commit()
+    conn.close()
+
+def update_ready_items(order_id: int, ready_items: list):
+    import json
+    conn = get_db()
+    conn.execute("UPDATE orders SET ready_items=?, updated_at=datetime('now','localtime') WHERE id=?",
+        (json.dumps(ready_items), order_id))
     conn.commit()
     conn.close()
 

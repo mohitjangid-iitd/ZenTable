@@ -116,5 +116,20 @@ body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; 
 .empty-state { text-align:center; padding:40px 20px; color:#bbb; }
 .empty-state i { font-size:2.5rem; display:block; margin-bottom:10px; }
 
+/* ── WAITER ITEM-WISE STATUS ── */
+.waiter-items-list { margin: 6px 0 8px; }
+.waiter-item-row { display:flex; align-items:center; gap:8px; padding:3px 0; }
+.waiter-item-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dot-ready   { background:#4caf50; }
+.dot-pending { background:#ffb74d; }
+.waiter-item-name { font-size:0.82rem; color:#555; flex:1; }
+.waiter-item-ready { color:#2e7d32; font-weight:500; }
+.waiter-item-tag { font-size:0.65rem; background:#e8f5e9; color:#2e7d32; padding:2px 7px; border-radius:10px; font-weight:600; }
+
+/* Ready progress badge */
+.ready-progress { font-size:0.65rem; padding:2px 7px; border-radius:10px; font-weight:600; }
+.rp-partial { background:#fff3e0; color:#e65100; }
+.rp-full    { background:#e8f5e9; color:#2e7d32; }
+
 #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--secondary); color:white; padding:12px 24px; border-radius:30px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.3s; white-space:nowrap; }
 #toast.show { transform:translateX(-50%) translateY(0); }

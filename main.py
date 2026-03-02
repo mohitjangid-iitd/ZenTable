@@ -13,7 +13,7 @@ from database import (
     generate_bill, get_bill, mark_bill_paid, get_summary,
     activate_table, close_table, get_all_tables,
     get_table_summary, get_table_orders_detail,
-    get_analytics
+    get_analytics, update_ready_items
 )
 
 ALLOWED_EXTENSIONS  = {".glb", ".mind", ".png", ".jpg", ".jpeg", ".webp"}
@@ -40,6 +40,10 @@ async def lifespan(app):
             data = get_client_data(client_id)
             if data and "num_tables" in data.get("restaurant", {}):
                 seed_tables(client_id, data["restaurant"]["num_tables"])
+
+    templates.env.globals["static_v"] = lambda path: \
+    int(os.path.getmtime(f"static/{path}")) if os.path.exists(f"static/{path}") else 0
+
     yield
 
 # app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -79,6 +83,9 @@ class BillRequest(BaseModel):
 
 class MarkPaidRequest(BaseModel):
     payment_mode: str = 'cash'  # cash | upi | card
+
+class ReadyItemsRequest(BaseModel):
+    ready_items: List[str]
 
 # ════════════════════════════════
 # ASSET SERVING
@@ -279,6 +286,11 @@ async def api_update_order_status(order_id: int, body: UpdateStatusRequest):
         raise HTTPException(status_code=400, detail=f"Invalid status. Use: {valid}")
     update_order_status(order_id, body.status)
     return {"message": f"Order {order_id} → {body.status}"}
+
+@app.patch("/api/order/{order_id}/ready-items")
+async def api_update_ready_items(order_id: int, body: ReadyItemsRequest):
+    update_ready_items(order_id, body.ready_items)
+    return {"message": f"Order {order_id} ready items updated"}
 
 # ════════════════════════════════
 # BILL API

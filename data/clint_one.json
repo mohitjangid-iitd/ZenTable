@@ -1,7 +1,7 @@
 {
   "restaurant": {
     "name": "The Golden Spoon",
-    "num_tables": 8,
+    "num_tables": 5,
     "tagline": "Where Tradition Meets Innovation",
     "logo": "/static/assets/clint_one/logo.png",
     "banner": "/static/assets/clint_one/banner.png",

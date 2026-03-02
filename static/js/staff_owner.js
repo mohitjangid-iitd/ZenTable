@@ -236,7 +236,7 @@ async function loadTables() {
     }
 
     const maxTable = tables.length ? Math.max(...tables.map(t => t.table_no)) : 0;
-    const count = Math.max(maxTable, 6);
+    const count = numTables;
     const labels = { inactive:'Inactive', active:'Active', occupied:'Occupied',
                      ready:'Ready', done:'Done', billed:'Billed', paid:'Paid' };
 

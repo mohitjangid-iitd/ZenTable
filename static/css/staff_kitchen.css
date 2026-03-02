@@ -41,5 +41,22 @@ body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; 
 
 .auto-tag { font-size:0.7rem; color:#aaa; }
 
+/* ── ITEM CHECKBOXES (kitchen) ── */
+.item-check-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f5f5f5; }
+.item-check-row:last-child { border-bottom:none; }
+.master-row { background:#f9f9f9; border-radius:8px; padding:10px 8px; margin-bottom:6px; border-bottom:none !important; }
+.check-label { display:flex; align-items:center; gap:10px; cursor:pointer; flex:1; }
+.check-label input[type="checkbox"] { width:20px; height:20px; accent-color:var(--primary); cursor:pointer; flex-shrink:0; }
+.check-text { font-size:0.88rem; color:var(--secondary); }
+.master-text { font-weight:700; font-size:0.9rem; }
+.item-done { text-decoration:line-through; color:#bbb; }
+.item-divider { border-top:1.5px dashed #eee; margin:4px 0 8px; }
+
+/* Ready status counter */
+.ready-status { font-size:0.72rem; font-weight:700; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+.none-ready  { background:#f5f5f5; color:#999; }
+.partial-ready { background:#fff3e0; color:#e65100; }
+.all-ready   { background:#e8f5e9; color:#2e7d32; }
+
 #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--secondary); color:white; padding:12px 24px; border-radius:30px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.3s; white-space:nowrap; }
 #toast.show { transform:translateX(-50%) translateY(0); }

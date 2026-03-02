@@ -27,7 +27,7 @@
     </style>
 
     <!-- Static CSS -->
-    <link rel="stylesheet" href="/static/css/staff_owner.css">
+    <link rel="stylesheet" href="/static/css/staff_owner.css?v={{ static_v('css/staff_owner.css') }}">
 </head>
 <body>
 
@@ -197,10 +197,11 @@
 <!-- Jinja2 variable inject — static JS se PEHLE -->
 <script>
     const clientId = "{{ client_id }}";
+    const numTables = {{ data.restaurant.num_tables | default(6) }};  // 👈 add karo
 </script>
 
 <!-- Static JS -->
-<script src="/static/js/staff_owner.js"></script>
+<script src="/static/js/staff_owner.js?v={{ static_v('js/staff_owner.js') }}"></script>
 
 </body>
 </html>
