@@ -88,12 +88,20 @@ def init_db():
 
 def seed_tables(client_id: str, num_tables: int):
     conn = get_db()
+    # Naye tables add karo
     for i in range(1, num_tables + 1):
         conn.execute("""
             INSERT INTO tables (client_id, table_no, status)
             VALUES (?, ?, 'inactive')
-            ON CONFLICT(client_id, table_no) DO NOTHING   -- 👈 yahi problem hai
+            ON CONFLICT(client_id, table_no) DO NOTHING
         """, (client_id, i))
+    
+    # Extra tables delete karo jo num_tables se zyada hain
+    conn.execute("""
+        DELETE FROM tables 
+        WHERE client_id=? AND table_no > ?
+    """, (client_id, num_tables))
+    
     conn.commit()
     conn.close()
 
