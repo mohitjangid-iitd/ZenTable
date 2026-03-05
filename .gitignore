@@ -26,7 +26,7 @@ clean_db.py
 create_first_admin.py
 manage_restaurant.py
 
-# # Database
-# data/orders.db
-# data/*.db-wal
-# data/*.db-shm
+# Database
+data/orders.db
+data/*.db-wal
+data/*.db-shm

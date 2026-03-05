@@ -733,3 +733,134 @@ def get_analytics(client_id: str):
 
 if __name__ == "__main__":
     init_db()
+
+# ════════════════════════════════
+# ADMIN PANEL — EXTRA FUNCTIONS
+# ════════════════════════════════
+
+def get_all_restaurants_info():
+    """Saare restaurants ki basic info + staff count + today orders"""
+    import os, json
+    from datetime import date
+    data_dir = "data"
+    restaurants = []
+    if not os.path.exists(data_dir):
+        return []
+    conn = get_db()
+    today = date.today().isoformat()
+    for fname in sorted(os.listdir(data_dir)):
+        if not fname.endswith(".json"):
+            continue
+        client_id = fname.replace(".json", "")
+        try:
+            with open(f"{data_dir}/{fname}", encoding="utf-8") as f:
+                rdata = json.load(f)
+            rinfo = rdata.get("restaurant", {})
+        except:
+            rinfo = {}
+        staff_count = conn.execute(
+            "SELECT COUNT(*) FROM staff WHERE restaurant_id=?", (client_id,)
+        ).fetchone()[0]
+        today_orders = conn.execute(
+            "SELECT COUNT(*) FROM orders WHERE client_id=? AND DATE(created_at)=? AND status != 'cancelled'",
+            (client_id, today)
+        ).fetchone()[0]
+        today_revenue = conn.execute(
+            "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=? AND payment_status='paid' AND DATE(created_at)=?",
+            (client_id, today)
+        ).fetchone()[0]
+        alltime_revenue = conn.execute(
+            "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=? AND payment_status='paid'",
+            (client_id,)
+        ).fetchone()[0]
+        restaurants.append({
+            "client_id": client_id,
+            "name": rinfo.get("name", client_id),
+            "cuisine_type": rinfo.get("cuisine_type", ""),
+            "phone": rinfo.get("phone", ""),
+            "num_tables": rinfo.get("num_tables", 0),
+            "staff_count": staff_count,
+            "today_orders": today_orders,
+            "today_revenue": today_revenue,
+            "alltime_revenue": alltime_revenue,
+        })
+    conn.close()
+    return restaurants
+
+def get_overall_stats():
+    """Poore platform ki stats"""
+    from datetime import date
+    conn = get_db()
+    today = date.today().isoformat()
+    total_restaurants = len([
+        f for f in __import__('os').listdir("data")
+        if f.endswith(".json")
+    ]) if __import__('os').path.exists("data") else 0
+    total_staff = conn.execute("SELECT COUNT(*) FROM staff WHERE is_active=1").fetchone()[0]
+    today_orders = conn.execute(
+        "SELECT COUNT(*) FROM orders WHERE DATE(created_at)=? AND status != 'cancelled'", (today,)
+    ).fetchone()[0]
+    today_revenue = conn.execute(
+        "SELECT COALESCE(SUM(total),0) FROM bills WHERE payment_status='paid' AND DATE(created_at)=?", (today,)
+    ).fetchone()[0]
+    alltime_revenue = conn.execute(
+        "SELECT COALESCE(SUM(total),0) FROM bills WHERE payment_status='paid'"
+    ).fetchone()[0]
+    alltime_orders = conn.execute(
+        "SELECT COUNT(*) FROM orders WHERE status != 'cancelled'"
+    ).fetchone()[0]
+    conn.close()
+    return {
+        "total_restaurants": total_restaurants,
+        "total_staff": total_staff,
+        "today_orders": today_orders,
+        "today_revenue": today_revenue,
+        "alltime_revenue": alltime_revenue,
+        "alltime_orders": alltime_orders,
+    }
+
+def get_top_dishes_overall(limit=10):
+    """Saare restaurants ke top dishes"""
+    import json as _json
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT items FROM orders WHERE status != 'cancelled'"
+    ).fetchall()
+    conn.close()
+    item_counts = {}
+    item_revenue = {}
+    for row in rows:
+        try:
+            items = _json.loads(row[0])
+            for it in items:
+                name = it.get("name", "")
+                qty = it.get("qty", 0)
+                price = it.get("price", 0)
+                item_counts[name] = item_counts.get(name, 0) + qty
+                item_revenue[name] = item_revenue.get(name, 0) + qty * price
+        except:
+            pass
+    top = sorted(
+        [{"name": k, "qty": v, "revenue": item_revenue.get(k, 0)} for k, v in item_counts.items()],
+        key=lambda x: x["qty"], reverse=True
+    )[:limit]
+    return top
+
+def save_restaurant_json(client_id: str, data: dict):
+    """Restaurant JSON save karo"""
+    import json
+    with open(f"data/{client_id}.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+def delete_restaurant_full(client_id: str):
+    """Poora restaurant delete — DB + JSON"""
+    conn = get_db()
+    conn.execute("DELETE FROM orders WHERE client_id=?", (client_id,))
+    conn.execute("DELETE FROM bills WHERE client_id=?", (client_id,))
+    conn.execute("DELETE FROM tables WHERE client_id=?", (client_id,))
+    conn.execute("DELETE FROM staff WHERE restaurant_id=?", (client_id,))
+    conn.commit()
+    conn.close()
+    json_path = f"data/{client_id}.json"
+    if __import__('os').path.exists(json_path):
+        __import__('os').remove(json_path)

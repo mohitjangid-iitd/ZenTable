@@ -19,7 +19,9 @@ from database import (
     get_table_summary, get_table_orders_detail,
     get_analytics, update_ready_items,
     create_staff, get_staff_list, update_staff_password,
-    toggle_staff_active, delete_staff
+    toggle_staff_active, delete_staff,
+    get_all_restaurants_info, get_overall_stats, get_top_dishes_overall,
+    save_restaurant_json, delete_restaurant_full
 )
 from auth import login_staff, login_admin, decode_token, get_redirect_url
 
@@ -161,6 +163,27 @@ class CreateStaffRequest(BaseModel):
 class UpdatePasswordRequest(BaseModel):
     new_password: str
 
+class SaveRestaurantRequest(BaseModel):
+    data: dict
+
+class CreateRestaurantRequest(BaseModel):
+    client_id: str
+    name: str
+    num_tables: int = 6
+    tagline: str = ""
+    description: str = ""
+    cuisine_type: str = ""
+    phone: str = ""
+    email: str = ""
+    address: str = ""
+    lunch: str = ""
+    dinner: str = ""
+    closed: str = ""
+    instagram: str = ""
+    facebook: str = ""
+    twitter: str = ""
+
+
 # ════════════════════════════════
 # ASSET SERVING
 # ════════════════════════════════
@@ -245,8 +268,128 @@ async def logout_redirect(response: Response):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(None)):
+    user = require_auth(auth_token, ["admin"])
+    return templates.TemplateResponse("admin.html", {"request": request, "site": SITE_CONFIG, "user": user})
+
+# ════════════════════════════════
+# ADMIN APIs
+# ════════════════════════════════
+
+@app.get("/api/admin/overview")
+async def api_admin_overview(auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
-    return HTMLResponse("<h2 style='font-family:sans-serif;padding:40px'>Admin panel — coming soon</h2>")
+    return {
+        "stats": get_overall_stats(),
+        "restaurants": get_all_restaurants_info(),
+        "top_dishes": get_top_dishes_overall(10),
+    }
+
+@app.get("/api/admin/restaurant/{client_id}/analytics")
+async def api_admin_restaurant_analytics(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    return get_analytics(client_id)
+
+@app.get("/api/admin/restaurant/{client_id}/json")
+async def api_get_restaurant_json(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    data = get_client_data(client_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    return data
+
+@app.put("/api/admin/restaurant/{client_id}/json")
+async def api_save_restaurant_json(client_id: str, body: SaveRestaurantRequest,
+                                    auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    save_restaurant_json(client_id, body.data)
+    return {"message": "Saved"}
+
+@app.post("/api/admin/restaurant")
+async def api_create_restaurant(body: CreateRestaurantRequest,
+                                 auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    client_id = body.client_id.lower().replace(" ", "_")
+    if get_client_data(client_id):
+        raise HTTPException(status_code=409, detail="Restaurant already exists")
+    data = {
+        "restaurant": {
+            "name": body.name, "num_tables": body.num_tables,
+            "tagline": body.tagline or f"Welcome to {body.name}",
+            "logo": f"/static/assets/{client_id}/logo.png",
+            "banner": f"/static/assets/{client_id}/banner.png",
+            "description": body.description, "cuisine_type": body.cuisine_type,
+            "phone": body.phone, "email": body.email, "address": body.address,
+            "timings": {"lunch": body.lunch, "dinner": body.dinner, "closed": body.closed},
+            "social": {"instagram": body.instagram, "facebook": body.facebook, "twitter": body.twitter}
+        },
+        "theme": {
+            "primary_color": "#D4AF37", "secondary_color": "#1a1a1a",
+            "accent_color": "#8B4513", "text_color": "#333333",
+            "background": "#ffffff", "font_primary": "Playfair Display",
+            "font_secondary": "Poppins"
+        },
+        "items": []
+    }
+    os.makedirs("data", exist_ok=True)
+    os.makedirs(f"static/assets/{client_id}", exist_ok=True)
+    save_restaurant_json(client_id, data)
+    seed_tables(client_id, body.num_tables)
+    return {"message": f"Restaurant {client_id} created", "client_id": client_id}
+
+@app.delete("/api/admin/restaurant/{client_id}")
+async def api_delete_restaurant(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    delete_restaurant_full(client_id)
+    return {"message": f"Restaurant {client_id} deleted"}
+
+@app.get("/api/admin/staff/{client_id}")
+async def api_admin_get_staff(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    return get_staff_list(client_id)
+
+@app.post("/api/admin/staff/{client_id}")
+async def api_admin_create_staff(client_id: str, body: CreateStaffRequest,
+                                  auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    valid_roles = {"owner", "kitchen", "waiter", "counter"}
+    if body.role not in valid_roles:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    ok = create_staff(client_id, body.username, body.password, body.name, body.role)
+    if not ok:
+        raise HTTPException(status_code=409, detail="Username already exists")
+    return {"message": "Staff created"}
+
+@app.patch("/api/admin/staff/{staff_id}/password")
+async def api_admin_update_password(staff_id: int, body: UpdatePasswordRequest,
+                                     auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    update_staff_password(staff_id, body.new_password)
+    return {"message": "Password updated"}
+
+@app.patch("/api/admin/staff/{staff_id}/toggle")
+async def api_admin_toggle_staff(staff_id: int, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    from database import get_db
+    conn = get_db()
+    row = conn.execute("SELECT is_active FROM staff WHERE id=?", (staff_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    new_state = not bool(row[0])
+    toggle_staff_active(staff_id, new_state)
+    return {"message": "Updated", "is_active": new_state}
+
+@app.delete("/api/admin/staff/{staff_id}")
+async def api_admin_delete_staff(staff_id: int, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    delete_staff(staff_id)
+    return {"message": "Staff deleted"}
 
 # ════════════════════════════════
 # PUBLIC PAGE ROUTES
