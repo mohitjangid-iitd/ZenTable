@@ -18,7 +18,7 @@ document.getElementById('today-label').textContent =
 
 // ── TABS ──
 function switchTab(tab, btn) {
-    ['overview','analytics','orders','tables'].forEach(t => {
+    ['overview','analytics','orders','tables','staff'].forEach(t => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
     });
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -27,6 +27,7 @@ function switchTab(tab, btn) {
     if (tab === 'analytics') { if (!analyticsData) loadAll(); else renderAnalyticsTab(); }
     if (tab === 'orders')    loadOrders();
     if (tab === 'tables')    loadTables();
+    if (tab === 'staff')     loadStaff();
 }
 
 // ── LOAD ALL ──
@@ -261,3 +262,141 @@ function toast(msg) {
 // Init
 loadAll();
 setInterval(loadAll, 60000);
+
+
+// ════════════════════════════════
+// STAFF MANAGEMENT
+// ════════════════════════════════
+let editingStaffId = null;
+let changingPasswordId = null;
+
+async function loadStaff() {
+    const res = await fetch(`/api/staff/${clientId}`);
+    const staff = await res.json();
+    const el = document.getElementById('staff-list');
+
+    if (!staff.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>Koi staff nahi — Add karo!</p></div>';
+        return;
+    }
+
+    const filtered = staff.filter(s => s.id !== currentStaffId);
+    if (!filtered.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>Koi staff nahi — Add karo!</p></div>';
+        return;
+    }
+    el.innerHTML = filtered.map(s => `
+        <div class="staff-card ${s.is_active ? '' : 'staff-inactive'}">
+            <div class="staff-card-top">
+                <div>
+                    <div class="staff-name">
+                        <span class="active-dot ${s.is_active ? 'dot-active' : 'dot-inactive'}"></span>
+                        ${s.name}
+                    </div>
+                    <div class="staff-username">@${s.username}</div>
+                </div>
+                <span class="staff-role-badge staff-role-${s.role}">${s.role}</span>
+            </div>
+            <div class="staff-actions">
+                <button class="staff-btn staff-btn-pass" onclick="openChangePassword(${s.id})">🔑 Password</button>
+                <button class="staff-btn ${s.is_active ? 'staff-btn-toggle-on' : 'staff-btn-toggle-off'}" 
+                        onclick="toggleStaff(${s.id}, ${s.is_active})">
+                    ${s.is_active ? '🔴 Deactivate' : '🟢 Activate'}
+                </button>
+                <button class="staff-btn staff-btn-delete" onclick="deleteStaff(${s.id}, '${s.name}')">🗑 Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openAddStaff() {
+    editingStaffId = null;
+    document.getElementById('staff-modal-title').textContent = 'Staff Add Karo';
+    document.getElementById('sm-save-btn').textContent = 'Add Staff';
+    document.getElementById('sm-name').value = '';
+    document.getElementById('sm-username').value = '';
+    document.getElementById('sm-password').value = '';
+    document.getElementById('sm-role').value = 'waiter';
+    document.getElementById('sm-username').disabled = false;
+    document.getElementById('sm-password-group').style.display = 'block';
+    document.getElementById('staff-modal').style.display = 'flex';
+}
+
+function closeStaffModal() {
+    document.getElementById('staff-modal').style.display = 'none';
+}
+
+async function saveStaff() {
+    const name     = document.getElementById('sm-name').value.trim();
+    const username = document.getElementById('sm-username').value.trim().toLowerCase();
+    const password = document.getElementById('sm-password').value;
+    const role     = document.getElementById('sm-role').value;
+
+    if (!name || !username || !password) { toast('❌ Sab fields required hain'); return; }
+
+    const res = await fetch(`/api/staff/${clientId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, username, password, role })
+    });
+    const d = await res.json();
+    if (res.ok) {
+        toast('✅ Staff add ho gaya!');
+        closeStaffModal();
+        loadStaff();
+    } else {
+        toast('❌ ' + (d.detail || 'Error'));
+    }
+}
+
+function openChangePassword(staff_id) {
+    changingPasswordId = staff_id;
+    document.getElementById('pm-password').value = '';
+    document.getElementById('pass-modal').style.display = 'flex';
+}
+
+function closePassModal() {
+    document.getElementById('pass-modal').style.display = 'none';
+}
+
+async function changePassword() {
+    const password = document.getElementById('pm-password').value;
+    if (!password) { toast('❌ Password required'); return; }
+    const res = await fetch(`/api/staff/${changingPasswordId}/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: password })
+    });
+    if (res.ok) { toast('✅ Password update ho gaya!'); closePassModal(); }
+    else { toast('❌ Failed'); }
+}
+
+async function toggleStaff(staff_id, currentlyActive) {
+    const res = await fetch(`/api/staff/${staff_id}/toggle`, { method: 'PATCH' });
+    const d = await res.json();
+    if (res.ok) {
+        toast(d.is_active ? '✅ Staff activated' : '🔴 Staff deactivated');
+        loadStaff();
+    } else { toast('❌ Failed'); }
+}
+
+async function deleteStaff(staff_id, name) {
+    if (!confirm(`'${name}' ko permanently delete karna hai?`)) return;
+    const res = await fetch(`/api/staff/${staff_id}`, { method: 'DELETE' });
+    if (res.ok) { toast('🗑 Staff deleted'); loadStaff(); }
+    else { toast('❌ Failed'); }
+}
+
+function toggleSmPass() {
+    const inp = document.getElementById('sm-password');
+    const btn = document.getElementById('sm-eye');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function togglePmPass() {
+    const inp = document.getElementById('pm-password');
+    const btn = document.getElementById('pm-eye');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}

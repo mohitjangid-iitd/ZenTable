@@ -24,6 +24,33 @@
             --radius: 14px;
             --shadow: 0 2px 16px rgba(0,0,0,0.08);
         }
+    
+        /* Staff form groups */
+        .form-group-owner { margin-bottom:12px; }
+        .form-group-owner label { display:block;font-size:0.72rem;color:#888;margin-bottom:5px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px; }
+        .form-group-owner input, .form-group-owner select { width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none;font-family:var(--font-secondary); }
+        .form-group-owner input:focus, .form-group-owner select:focus { border-color:var(--primary); }
+
+        /* Staff cards */
+        .staff-card { background:white;border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px;border-left:4px solid var(--primary); }
+        .staff-card-top { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px; }
+        .staff-name { font-family:var(--font-primary);font-size:1rem;font-weight:700;color:var(--secondary); }
+        .staff-username { font-size:0.72rem;color:#999;margin-top:2px; }
+        .staff-role-badge { font-size:0.65rem;padding:3px 10px;border-radius:10px;font-weight:700;text-transform:uppercase; }
+        .staff-role-kitchen { background:#fff3e0;color:#e65100; }
+        .staff-role-waiter  { background:#e3f2fd;color:#1565c0; }
+        .staff-role-counter { background:#e8f5e9;color:#2e7d32; }
+        .staff-role-owner   { background:#f3e5f5;color:#6a1b9a; }
+        .staff-inactive { opacity:0.55; }
+        .staff-actions { display:flex;gap:8px;margin-top:10px;flex-wrap:wrap; }
+        .staff-btn { padding:6px 14px;border-radius:8px;border:none;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:var(--font-secondary); }
+        .staff-btn-pass   { background:#e3f2fd;color:#1565c0; }
+        .staff-btn-toggle-on  { background:#fce4ec;color:#c62828; }
+        .staff-btn-toggle-off { background:#e8f5e9;color:#2e7d32; }
+        .staff-btn-delete { background:#fce4ec;color:#c62828; }
+        .active-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px; }
+        .dot-active   { background:#4caf50; }
+        .dot-inactive { background:#ef5350; }
     </style>
 
     <!-- Static CSS -->
@@ -47,6 +74,7 @@
     <button class="tab-btn" onclick="switchTab('analytics',this)">📈 Analytics</button>
     <button class="tab-btn" onclick="switchTab('orders',this)">🧾 Orders</button>
     <button class="tab-btn" onclick="switchTab('tables',this)">🪑 Tables</button>
+    <button class="tab-btn" onclick="switchTab('staff',this)">👥 Staff</button>
 </div>
 
 <div class="body">
@@ -192,12 +220,94 @@
 
 </div>
 
+    <!-- STAFF -->
+    <div id="tab-staff" style="display:none">
+        <div class="date-row">
+            <span class="date-label">Staff Management</span>
+            <button class="refresh-btn" onclick="loadStaff()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+
+        <!-- Add Staff Button -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+            <button class="refresh-btn" style="background:var(--primary);color:white;border:none;padding:9px 18px;border-radius:10px;font-weight:600;cursor:pointer;" onclick="openAddStaff()">+ Add Staff</button>
+        </div>
+
+        <!-- Staff List -->
+        <div id="staff-list">
+            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+
+        <!-- Add Staff Modal -->
+        <div id="staff-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+            <div style="background:white;border-radius:20px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+                <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-family:var(--font-primary);font-size:1rem;font-weight:600;color:var(--secondary)" id="staff-modal-title">Staff Add Karo</div>
+                    <button onclick="closeStaffModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;">✕</button>
+                </div>
+                <div style="padding:20px;">
+                    <div class="form-group-owner">
+                        <label>Name</label>
+                        <input type="text" id="sm-name" placeholder="Full name">
+                    </div>
+                    <div class="form-group-owner">
+                        <label>Username</label>
+                        <input type="text" id="sm-username" placeholder="username" autocapitalize="none">
+                    </div>
+                    <div class="form-group-owner" id="sm-password-group">
+                        <label>Password</label>
+                        <div style="position:relative;">
+                            <input type="password" id="sm-password" placeholder="••••••••" style="width:100%;padding-right:44px;">
+                            <button type="button" onclick="toggleSmPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;" id="sm-eye">👁</button>
+                        </div>
+                    </div>
+                    <div class="form-group-owner">
+                        <label>Role</label>
+                        <select id="sm-role">
+                            <option value="kitchen">Kitchen</option>
+                            <option value="waiter">Waiter</option>
+                            <option value="counter">Counter</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;">
+                    <button onclick="closeStaffModal()" style="padding:9px 18px;border-radius:10px;border:1px solid #eee;background:white;cursor:pointer;font-size:0.85rem;">Cancel</button>
+                    <button onclick="saveStaff()" id="sm-save-btn" style="padding:9px 18px;border-radius:10px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.85rem;">Add Staff</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password Modal -->
+        <div id="pass-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+            <div style="background:white;border-radius:20px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+                <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-family:var(--font-primary);font-size:1rem;font-weight:600;color:var(--secondary)">Password Change Karo</div>
+                    <button onclick="closePassModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;">✕</button>
+                </div>
+                <div style="padding:20px;">
+                    <div class="form-group-owner">
+                        <label>New Password</label>
+                        <div style="position:relative;">
+                            <input type="password" id="pm-password" placeholder="••••••••" style="width:100%;padding-right:44px;">
+                            <button type="button" onclick="togglePmPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;" id="pm-eye">👁</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;">
+                    <button onclick="closePassModal()" style="padding:9px 18px;border-radius:10px;border:1px solid #eee;background:white;cursor:pointer;font-size:0.85rem;">Cancel</button>
+                    <button onclick="changePassword()" style="padding:9px 18px;border-radius:10px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.85rem;">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 <div id="toast"></div>
 
 <!-- Jinja2 variable inject — static JS se PEHLE -->
 <script>
     const clientId = "{{ client_id }}";
-    const numTables = {{ data.restaurant.num_tables | default(6) }};  // 👈 add karo
+    const numTables = {{ data.restaurant.num_tables | default(6) }};
+    const currentStaffId = {{ user.staff_id }};
 </script>
 
 <!-- Static JS -->
