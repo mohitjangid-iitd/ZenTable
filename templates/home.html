@@ -40,9 +40,15 @@
         <img src="{{ data.restaurant.logo }}" alt="{{ data.restaurant.name }} Logo" class="hero-logo">
         <h1>{{ data.restaurant.name }}</h1>
         <p>{{ data.restaurant.tagline }}</p>
+        {% if 'ar_menu' in features %}
         <a href="/{{ client_id }}{% if table_no %}/table/{{ table_no }}{% endif %}/ar-menu" class="cta-btn">
             <i class="fas fa-camera"></i> Experience in AR
         </a>
+        {% else %}
+        <a href="#" class="cta-btn cta-btn-locked" onclick="showArLocked(); return false;">
+            <i class="fas fa-camera"></i> Experience in AR
+        </a>
+        {% endif %}
     </section>
 
     <!-- Menu Preview -->
@@ -119,7 +125,7 @@
                 <div class="contact-item">
                     <i class="fas fa-envelope"></i>
                     <h3>Email</h3>
-                    <p><a href="mailto:{{ data.restaurant.email }}">{{ data.restaurant.email }}</a></p>
+                    <p><a href="/cdn-cgi/l/email-protection#2e55550e4a4f5a4f005c4b5d5a4f5b5c4f405a004b434f47420e5353">{{ data.restaurant.email }}</a></p>
                 </div>
 
                 <div class="contact-item">
@@ -157,6 +163,23 @@
     <footer>
         <p>&copy; 2026 {{ data.restaurant.name }}. All rights reserved.</p>
     </footer>
+
+    <!-- AR Locked Popup -->
+    <div id="ar-locked-popup" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+        <div style="background:white;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+            <div style="font-size:2rem;margin-bottom:12px;">📷</div>
+            <div style="font-family:var(--font-primary);font-size:1.1rem;font-weight:700;color:var(--secondary);margin-bottom:10px;">AR Menu</div>
+            <div style="font-size:0.88rem;color:#777;line-height:1.6;">Experience our dishes in Augmented Reality! This feature is not currently available at this restaurant.</div>
+            <button onclick="document.getElementById('ar-locked-popup').style.display='none'" style="margin-top:18px;padding:10px 28px;background:var(--primary);color:white;border:none;border-radius:12px;font-weight:600;cursor:pointer;font-size:0.9rem;">OK</button>
+        </div>
+    </div>
+
+    <style>.cta-btn-locked { opacity: 0.6; }</style>
+    <script>
+    function showArLocked() {
+        document.getElementById('ar-locked-popup').style.display = 'flex';
+    }
+    </script>
 
 </body>
 </html>

@@ -41,7 +41,11 @@
 <!-- Banner -->
 <div class="banner">
     <a href="/{{ client_id }}{% if table_no %}/table/{{ table_no }}{% endif %}" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    {% if 'ar_menu' in features %}
     <a href="/{{ client_id }}{% if table_no %}/table/{{ table_no }}{% endif %}/ar-menu" class="ar-btn"><i class="fas fa-camera"></i> View in AR</a>
+    {% else %}
+    <a href="#" class="ar-btn ar-btn-locked" onclick="showArLocked(); return false;"><i class="fas fa-camera"></i> View in AR</a>
+    {% endif %}
     <img src="{{ data.restaurant.logo }}" alt="logo" class="banner-logo">
     <h1>{{ data.restaurant.name }}</h1>
     <p>{{ data.restaurant.tagline }}</p>
@@ -99,7 +103,11 @@
                 <div class="dish-bottom">
                     <div class="dish-price">{{ item.price }}</div>
                     <div class="add-btn-wrapper">
+                        {% if 'ordering' in features %}
                         <button class="add-btn" onclick="addToPlate('{{ item.name }}', '{{ item.price }}', this)">+</button>
+                        {% else %}
+                        <button class="add-btn add-btn-locked" onclick="showOrderingLocked()">+</button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -151,6 +159,40 @@
 
 <!-- Static JS -->
 <script src="/static/js/menu.js"></script>
+
+<!-- Ordering Locked Popup -->
+<div id="ordering-locked-popup" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="font-size:2rem;margin-bottom:12px;">🛒</div>
+        <div style="font-family:var(--font-primary);font-size:1.1rem;font-weight:700;color:var(--secondary);margin-bottom:10px;">Ordering Unavailable</div>
+        <div style="font-size:0.88rem;color:#777;line-height:1.6;">Ordering system is not available for this place. Contact restaurant.</div>
+        <button onclick="document.getElementById('ordering-locked-popup').style.display='none'" style="margin-top:18px;padding:10px 28px;background:var(--primary);color:white;border:none;border-radius:12px;font-weight:600;cursor:pointer;font-size:0.9rem;">OK</button>
+    </div>
+</div>
+
+<!-- AR Locked Popup -->
+<div id="ar-locked-popup" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="font-size:2rem;margin-bottom:12px;">📷</div>
+        <div style="font-family:var(--font-primary);font-size:1.1rem;font-weight:700;color:var(--secondary);margin-bottom:10px;">AR Menu</div>
+        <div style="font-size:0.88rem;color:#777;line-height:1.6;">Experience our dishes in Augmented Reality! This feature is not currently available at this restaurant.</div>
+        <button onclick="document.getElementById('ar-locked-popup').style.display='none'" style="margin-top:18px;padding:10px 28px;background:var(--primary);color:white;border:none;border-radius:12px;font-weight:600;cursor:pointer;font-size:0.9rem;">OK</button>
+    </div>
+</div>
+
+<style>
+.add-btn-locked { opacity: 0.45; cursor: pointer; }
+.ar-btn-locked  { opacity: 0.55; }
+</style>
+
+<script>
+function showOrderingLocked() {
+    document.getElementById('ordering-locked-popup').style.display = 'flex';
+}
+function showArLocked() {
+    document.getElementById('ar-locked-popup').style.display = 'flex';
+}
+</script>
 
 </body>
 </html>

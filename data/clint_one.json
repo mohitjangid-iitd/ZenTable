@@ -79,5 +79,11 @@
       "auto_rotate": false,
       "rotate_speed": 10000
     }
-  ]
+  ],
+  "subscription": {
+    "features": [
+      "basic",
+      "ordering"
+    ]
+  }
 }

@@ -17,6 +17,8 @@
     </div>
     <div style="display:flex;align-items:center;gap:16px;">
         <div class="top-user">Logged in as <span>{{ user.name }}</span></div>
+        <button class="btn btn-ghost btn-sm" onclick="openAddAdmin()" style="font-size:0.7rem;">+ Add Admin</button>
+        <button class="btn btn-ghost btn-sm" onclick="openAdminPassword()" style="font-size:0.7rem;">🔑 Password</button>
         <a href="#" class="logout-btn" onclick="doLogout()">Logout</a>
     </div>
 </div>
@@ -299,7 +301,52 @@
                         <input type="text" id="ei-twitter">
                     </div>
                 </div>
-            </div>
+                <div class="form-section">Subscription Features</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.5;">
+                        <input type="checkbox" checked disabled style="accent-color:var(--primary);width:16px;height:16px;">
+                        <span>
+                            <div style="font-size:0.82rem;font-weight:600;color:white;">Basic</div>
+                            <div style="font-size:0.7rem;color:var(--muted);">Home page + Menu</div>
+                        </span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
+                        <input type="checkbox" id="feat-ordering" value="ordering" style="accent-color:var(--primary);width:16px;height:16px;">
+                        <span>
+                            <div style="font-size:0.82rem;font-weight:600;color:white;">Ordering System</div>
+                            <div style="font-size:0.7rem;color:var(--muted);">Staff pages, Orders</div>
+                        </span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
+                        <input type="checkbox" id="feat-analytics" value="analytics" style="accent-color:var(--primary);width:16px;height:16px;">
+                        <span>
+                            <div style="font-size:0.82rem;font-weight:600;color:white;">Analytics</div>
+                            <div style="font-size:0.7rem;color:var(--muted);">Owner dashboard, Reports</div>
+                        </span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
+                        <input type="checkbox" id="feat-ar_menu" value="ar_menu" style="accent-color:var(--primary);width:16px;height:16px;">
+                        <span>
+                            <div style="font-size:0.82rem;font-weight:600;color:white;">AR Menu</div>
+                            <div style="font-size:0.7rem;color:var(--muted);">3D dish viewer</div>
+                        </span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.35;">
+                        <input type="checkbox" disabled style="accent-color:var(--primary);width:16px;height:16px;">
+                        <span>
+                            <div style="font-size:0.82rem;font-weight:600;color:white;">Attendance <span style="font-size:0.6rem;color:var(--muted);">(soon)</span></div>
+                            <div style="font-size:0.7rem;color:var(--muted);">Staff attendance</div>
+                        </span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.35;">
+                        <input type="checkbox" disabled style="accent-color:var(--primary);width:16px;height:16px;">
+                        <span>
+                            <div style="font-size:0.82rem;font-weight:600;color:white;">Inventory <span style="font-size:0.6rem;color:var(--muted);">(soon)</span></div>
+                            <div style="font-size:0.7rem;color:var(--muted);">Stock management</div>
+                        </span>
+                    </label>
+                </div>
+            </div><!-- /edit-info -->
 
             <!-- THEME -->
             <div class="section-editor" id="edit-theme">
@@ -529,6 +576,58 @@
     </div>
 </div>
 
+
+<!-- Add Admin Modal -->
+<div class="modal-overlay" id="modal-add-admin">
+    <div class="modal" style="max-width:400px;">
+        <div class="modal-head">
+            <div class="modal-title">Naya Admin Add Karo</div>
+            <button class="modal-close" onclick="closeModal('modal-add-admin')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="na-name" placeholder="Admin name">
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="na-username" placeholder="username" autocapitalize="none">
+                </div>
+                <div class="form-group full">
+                    <label>Password</label>
+                    <input type="password" id="na-password" placeholder="••••••••">
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('modal-add-admin')">Cancel</button>
+            <button class="btn btn-primary" onclick="createAdmin()">Add Admin</button>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Change Password Modal -->
+<div class="modal-overlay" id="modal-admin-pass">
+    <div class="modal" style="max-width:380px;">
+        <div class="modal-head">
+            <div class="modal-title">Apna Password Change Karo</div>
+            <button class="modal-close" onclick="closeModal('modal-admin-pass')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid one">
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="ap-password" placeholder="Naya password">
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('modal-admin-pass')">Cancel</button>
+            <button class="btn btn-primary" onclick="changeAdminPassword()">Update</button>
+        </div>
+    </div>
+</div>
 
     <script src="/static/js/admin.js"></script>
 </body>

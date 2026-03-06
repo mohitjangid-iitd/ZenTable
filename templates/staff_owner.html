@@ -308,6 +308,7 @@
     const clientId = "{{ client_id }}";
     const numTables = {{ data.restaurant.num_tables | default(6) }};
     const currentStaffId = {{ user.staff_id }};
+    const HAS_ANALYTICS = {{ 'true' if 'analytics' in features else 'false' }};
 </script>
 
 <!-- Static JS -->

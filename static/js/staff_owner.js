@@ -32,6 +32,10 @@ function switchTab(tab, btn) {
 
 // ── LOAD ALL ──
 async function loadAll() {
+    if (!HAS_ANALYTICS) {
+        showAnalyticsLocked();
+        return;
+    }
     try {
         const res = await fetch(`/api/admin/analytics/${clientId}`);
         if (!res.ok) throw new Error();
@@ -41,6 +45,18 @@ async function loadAll() {
     } catch(e) {
         toast('❌ Failed to load data');
     }
+}
+
+function showAnalyticsLocked() {
+    const msg = `<div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:2.5rem;margin-bottom:14px;">📊</div>
+        <div style="font-size:1rem;font-weight:700;color:#333;margin-bottom:8px;">Analytics Unavailable</div>
+        <div style="font-size:0.85rem;color:#999;line-height:1.6;">Analytics feature is not enabled for this restaurant. Contact support to upgrade.</div>
+    </div>`;
+    const ov = document.getElementById('tab-overview');
+    const an = document.getElementById('tab-analytics');
+    if (ov) ov.innerHTML = msg;
+    if (an) an.innerHTML = msg;
 }
 
 function fmt(n) {

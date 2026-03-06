@@ -155,6 +155,9 @@ function renderRestGrid() {
                 <div class="rest-meta-item">Revenue: <span>₹${r.today_revenue.toLocaleString()}</span></div>
             </div>
             ${r.cuisine_type ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:8px">${r.cuisine_type}</div>` : ''}
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+                ${(r.features || ['basic']).map(f => `<span style="font-size:0.6rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:var(--primary);border:1px solid var(--border);font-family:var(--font-m)">${f}</span>`).join('')}
+            </div>
         </div>
     `).join('');
 }
@@ -235,6 +238,13 @@ async function openEditRestaurant(client_id) {
     document.getElementById('ei-facebook').value  = r.social?.facebook || '';
     document.getElementById('ei-twitter').value   = r.social?.twitter || '';
 
+    // Fill features
+    const activeFeatures = currentEditData.subscription?.features || ['basic'];
+    ['ordering','analytics','ar_menu'].forEach(f => {
+        const cb = document.getElementById(`feat-${f}`);
+        if (cb) cb.checked = activeFeatures.includes(f);
+    });
+
     // Fill theme
     const t = currentEditData.theme || {};
     const setColor = (id, val) => {
@@ -283,6 +293,14 @@ async function saveRestaurant() {
         facebook:  document.getElementById('ei-facebook').value.trim(),
         twitter:   document.getElementById('ei-twitter').value.trim(),
     };
+
+    // Collect features
+    const selectedFeatures = ['basic'];
+    ['ordering','analytics','ar_menu'].forEach(f => {
+        const cb = document.getElementById(`feat-${f}`);
+        if (cb && cb.checked) selectedFeatures.push(f);
+    });
+    currentEditData.subscription = { features: selectedFeatures };
 
     // Collect theme
     currentEditData.theme = {
@@ -428,7 +446,12 @@ function deleteItem(index) {
 // ════════════════════════════════
 // STAFF
 // ════════════════════════════════
-function populateStaffRestSelect() {
+async function populateStaffRestSelect() {
+    if (allRestaurants.length === 0) {
+        const res = await fetch('/api/admin/overview');
+        const d = await res.json();
+        allRestaurants = d.restaurants;
+    }
     const sel = document.getElementById('staff-rest-select');
     const current = sel.value;
     sel.innerHTML = '<option value="">-- Restaurant Select Karo --</option>';
@@ -524,6 +547,45 @@ async function deleteStaff(staff_id, name) {
     const res = await fetch(`/api/admin/staff/${staff_id}`, { method:'DELETE' });
     if (res.ok) { toast(`'${name}' deleted`); loadStaff(); }
     else { toast('Delete failed', 'error'); }
+}
+
+// ════════════════════════════════
+// ADMIN MANAGEMENT
+// ════════════════════════════════
+function openAddAdmin() {
+    ['na-name','na-username','na-password'].forEach(id => document.getElementById(id).value = '');
+    openModal('modal-add-admin');
+}
+
+async function createAdmin() {
+    const body = {
+        name:     document.getElementById('na-name').value.trim(),
+        username: document.getElementById('na-username').value.trim().toLowerCase(),
+        password: document.getElementById('na-password').value,
+    };
+    if (!body.name || !body.username || !body.password) { toast('Sab fields required', 'error'); return; }
+    const res = await fetch('/api/admin/create', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (res.ok) { toast(`Admin '${body.name}' add ho gaya!`, 'success'); closeModal('modal-add-admin'); }
+    else { toast(d.detail || 'Error', 'error'); }
+}
+
+function openAdminPassword() {
+    document.getElementById('ap-password').value = '';
+    openModal('modal-admin-pass');
+}
+
+async function changeAdminPassword() {
+    const password = document.getElementById('ap-password').value;
+    if (!password) { toast('Password required', 'error'); return; }
+    const res = await fetch('/api/admin/password', {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ new_password: password })
+    });
+    if (res.ok) { toast('Password update ho gaya!', 'success'); closeModal('modal-admin-pass'); }
+    else { toast('Failed', 'error'); }
 }
 
 // ════════════════════════════════

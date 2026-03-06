@@ -783,6 +783,7 @@ def get_all_restaurants_info():
             "today_orders": today_orders,
             "today_revenue": today_revenue,
             "alltime_revenue": alltime_revenue,
+            "features": rdata.get("subscription", {}).get("features", ["basic"]),
         })
     conn.close()
     return restaurants

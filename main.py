@@ -21,7 +21,8 @@ from database import (
     create_staff, get_staff_list, update_staff_password,
     toggle_staff_active, delete_staff,
     get_all_restaurants_info, get_overall_stats, get_top_dishes_overall,
-    save_restaurant_json, delete_restaurant_full
+    save_restaurant_json, delete_restaurant_full,
+    create_admin
 )
 from auth import login_staff, login_admin, decode_token, get_redirect_url
 
@@ -71,6 +72,16 @@ def get_client_data(client_id: str):
         return None
     with open(file_path, "r") as f:
         return json.load(f)
+
+def has_feature(data: dict, feature: str) -> bool:
+    """Restaurant ke liye feature enabled hai ya nahi"""
+    features = data.get("subscription", {}).get("features", ["basic"])
+    return feature in features
+
+def require_feature(data: dict, feature: str):
+    """Feature nahi hai to 403"""
+    if not has_feature(data, feature):
+        raise HTTPException(status_code=403, detail=f"Feature '{feature}' not available")
 
 def get_current_user(token: Optional[str]) -> Optional[dict]:
     """Cookie se token padho aur decode karo"""
@@ -162,6 +173,11 @@ class CreateStaffRequest(BaseModel):
 
 class UpdatePasswordRequest(BaseModel):
     new_password: str
+
+class CreateAdminRequest(BaseModel):
+    name: str
+    username: str
+    password: str
 
 class SaveRestaurantRequest(BaseModel):
     data: dict
@@ -332,6 +348,9 @@ async def api_create_restaurant(body: CreateRestaurantRequest,
             "background": "#ffffff", "font_primary": "Playfair Display",
             "font_secondary": "Poppins"
         },
+        "subscription": {
+            "features": ["basic"]
+        },
         "items": []
     }
     os.makedirs("data", exist_ok=True)
@@ -391,6 +410,32 @@ async def api_admin_delete_staff(staff_id: int, auth_token: Optional[str] = Cook
     delete_staff(staff_id)
     return {"message": "Staff deleted"}
 
+@app.post("/api/admin/create")
+async def api_create_admin(body: CreateAdminRequest, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    if not body.name or not body.username or not body.password:
+        raise HTTPException(status_code=400, detail="Sab fields required hain")
+    ok = create_admin(body.username, body.password, body.name)
+    if not ok:
+        raise HTTPException(status_code=409, detail="Username already exists")
+    return {"message": f"Admin '{body.name}' created"}
+
+@app.patch("/api/admin/password")
+async def api_admin_change_own_password(body: UpdatePasswordRequest,
+                                         auth_token: Optional[str] = Cookie(None)):
+    user = require_auth(auth_token, ["admin"])
+    if not body.new_password:
+        raise HTTPException(status_code=400, detail="Password required")
+    from database import get_db
+    import bcrypt
+    password_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
+    conn = get_db()
+    conn.execute("UPDATE admins SET password_hash=? WHERE id=?",
+                 (password_hash, user["admin_id"]))
+    conn.commit()
+    conn.close()
+    return {"message": "Password updated"}
+
 # ════════════════════════════════
 # PUBLIC PAGE ROUTES
 # ════════════════════════════════
@@ -401,7 +446,8 @@ async def restaurant_home(request: Request, client_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     return templates.TemplateResponse("home.html", {
-        "request": request, "client_id": client_id, "data": data, "table_no": None
+        "request": request, "client_id": client_id, "data": data, "table_no": None,
+        "features": data.get("subscription", {}).get("features", ["basic"])
     })
 
 @app.get("/{client_id}/menu", response_class=HTMLResponse)
@@ -410,7 +456,8 @@ async def menu(request: Request, client_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     return templates.TemplateResponse("menu.html", {
-        "request": request, "client_id": client_id, "data": data, "table_no": None
+        "request": request, "client_id": client_id, "data": data, "table_no": None,
+        "features": data.get("subscription", {}).get("features", ["basic"])
     })
 
 @app.get("/{client_id}/table/{table_no}/menu", response_class=HTMLResponse)
@@ -422,7 +469,8 @@ async def table_menu(request: Request, client_id: str, table_no: int):
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active. Please ask staff.")
     return templates.TemplateResponse("menu.html", {
-        "request": request, "client_id": client_id, "data": data, "table_no": table_no
+        "request": request, "client_id": client_id, "data": data, "table_no": table_no,
+        "features": data.get("subscription", {}).get("features", ["basic"])
     })
 
 @app.get("/{client_id}/ar-menu", response_class=HTMLResponse)
@@ -469,7 +517,8 @@ async def staff_owner(request: Request, client_id: str,
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     return templates.TemplateResponse("staff_owner.html", {
-        "request": request, "client_id": client_id, "data": data, "user": user
+        "request": request, "client_id": client_id, "data": data, "user": user,
+        "features": data.get("subscription", {}).get("features", ["basic"])
     })
 
 @app.get("/{client_id}/staff/kitchen", response_class=HTMLResponse)
@@ -566,8 +615,9 @@ async def get_menu_api(client_id: str, request: Request):
     import copy
     safe_data = copy.deepcopy(data)
     for item in safe_data.get("items", []):
-        if item.get("model"):
-            token = create_glb_token(client_id, item["model"])
+        model = item.get("model")
+        if model and model.lower() != "none":
+            token = create_glb_token(client_id, model)
             item["model_url"] = f"/glb/{token}"
         else:
             item["model_url"] = None
@@ -642,8 +692,10 @@ async def api_get_tables(client_id: str):
 
 @app.post("/api/order/{client_id}/{table_no}")
 async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest):
-    if not get_client_data(client_id):
+    data = get_client_data(client_id)
+    if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    require_feature(data, "ordering")
     table = get_table_status(client_id, table_no)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active")
@@ -721,8 +773,10 @@ async def api_summary(client_id: str):
 
 @app.get("/api/admin/analytics/{client_id}")
 async def api_analytics(client_id: str):
-    if not get_client_data(client_id):
+    data = get_client_data(client_id)
+    if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    require_feature(data, "analytics")
     return get_analytics(client_id)
 
 if __name__ == "__main__":

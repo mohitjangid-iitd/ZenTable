@@ -15,7 +15,8 @@ async function loadMenu() {
     const data = await res.json();
     const carousel = document.getElementById("carousel-wrapper");
 
-    data.items.forEach((item, index) => {
+    const arItems = data.items.filter(item => item.model_url);
+    arItems.forEach((item, index) => {
         const btn = document.createElement("div");
         btn.className = "dish-btn";
         btn.innerHTML = `
