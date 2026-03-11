@@ -142,6 +142,11 @@ body {
     display: inline-block;
 }
 
+/* ── DISH WRAPPER ── */
+.dish-wrapper {
+    margin-bottom: 12px;
+}
+
 /* ── DISH CARD ── */
 .dish-card {
     display: flex;
@@ -150,11 +155,9 @@ body {
     background: var(--card-bg);
     border-radius: var(--radius);
     padding: 14px;
-    margin-bottom: 12px;
     box-shadow: var(--shadow);
     transition: transform 0.15s ease;
     position: relative;
-    overflow: hidden;
 }
 
 .dish-card:active { transform: scale(0.98); }
@@ -492,3 +495,60 @@ body {
 }
 
 .empty-plate i { font-size: 2.5rem; margin-bottom: 10px; display: block; }
+
+/* ── SIZE DROPDOWN ── */
+.size-dropdown {
+    display: none;
+    background: var(--card-bg);
+    border-radius: 0 0 14px 14px;
+    padding: 0 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-top: 1px solid rgba(0,0,0,0.05);
+}
+.dish-card:has(+ .size-dropdown.open) {
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+.size-dropdown.open {
+    display: block;
+    animation: ddOpen 0.2s ease forwards;
+}
+@keyframes ddOpen {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.size-dd-label {
+    font-size: 0.7rem;
+    color: #aaa;
+    padding: 10px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.size-options {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 14px;
+    flex-wrap: wrap;
+}
+.size-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 9px 20px;
+    border-radius: 12px;
+    border: 1.5px solid var(--primary);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.size-option-btn:active { background: var(--primary); }
+.size-lbl {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--secondary);
+}
+.size-price {
+    font-size: 0.72rem;
+    color: var(--primary);
+    font-weight: 500;
+}

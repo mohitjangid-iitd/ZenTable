@@ -123,3 +123,55 @@ document.getElementById("share-btn").onclick = async () => {
         alert("Link copied!");
     }
 };
+
+// ======================
+// HINT BUBBLE
+// ======================
+function showHintBubble() {
+    const menuBtn = document.getElementById('menu-btn');
+    if (!menuBtn) return;
+
+    // Button ki position lo
+    const rect = menuBtn.getBoundingClientRect();
+
+    // Bubble banao
+    const bubble = document.createElement('div');
+    bubble.id = 'hint-bubble';
+    bubble.textContent = '📋 Menu & ordering yahan hai';
+    document.body.appendChild(bubble);
+
+    // Bubble ki size lo (render hone ke baad)
+    requestAnimationFrame(() => {
+        const bw = bubble.offsetWidth;
+        const bh = bubble.offsetHeight;
+
+        // Button ke paas position — right-aligned, button ke neeche
+        const top  = rect.bottom + 10;
+        const left = rect.right - bw;
+
+        bubble.style.top  = `${top}px`;
+        bubble.style.left = `${left}px`;
+
+        // transform-origin bhi button center pe set karo
+        const originX = rect.left + rect.width / 2 - left;
+        const originY = rect.top + rect.height / 2 - top;
+        bubble.style.transformOrigin = `${originX}px ${originY}px`;
+
+        // Phase 1: expand
+        requestAnimationFrame(() => {
+            bubble.classList.add('phase-expand');
+
+            // Phase 2: 2.5s baad shrink wapas button mein
+            setTimeout(() => {
+                bubble.classList.remove('phase-expand');
+                bubble.classList.add('phase-shrink');
+
+                // Animation khatam hone ke baad remove karo
+                setTimeout(() => bubble.remove(), 500);
+            }, 2500);
+        });
+    });
+}
+
+// Page load hone ke 1s baad dikhao
+setTimeout(showHintBubble, 1000);

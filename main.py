@@ -96,7 +96,8 @@ def require_auth(token: Optional[str], allowed_roles: list, client_id: str = Non
     """
     user = get_current_user(token)
     if not user:
-        raise HTTPException(status_code=302, headers={"Location": "/login"})
+        login_url = "/admin/login" if allowed_roles == ["admin"] else "/login"
+        raise HTTPException(status_code=302, headers={"Location": login_url})
     if user.get("role") not in allowed_roles:
         raise HTTPException(status_code=403, detail="Access denied")
     if client_id and user.get("role") != "admin":
@@ -199,6 +200,13 @@ class CreateRestaurantRequest(BaseModel):
     facebook: str = ""
     twitter: str = ""
 
+# ════════════════════════════════
+# Landing Page
+# ════════════════════════════════
+
+@app.get("/", response_class=HTMLResponse)
+async def landing(request: Request):
+    return templates.TemplateResponse("landing.html", {"request": request, "site": SITE_CONFIG})
 
 # ════════════════════════════════
 # ASSET SERVING
@@ -778,6 +786,10 @@ async def api_analytics(client_id: str):
         raise HTTPException(status_code=404, detail="Restaurant not found")
     require_feature(data, "analytics")
     return get_analytics(client_id)
+
+@app.get("/.well-known/appspecific/com.chrome.devtools.json")
+async def chrome_devtools():
+    return {}
 
 if __name__ == "__main__":
     import uvicorn

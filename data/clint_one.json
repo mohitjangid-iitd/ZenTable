@@ -1,7 +1,7 @@
 {
   "restaurant": {
     "name": "The Golden Spoon",
-    "num_tables": 5,
+    "num_tables": 9,
     "tagline": "Where Tradition Meets Innovation",
     "logo": "/static/assets/clint_one/logo.png",
     "banner": "/static/assets/clint_one/banner.png",
@@ -67,7 +67,10 @@
       "name": "Dal Makhani",
       "description": "Slow-cooked black lentils simmered overnight with butter and cream",
       "image": "/static/assets/clint_one/dal_makhani.jpg",
-      "price": "INR 320",
+      "sizes": [
+        {"label": "Half", "price": "INR 180"},
+        {"label": "Full", "price": "INR 320"}
+      ],
       "veg": true,
       "featured": true,
       "category": "Main Course",
@@ -83,7 +86,8 @@
   "subscription": {
     "features": [
       "basic",
-      "ordering"
+      "ordering",
+      "ar_menu"
     ]
   }
 }

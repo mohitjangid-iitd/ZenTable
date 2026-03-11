@@ -110,3 +110,40 @@ body {
     border-color: white !important;
     background: rgba(255, 255, 255, 0.25) !important;
 }
+
+/* ── HINT BUBBLE ── */
+#hint-bubble {
+    position: fixed;
+    z-index: 1001;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.15);
+    pointer-events: none;
+    /* JS se top/left set hoga */
+    opacity: 0;
+    transform: scale(0.3);
+    transform-origin: top right; /* button top-right area hai */
+}
+
+#hint-bubble.phase-expand {
+    transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 1;
+    transform: scale(1);
+}
+
+#hint-bubble.phase-shrink {
+    transition: opacity 0.3s ease 0.1s, transform 0.4s cubic-bezier(0.55, 0, 1, 0.45);
+    opacity: 0;
+    transform: scale(0.3);
+}

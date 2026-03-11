@@ -5,13 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>{{ data.restaurant.name }} — Menu</title>
 
-    <!-- Google Fonts — Jinja2 render karega -->
     <link href="https://fonts.googleapis.com/css2?family={{ data.theme.font_primary.replace(' ', '+') }}:wght@400;600;700&family={{ data.theme.font_secondary.replace(' ', '+') }}:wght@300;400;500;600&display=swap" rel="stylesheet">
-
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Theme variables — Jinja2 se inject -->
     <style>
         :root {
             --primary: {{ data.theme.primary_color }};
@@ -25,15 +21,12 @@
             --shadow: 0 2px 12px rgba(0,0,0,0.08);
             --radius: 16px;
         }
-
-        /* Banner bg — Jinja2 variable hai isliye yahan */
         .banner {
             background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6)),
                         url('{{ data.restaurant.banner }}') center/cover no-repeat;
         }
     </style>
 
-    <!-- Static CSS -->
     <link rel="stylesheet" href="/static/css/menu.css">
 </head>
 <body>
@@ -76,42 +69,97 @@
         {% endif %}
     {% endfor %}
 
+    {# Global counter — loop.index nested loops mein galat hota hai #}
+    {% set ns = namespace(i=0) %}
+
     {% for cat in categories %}
     <div class="category-section" data-section="{{ cat }}">
         <div class="category-title">{{ cat }}</div>
 
         {% for item in data['items'] %}
         {% if item.category == cat %}
-        <div class="dish-card" data-name="{{ item.name }}" data-price="{{ item.price }}" data-category="{{ item.category }}">
+        {% set has_sizes = item.sizes is defined and item.sizes %}
+        {% set ns.i = ns.i + 1 %}
+        {% set ddid = "sdd-" ~ ns.i %}
 
-            {% if item.image %}
-            <img src="{{ item.image }}" alt="{{ item.name }}" class="dish-img"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-            <div class="dish-img-placeholder" style="display:none">🍽️</div>
-            {% else %}
-            <div class="dish-img-placeholder">🍽️</div>
-            {% endif %}
+        <div class="dish-wrapper">
 
-            <div class="dish-info">
-                <div class="dish-top">
-                    <div class="veg-dot {{ 'veg' if item.veg else 'nonveg' }}"></div>
-                    <div class="dish-name">{{ item.name }}</div>
-                </div>
-                {% if item.description %}
-                <div class="dish-desc">{{ item.description }}</div>
+            <div class="dish-card"
+                 data-name="{{ item.name }}"
+                 data-price="{{ item.price if not has_sizes else item.sizes[0].price }}"
+                 data-has-sizes="{{ 'true' if has_sizes else 'false' }}"
+                 data-ddid="{{ ddid }}">
+
+                {% if item.image %}
+                <img src="{{ item.image }}" alt="{{ item.name }}" class="dish-img"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                <div class="dish-img-placeholder" style="display:none">🍽️</div>
+                {% else %}
+                <div class="dish-img-placeholder">🍽️</div>
                 {% endif %}
-                <div class="dish-bottom">
-                    <div class="dish-price">{{ item.price }}</div>
-                    <div class="add-btn-wrapper">
-                        {% if 'ordering' in features %}
-                        <button class="add-btn" onclick="addToPlate('{{ item.name }}', '{{ item.price }}', this)">+</button>
-                        {% else %}
-                        <button class="add-btn add-btn-locked" onclick="showOrderingLocked()">+</button>
-                        {% endif %}
+
+                <div class="dish-info">
+                    <div class="dish-top">
+                        <div class="veg-dot {{ 'veg' if item.veg else 'nonveg' }}"></div>
+                        <div class="dish-name">{{ item.name }}</div>
+                    </div>
+                    {% if item.description %}
+                    <div class="dish-desc">{{ item.description }}</div>
+                    {% endif %}
+                    <div class="dish-bottom">
+                        <div class="dish-price"></div>
+                        <div class="add-btn-wrapper" id="abw-{{ ddid }}">
+                            {% if 'ordering' in features %}
+                            <button class="add-btn js-size-toggle" data-ddid="{{ ddid }}">+</button>
+                            {% else %}
+                            <button class="add-btn add-btn-locked js-locked">+</button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
+            </div><!-- /dish-card -->
+
+            {% if 'ordering' in features %}
+            <div class="size-dropdown" id="{{ ddid }}">
+                <div class="size-options">
+                    {% if has_sizes %}
+                        {% for s in item.sizes %}
+                        <div class="size-row">
+                            <div class="size-row-info">
+                                <span class="size-lbl">{{ s.label }}</span>
+                                <span class="size-price">{{ s.price }}</span>
+                            </div>
+                            <div class="size-row-ctrl" id="ctrl-{{ ddid }}-{{ loop.index }}">
+                                <button class="qty-btn js-size-add"
+                                    data-dish="{{ item.name }}"
+                                    data-label="{{ s.label }}"
+                                    data-price="{{ s.price }}"
+                                    data-ddid="{{ ddid }}"
+                                    data-idx="{{ loop.index }}">+</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="size-row">
+                            <div class="size-row-info">
+                                <span class="size-lbl">{{ item.name }}</span>
+                                <span class="size-price">{{ item.price }}</span>
+                            </div>
+                            <div class="size-row-ctrl" id="ctrl-{{ ddid }}-1">
+                                <button class="qty-btn js-size-add"
+                                    data-dish="{{ item.name }}"
+                                    data-label=""
+                                    data-price="{{ item.price }}"
+                                    data-ddid="{{ ddid }}"
+                                    data-idx="1">+</button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
-        </div>
+            {% endif %}
+
+        </div><!-- /dish-wrapper -->
         {% endif %}
         {% endfor %}
     </div>
@@ -183,6 +231,72 @@
 <style>
 .add-btn-locked { opacity: 0.45; cursor: pointer; }
 .ar-btn-locked  { opacity: 0.55; }
+.size-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.size-row:last-child { border-bottom: none; }
+.size-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.size-row-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.size-row-ctrl .qty-num {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--secondary);
+    min-width: 16px;
+    text-align: center;
+}
+.js-size-add {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary);
+    color: var(--secondary);
+    font-size: 1.2rem;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.js-size-minus {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.size-total-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    background: var(--secondary);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 6px;
+}
 </style>
 
 <script>

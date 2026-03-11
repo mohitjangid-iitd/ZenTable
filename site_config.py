@@ -3,7 +3,7 @@
 
 SITE_CONFIG = {
     # ── Identity ──
-    "name":    "MenuAR",
+    "name":    "ZenTable",
     "tagline": "Smart Dining, Reimagined",
     "version": "1.0.0",
 
@@ -22,6 +22,7 @@ SITE_CONFIG = {
     "font_body":    "Inter",
 
     # ── Social / Contact (optional) ──
-    "support_email": "support@menuar.in",
-    "website":       "https://menuar.in",
+    "support_email": "zentable@gmail.com",
+    "website":       "https://zentable.in",
+    "whatsapp":      "919587493062",
 }
