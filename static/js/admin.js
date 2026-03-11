@@ -158,6 +158,7 @@ function renderRestGrid() {
             <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
                 ${(r.features || ['basic']).map(f => `<span style="font-size:0.6rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:var(--primary);border:1px solid var(--border);font-family:var(--font-m)">${f}</span>`).join('')}
             </div>
+            <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;font-size:0.78rem;" onclick="downloadAllQRs('${r.client_id}')">⬇ Download All QR Codes</button>
         </div>
     `).join('');
 }
@@ -732,4 +733,134 @@ function clearRestaurantDrill() {
     document.getElementById('rest-detail-section').style.display = 'none';
     document.querySelectorAll('.rest-row').forEach(r => r.classList.remove('row-selected'));
     loadTopDishes('alltime');
+}
+// ── QR Generator (Admin — Branded) ──
+async function downloadAllQRs(clientId) {
+    const SCALE = 4; // high quality for print
+
+    const res = await fetch(`/api/menu/${clientId}`);
+    const data = await res.json();
+    const rest = data.restaurant;
+    const theme = data.theme;
+    const numTables = rest.num_tables || 6;
+    const primary   = theme.primary_color   || '#6C63FF';
+    const secondary = theme.secondary_color || '#1a1a1a';
+
+    // Logo load
+    let logoImg = null;
+    if (rest.logo) {
+        logoImg = await new Promise(res => {
+            const img = new Image();
+            img.onload  = () => res(img);
+            img.onerror = () => res(null);
+            // Same-origin hai toh crossOrigin nahi chahiye
+            img.src = rest.logo + '?v=' + Date.now();
+        });
+    }
+
+    const zip = new JSZip();
+
+    for (let n = 1; n <= numTables; n++) {
+        const url = `${window.location.origin}/${clientId}/table/${n}/ar-menu`;
+
+        const blob = await new Promise(resolve => {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+            document.body.appendChild(wrap);
+
+            const qrSize = 300;
+            new QRCode(wrap, { text: url, width: qrSize, height: qrSize, correctLevel: QRCode.CorrectLevel.H });
+
+            setTimeout(() => {
+                const qrEl = wrap.querySelector('canvas') || wrap.querySelector('img');
+
+                // Layout constants (pre-scale)
+                const pad      = 28;
+                const barH     = 8;
+                const logoSize = logoImg ? 70 : 0;
+                const logoGap  = logoImg ? logoSize + 14 : 0;
+                const nameH    = 28;
+                const tableH   = 36;
+                const gap      = 10;
+                const totalH   = barH + pad + logoGap + nameH + gap + tableH + gap + qrSize + pad + barH;
+                const totalW   = qrSize + pad * 2;
+
+                const canvas = document.createElement('canvas');
+                canvas.width  = totalW * SCALE;
+                canvas.height = totalH * SCALE;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(SCALE, SCALE);
+
+                // White bg
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, totalW, totalH);
+
+                // Top bar
+                ctx.fillStyle = primary;
+                ctx.fillRect(0, 0, totalW, barH);
+
+                let y = barH + pad;
+
+                // Logo — circular clip
+                if (logoImg) {
+                    const lx = (totalW - logoSize) / 2;
+                    const ly = y;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(lx + logoSize/2, ly + logoSize/2, logoSize/2, 0, Math.PI*2);
+                    ctx.closePath();
+                    ctx.clip();
+                    ctx.drawImage(logoImg, lx, ly, logoSize, logoSize);
+                    ctx.restore();
+                    y += logoSize + 14;
+                }
+
+                // Restaurant name
+                ctx.fillStyle = secondary;
+                ctx.font = `600 15px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(rest.name, totalW / 2, y + 20);
+                y += nameH + gap;
+
+                // Table number
+                ctx.fillStyle = primary;
+                ctx.font = `bold 24px Arial`;
+                ctx.fillText(`Table ${n}`, totalW / 2, y + 28);
+                y += tableH + gap;
+
+                // QR
+                const drawQR = (src) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, pad, y, qrSize, qrSize);
+                        y += qrSize + pad;
+
+                        // Bottom bar
+                        ctx.fillStyle = primary;
+                        ctx.fillRect(0, totalH - barH, totalW, barH);
+
+                        canvas.toBlob(blob => {
+                            document.body.removeChild(wrap);
+                            resolve(blob);
+                        }, 'image/png');
+                    };
+                    img.src = src;
+                };
+
+                if (qrEl.tagName === 'CANVAS') drawQR(qrEl.toDataURL());
+                else drawQR(qrEl.src);
+            }, 150);
+        });
+
+        zip.file(`${clientId}_table_${n}.png`, blob);
+        await new Promise(r => setTimeout(r, 100));
+    }
+
+    // Generate zip aur download
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.download = `${clientId}_qr_codes.zip`;
+    link.href = URL.createObjectURL(zipBlob);
+    link.click();
+    URL.revokeObjectURL(link.href);
 }

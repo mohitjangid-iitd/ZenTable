@@ -265,8 +265,61 @@ async function loadTables() {
             <div class="table-num">T${n}</div>
             <div class="table-status">${labels[ds]||ds}</div>
             <div class="table-orders">${t ? t.order_count+' orders' : ''}</div>
+            <button class="qr-btn" onclick="downloadTableQR(${n})">⬇ QR</button>
         </div>`;
     }).join('');
+}
+
+function downloadTableQR(tableNo) {
+    const SCALE  = 4;
+    const qrSize = 280;
+    const pad    = 32;
+    const textH  = 60;
+
+    const url = `${window.location.origin}/${clientId}/table/${tableNo}/ar-menu`;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+    document.body.appendChild(wrap);
+    new QRCode(wrap, { text: url, width: qrSize, height: qrSize, correctLevel: QRCode.CorrectLevel.H });
+
+    setTimeout(() => {
+        const qrEl = wrap.querySelector('canvas') || wrap.querySelector('img');
+
+        const W = qrSize + pad * 2;
+        const H = textH + qrSize + pad * 2;
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = W * SCALE;
+        canvas.height = H * SCALE;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(SCALE, SCALE);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Table ' + tableNo, W / 2, pad + textH / 2);
+
+        const drawQR = (src) => {
+            const img = new Image();
+            img.onload = () => {
+                ctx.drawImage(img, pad, pad + textH, qrSize, qrSize);
+                const link = document.createElement('a');
+                link.download = 'table_' + tableNo + '_qr.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                document.body.removeChild(wrap);
+            };
+            img.src = src;
+        };
+
+        if (qrEl.tagName === 'CANVAS') drawQR(qrEl.toDataURL());
+        else drawQR(qrEl.src);
+    }, 100);
 }
 
 function toast(msg) {
