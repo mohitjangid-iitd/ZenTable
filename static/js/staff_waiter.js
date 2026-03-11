@@ -57,7 +57,6 @@ async function loadOrders() {
     summary.forEach(t => tMap[String(t.table_no)] = t);
 
     const list = document.getElementById('orders-list');
-    const today = new Date().toLocaleDateString('en-CA');
 
     let filtered = all.filter(o => o.status !== 'cancelled');
 
@@ -86,10 +85,13 @@ async function loadOrders() {
         filtered = filtered.filter(o => billedOrderSet.has(o.id));
 
     } else if (currentFilter === 'paid') {
-        filtered = filtered.filter(o => {
-            const created = (o.created_at || '').substring(0, 10);
-            return o.status === 'done' && created === today;
+        const paidTodaySet = new Set();
+        summary.forEach(t => {
+            if (t.paid_today_order_ids) {
+                t.paid_today_order_ids.forEach(id => paidTodaySet.add(id));
+            }
         });
+        filtered = filtered.filter(o => paidTodaySet.has(o.id));
     }
 
     // Group by table
