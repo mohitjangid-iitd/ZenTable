@@ -185,7 +185,7 @@ async function loadOrders() {
                     <div class="order-row-top">
                         <div style="display:flex;gap:5px;align-items:center">
                             <span class="badge ${o.status}">${o.status}</span>
-                            <span class="badge ${o.source}">${o.source}</span>
+                            <span class="badge staff">${o.source === 'waiter' ? 'staff' : o.source}</span>
                             ${progressBadge}
                         </div>
                         <span style="font-size:0.72rem;color:#bbb">${(o.created_at || '').substring(11, 16)}</span>
@@ -267,7 +267,7 @@ async function openModal(tableNo) {
                 <div class="order-row-top">
                     <div style="display:flex;gap:5px;align-items:center">
                         <span class="badge ${o.status}">${statusEmoji} ${o.status}</span>
-                        <span class="badge ${o.source}">${o.source}</span>
+                        <span class="badge staff">${o.source === 'waiter' ? 'staff' : o.source}</span>
                         ${readyItems.length > 0 ? `<span class="ready-progress ${readyItems.length === items.length ? 'rp-full' : 'rp-partial'}">${readyItems.length}/${items.length} ready</span>` : ''}
                     </div>
                     <span style="font-size:0.72rem;color:#bbb">${(o.created_at || '').substring(11, 16)}</span>
@@ -501,45 +501,234 @@ async function payBill(tableNo) {
 }
 
 // ── PLACE ORDER ──
+// waiterCart: { key: { name, label, price, qty } }
+// key = "ItemName" (no size) or "ItemName||SizeLabel" (sized)
+const waiterCart = {};
+let woActiveCat = 'all';
+let woSearchQuery = '';
+
 function renderMenu() {
     const wrap = document.getElementById('menu-items-list');
-    wrap.innerHTML = menuItems.map((item, i) => `
-        <div class="menu-item-row">
-            <div class="item-info">
-                <div class="item-info-name">${item.name}</div>
-                <div class="item-info-price">${item.price}</div>
-            </div>
-            <div class="qty-ctrl">
-                <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
-                <span class="qty-num" id="qty-${i}">0</span>
-                <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
-            </div>
-        </div>`).join('');
+
+    // Build categories
+    const cats = ['all'];
+    menuItems.forEach(item => {
+        if (!cats.includes(item.category)) cats.push(item.category);
+    });
+
+    wrap.innerHTML = `
+        <!-- Table input -->
+        <div class="wo-table-row">
+            <label>Table No.</label>
+            <input type="number" id="wo-table" placeholder="e.g. 2" min="1">
+        </div>
+
+        <!-- Search -->
+        <div class="wo-search-wrap">
+            <i class="fas fa-search wo-search-icon"></i>
+            <input type="text" id="wo-search" placeholder="Search dishes..." oninput="woOnSearch(this.value)">
+            <button class="wo-search-clear" id="wo-search-clear" onclick="woClearSearch()" style="display:none">✕</button>
+        </div>
+
+        <!-- Category tabs -->
+        <div class="wo-cat-tabs" id="wo-cat-tabs">
+            ${cats.map(c => `
+                <button class="wo-cat-tab ${c === woActiveCat ? 'active' : ''}"
+                    onclick="woSetCat('${c}')">${c === 'all' ? 'All' : c}</button>
+            `).join('')}
+        </div>
+
+        <!-- Items list -->
+        <div id="wo-items-wrap"></div>
+
+        <!-- Spacer for floating bar -->
+        <div style="height:80px"></div>
+    `;
+
+    woRenderItems();
+    woUpdateBar();
 }
 
-function changeQty(i, delta) {
-    waiterQtys[i] = Math.max(0, (waiterQtys[i] || 0) + delta);
-    document.getElementById(`qty-${i}`).textContent = waiterQtys[i];
+function woGetKey(name, label) {
+    return label ? name + '||' + label : name;
+}
+
+function woOnSearch(val) {
+    woSearchQuery = val.trim().toLowerCase();
+    document.getElementById('wo-search-clear').style.display = woSearchQuery ? 'block' : 'none';
+    woRenderItems();
+}
+
+function woClearSearch() {
+    document.getElementById('wo-search').value = '';
+    woSearchQuery = '';
+    document.getElementById('wo-search-clear').style.display = 'none';
+    woRenderItems();
+}
+
+function woSetCat(cat) {
+    woActiveCat = cat;
+    document.querySelectorAll('.wo-cat-tab').forEach(b => {
+        b.classList.toggle('active', b.textContent === (cat === 'all' ? 'All' : cat));
+    });
+    woRenderItems();
+}
+
+function woRenderItems() {
+    const wrap = document.getElementById('wo-items-wrap');
+    if (!wrap) return;
+
+    let items = menuItems;
+
+    // Category filter
+    if (woActiveCat !== 'all') {
+        items = items.filter(i => i.category === woActiveCat);
+    }
+
+    // Search filter
+    if (woSearchQuery) {
+        items = items.filter(i => i.name.toLowerCase().includes(woSearchQuery));
+    }
+
+    if (!items.length) {
+        wrap.innerHTML = `<div class="wo-empty">No items found</div>`;
+        return;
+    }
+
+    wrap.innerHTML = items.map(item => {
+        const hasSizes = item.sizes && item.sizes.length;
+        if (hasSizes) {
+            // Sized item — show each size as a row
+            const sizeRows = item.sizes.map(s => {
+                const key = woGetKey(item.name, s.label);
+                const qty = waiterCart[key] ? waiterCart[key].qty : 0;
+                return `
+                <div class="wo-size-row">
+                    <div class="wo-size-info">
+                        <span class="wo-size-lbl">${s.label}</span>
+                        <span class="wo-size-price">₹${parsePrice(s.price)}</span>
+                    </div>
+                    <div class="wo-qty-ctrl" id="wqc-${CSS.escape(key)}">
+                        ${woCtrlHtml(item.name, s.label, s.price, qty)}
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="wo-item-card">
+                <div class="wo-item-head">
+                    <div class="wo-veg-dot ${item.veg ? 'veg' : 'nonveg'}"></div>
+                    <div class="wo-item-name">${item.name}</div>
+                </div>
+                <div class="wo-sizes-list">${sizeRows}</div>
+            </div>`;
+        } else {
+            // Single price item
+            const key = woGetKey(item.name, '');
+            const qty = waiterCart[key] ? waiterCart[key].qty : 0;
+            return `
+            <div class="wo-item-card">
+                <div class="wo-item-row">
+                    <div class="wo-item-left">
+                        <div class="wo-veg-dot ${item.veg ? 'veg' : 'nonveg'}"></div>
+                        <div class="wo-item-name">${item.name}</div>
+                    </div>
+                    <div class="wo-item-right">
+                        <span class="wo-item-price">₹${parsePrice(item.price)}</span>
+                        <div class="wo-qty-ctrl" id="wqc-${CSS.escape(key)}">
+                            ${woCtrlHtml(item.name, '', item.price, qty)}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+    }).join('');
+}
+
+function woCtrlHtml(name, label, price, qty) {
+    const eName = name.replace(/"/g, '&quot;');
+    const eLabel = label.replace(/"/g, '&quot;');
+    const ePrice = String(price).replace(/"/g, '&quot;');
+    if (qty <= 0) {
+        return `<button class="wo-add-btn" onclick="woAdd('${eName}','${eLabel}','${ePrice}')">+</button>`;
+    }
+    return `
+        <button class="qty-btn wo-minus" onclick="woRemove('${eName}','${eLabel}','${ePrice}')">−</button>
+        <span class="qty-num">${qty}</span>
+        <button class="qty-btn wo-plus" onclick="woAdd('${eName}','${eLabel}','${ePrice}')">+</button>`;
+}
+
+function woUpdateCtrl(name, label, price) {
+    const key = woGetKey(name, label);
+    const qty = waiterCart[key] ? waiterCart[key].qty : 0;
+    const el = document.getElementById('wqc-' + CSS.escape(key));
+    if (el) el.innerHTML = woCtrlHtml(name, label, price, qty);
+}
+
+function woAdd(name, label, price) {
+    const key = woGetKey(name, label);
+    const displayName = label ? name + ' (' + label + ')' : name;
+    if (waiterCart[key]) {
+        waiterCart[key].qty++;
+    } else {
+        waiterCart[key] = { name, label, price, qty: 1, displayName };
+    }
+    woUpdateCtrl(name, label, price);
+    woUpdateBar();
+}
+
+function woRemove(name, label, price) {
+    const key = woGetKey(name, label);
+    if (!waiterCart[key]) return;
+    waiterCart[key].qty--;
+    if (waiterCart[key].qty <= 0) delete waiterCart[key];
+    woUpdateCtrl(name, label, price);
+    woUpdateBar();
+}
+
+function woUpdateBar() {
+    const entries = Object.values(waiterCart);
+    const totalQty = entries.reduce((s, e) => s + e.qty, 0);
+    const totalPrice = entries.reduce((s, e) => s + parsePrice(e.price) * e.qty, 0);
+
+    let bar = document.getElementById('wo-float-bar');
+    if (!bar) return;
+
+    if (totalQty === 0) {
+        bar.style.display = 'none';
+    } else {
+        bar.style.display = 'flex';
+        bar.querySelector('.wo-bar-count').textContent = totalQty + ' item' + (totalQty > 1 ? 's' : '');
+        bar.querySelector('.wo-bar-total').textContent = '₹' + totalPrice;
+    }
 }
 
 async function placeOrder() {
     const tableNo = parseInt(document.getElementById('wo-table').value);
     if (!tableNo) { toast('Table number bharo'); return; }
-    const items = menuItems
-        .map((item, i) => ({ name: item.name, qty: waiterQtys[i] || 0, price: parsePrice(item.price) }))
-        .filter(i => i.qty > 0);
-    if (!items.length) { toast('Koi item select karo'); return; }
+
+    const entries = Object.values(waiterCart);
+    if (!entries.length) { toast('Koi item select karo'); return; }
+
+    const items = entries.map(e => ({
+        name: e.displayName,
+        qty: e.qty,
+        price: parsePrice(e.price)
+    }));
     const total = items.reduce((s, i) => s + i.qty * i.price, 0);
 
     const res = await fetch(`/api/order/${clientId}/${tableNo}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, total, source: 'waiter' })
+        body: JSON.stringify({ items, total, source: 'Staff' })
     });
     if (res.ok) {
         toast('✅ Order placed!');
-        Object.keys(waiterQtys).forEach(k => waiterQtys[k] = 0);
-        document.querySelectorAll('[id^="qty-"]').forEach(el => el.textContent = '0');
+        // Cart reset
+        Object.keys(waiterCart).forEach(k => delete waiterCart[k]);
+        woSearchQuery = '';
+        woActiveCat = 'all';
         document.getElementById('wo-table').value = '';
+        renderMenu();
         loadTables();
     } else {
         const err = await res.json();
