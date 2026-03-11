@@ -68,8 +68,14 @@
       "description": "Slow-cooked black lentils simmered overnight with butter and cream",
       "image": "/static/assets/clint_one/dal_makhani.jpg",
       "sizes": [
-        {"label": "Half", "price": "INR 180"},
-        {"label": "Full", "price": "INR 320"}
+        {
+          "label": "Half",
+          "price": "INR 180"
+        },
+        {
+          "label": "Full",
+          "price": "INR 320"
+        }
       ],
       "veg": true,
       "featured": true,
@@ -86,8 +92,7 @@
   "subscription": {
     "features": [
       "basic",
-      "ordering",
-      "ar_menu"
+      "ordering"
     ]
   }
 }

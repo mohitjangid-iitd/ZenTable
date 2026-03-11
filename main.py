@@ -483,8 +483,12 @@ async def table_menu(request: Request, client_id: str, table_no: int):
 
 @app.get("/{client_id}/ar-menu", response_class=HTMLResponse)
 async def ar_menu(request: Request, client_id: str):
-    if not get_client_data(client_id):
+    data = get_client_data(client_id)
+    if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    features = data.get("subscription", {}).get("features", [])
+    if "ar_menu" not in features:
+        return RedirectResponse(url=f"/{client_id}/menu")
     return templates.TemplateResponse("ar_menu.html", {
         "request": request, "client_id": client_id, "table_no": None
     })
@@ -506,6 +510,9 @@ async def table_ar_menu(request: Request, client_id: str, table_no: int):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    features = data.get("subscription", {}).get("features", [])
+    if "ar_menu" not in features:
+        return RedirectResponse(url=f"/{client_id}/table/{table_no}/menu")
     table = get_table_status(client_id, table_no)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active. Please ask staff.")

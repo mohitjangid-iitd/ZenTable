@@ -84,7 +84,7 @@
     "features": [
       "basic",
       "ordering",
-      "analytics"
+      "ar_menu"
     ]
   }
 }
