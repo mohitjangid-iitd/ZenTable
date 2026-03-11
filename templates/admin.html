@@ -39,7 +39,7 @@
             <div class="loading">Loading...</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
             <!-- Restaurants summary table -->
             <div class="card">
                 <div class="card-head">
@@ -62,20 +62,45 @@
                 </div>
             </div>
 
-            <!-- Top dishes overall -->
-            <div class="card">
-                <div class="card-head">
-                    <div class="section-title">Top Dishes (Overall)</div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="filter-pill active" onclick="setDishPeriod('alltime',this)">All Time</button>
-                        <button class="filter-pill" onclick="setDishPeriod('today',this)">Today</button>
-                        <button class="filter-pill" onclick="setDishPeriod('week',this)">Week</button>
-                        <button class="filter-pill" onclick="setDishPeriod('month',this)">Month</button>
+            <!-- Right column: top dishes + detail section -->
+            <div style="display:flex;flex-direction:column;gap:18px;">
+
+                <!-- Top dishes panel — overall ya restaurant specific -->
+                <div class="card">
+                    <div class="card-head">
+                        <div class="section-title" id="dishes-panel-title">Top Dishes (Overall)</div>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <button id="dishes-back-btn" onclick="clearRestaurantDrill()"
+                                style="display:none;font-size:0.72rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">
+                                ← Overall
+                            </button>
+                            <div id="dish-period-pills" style="display:flex;gap:6px;">
+                                <button class="filter-pill active" onclick="setDishPeriod('alltime',this)">All Time</button>
+                                <button class="filter-pill" onclick="setDishPeriod('today',this)">Today</button>
+                                <button class="filter-pill" onclick="setDishPeriod('week',this)">Week</button>
+                                <button class="filter-pill" onclick="setDishPeriod('month',this)">Month</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body" id="overall-dishes">
+                        <div class="loading">Loading...</div>
                     </div>
                 </div>
-                <div class="card-body" id="overall-dishes">
-                    <div class="loading">Loading...</div>
+
+                <!-- Restaurant detail section — top dishes ke niche, row click pe expand -->
+                <div id="rest-detail-section" style="display:none;">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="section-title" id="rest-detail-title">Restaurant Detail</div>
+                            <button onclick="clearRestaurantDrill()"
+                                style="font-size:0.72rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">
+                                ✕ Close
+                            </button>
+                        </div>
+                        <div class="card-body" id="rest-detail-body"></div>
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -630,5 +655,34 @@
 </div>
 
     <script src="/static/js/admin.js"></script>
+<style>
+.rest-row { cursor: pointer; transition: background 0.15s; }
+.rest-row:hover { background: rgba(255,255,255,0.04); }
+.rest-row.row-selected { background: rgba(108,99,255,0.12); }
+.rest-row.row-selected td:first-child { border-left: 3px solid var(--primary); }
+
+.mini-stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.mini-stat-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+.mini-stat-val {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: white;
+    font-family: var(--font-m);
+}
+.mini-stat-sub { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+.mini-stat-sub.up { color: #81c784; }
+.mini-stat-sub.down { color: #e57373; }
+</style>
 </body>
 </html>

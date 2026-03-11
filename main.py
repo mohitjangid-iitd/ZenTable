@@ -300,12 +300,12 @@ async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(N
 # ════════════════════════════════
 
 @app.get("/api/admin/overview")
-async def api_admin_overview(auth_token: Optional[str] = Cookie(None)):
+async def api_admin_overview(period: str = "alltime", auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
     return {
         "stats": get_overall_stats(),
         "restaurants": get_all_restaurants_info(),
-        "top_dishes": get_top_dishes_overall(10),
+        "top_dishes": get_top_dishes_overall(10, period),
     }
 
 @app.get("/api/admin/restaurant/{client_id}/analytics")

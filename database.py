@@ -351,26 +351,13 @@ def get_table_summary(client_id: str):
         else:
             display = "paid"
 
-        # Aaj ke paid bills ke order IDs (Paid Today filter ke liye)
-        from datetime import date as _date
-        today_str = _date.today().isoformat()
-        paid_today_ids = set()
-        paid_today_rows = conn.execute("""
-            SELECT order_ids FROM bills
-            WHERE client_id=? AND table_no=? AND payment_status='paid'
-            AND DATE(created_at)=?
-        """, (client_id, table_no, today_str)).fetchall()
-        for ptr in paid_today_rows:
-            paid_today_ids.update(_json.loads(ptr[0]))
-
-        t["display_status"]        = display
-        t["order_count"]           = len(orders)
-        t["opened_at_norm"]        = opened_at
-        t["bill_id"]               = session_bill["id"] if session_bill else None
-        t["bill_total"]            = session_bill["total"] if session_bill else None
-        t["payment_status"]        = session_bill["payment_status"] if session_bill else None
-        t["unpaid_done_ids"]       = [o["id"] for o in unpaid_orders if o["status"] == "done"]
-        t["paid_today_order_ids"]  = list(paid_today_ids)
+        t["display_status"]   = display
+        t["order_count"]      = len(orders)
+        t["opened_at_norm"]   = opened_at
+        t["bill_id"]          = session_bill["id"] if session_bill else None
+        t["bill_total"]       = session_bill["total"] if session_bill else None
+        t["payment_status"]   = session_bill["payment_status"] if session_bill else None
+        t["unpaid_done_ids"]  = [o["id"] for o in unpaid_orders if o["status"] == "done"]
 
         if session_bill and session_bill["payment_status"] == "unpaid":
             try:
@@ -833,12 +820,26 @@ def get_overall_stats():
         "alltime_orders": alltime_orders,
     }
 
-def get_top_dishes_overall(limit=10):
-    """Saare restaurants ke top dishes"""
+def get_top_dishes_overall(limit=10, period='alltime'):
+    """Saare restaurants ke top dishes — period: alltime | today | week | month"""
     import json as _json
+    from datetime import date, timedelta
     conn = get_db()
+
+    today = date.today().isoformat()
+    if period == 'today':
+        date_filter = f"AND DATE(created_at) = '{today}'"
+    elif period == 'week':
+        week_start = (date.today() - timedelta(days=6)).isoformat()
+        date_filter = f"AND DATE(created_at) >= '{week_start}'"
+    elif period == 'month':
+        month_start = (date.today() - timedelta(days=29)).isoformat()
+        date_filter = f"AND DATE(created_at) >= '{month_start}'"
+    else:
+        date_filter = ""
+
     rows = conn.execute(
-        "SELECT items FROM orders WHERE status != 'cancelled'"
+        f"SELECT items FROM orders WHERE status != 'cancelled' {date_filter}"
     ).fetchall()
     conn.close()
     item_counts = {}

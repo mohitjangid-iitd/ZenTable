@@ -84,13 +84,13 @@ async function loadOverview(period='alltime') {
         </div>
     `;
 
-    // Restaurant summary table
+    // Restaurant summary table — clickable rows
     const tbody = document.getElementById('overview-rest-body');
     if (d.restaurants.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="empty">Koi restaurant nahi</td></tr>';
     } else {
         tbody.innerHTML = d.restaurants.map(r => `
-            <tr>
+            <tr class="rest-row" onclick="drillIntoRestaurant('${r.client_id}', '${r.name.replace(/'/g,"\\'")}')">
                 <td>
                     <div style="font-weight:500">${r.name}</div>
                     <div class="mono">${r.client_id}</div>
@@ -600,24 +600,25 @@ async function doLogout() {
 // TOP DISHES FILTER
 // ════════════════════════════════
 let currentDishPeriod = 'alltime';
+let currentDrillClientId = null;
 
 function setDishPeriod(period, btn) {
     currentDishPeriod = period;
-    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#dish-period-pills .filter-pill').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    loadTopDishes(period);
+    if (currentDrillClientId) {
+        loadRestaurantDishes(currentDrillClientId);
+    } else {
+        loadTopDishes(period);
+    }
 }
 
 async function loadTopDishes(period='alltime') {
     const dishEl = document.getElementById('overall-dishes');
     dishEl.innerHTML = '<div class="loading">Loading...</div>';
-    const res = await fetch(`/api/admin/overview`);
+    const res = await fetch(`/api/admin/overview?period=${period}`);
     const d = await res.json();
-    let dishes = d.top_dishes;
-
-    // Client-side filter based on period would need backend support
-    // For now show all-time data with label
-    renderTopDishes(dishes);
+    renderTopDishes(d.top_dishes);
 }
 
 function renderTopDishes(dishes) {
@@ -636,4 +637,99 @@ function renderTopDishes(dishes) {
             <div class="dish-rev">₹${item.revenue.toLocaleString()}</div>
         </div>
     `).join('');
+}
+
+// ════════════════════════════════
+// RESTAURANT DRILL-DOWN
+// ════════════════════════════════
+async function drillIntoRestaurant(clientId, name) {
+    currentDrillClientId = clientId;
+
+    // Row highlight
+    document.querySelectorAll('.rest-row').forEach(r => r.classList.remove('row-selected'));
+    const selectedRow = [...document.querySelectorAll('.rest-row')]
+        .find(r => r.querySelector('.mono')?.textContent === clientId);
+    if (selectedRow) selectedRow.classList.add('row-selected');
+
+    // Top dishes panel title + back button
+    document.getElementById('dishes-panel-title').textContent = `Top Dishes — ${name}`;
+    document.getElementById('dishes-back-btn').style.display = 'block';
+    loadRestaurantDishes(clientId);
+
+    // Show detail section
+    const detailSection = document.getElementById('rest-detail-section');
+    const detailBody = document.getElementById('rest-detail-body');
+    document.getElementById('rest-detail-title').textContent = `${name} — Details`;
+    detailSection.style.display = 'block';
+    detailBody.innerHTML = '<div class="loading">Loading...</div>';
+
+    const res = await fetch(`/api/admin/restaurant/${clientId}/analytics`);
+    const d = await res.json();
+    const t = d.today;
+    const a = d.alltime;
+
+    const payHtml = (d.payment_breakdown || []).map(p =>
+        `<span style="font-size:0.78rem;padding:3px 10px;border-radius:5px;background:rgba(255,255,255,0.05);border:1px solid var(--border)">${p.mode}: <b>₹${p.revenue.toLocaleString()}</b> (${p.count})</span>`
+    ).join('') || '<span style="color:var(--muted);font-size:0.8rem">No data</span>';
+
+    const src = t.source_breakdown || {};
+    const srcHtml = Object.entries(src).map(([k, v]) =>
+        `<span style="font-size:0.78rem;padding:3px 10px;border-radius:5px;background:rgba(255,255,255,0.05);border:1px solid var(--border)">${k}: <b>${v}</b></span>`
+    ).join('') || '<span style="color:var(--muted);font-size:0.8rem">No data</span>';
+
+    detailBody.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+            <div class="mini-stat">
+                <div class="mini-stat-label">Today Orders</div>
+                <div class="mini-stat-val">${t.orders}</div>
+                ${t.orders_change_pct !== null ? `<div class="mini-stat-sub ${t.orders_change_pct >= 0 ? 'up' : 'down'}">${t.orders_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(t.orders_change_pct)}% vs yesterday</div>` : ''}
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">Today Revenue</div>
+                <div class="mini-stat-val">₹${t.revenue.toLocaleString()}</div>
+                ${t.revenue_change_pct !== null ? `<div class="mini-stat-sub ${t.revenue_change_pct >= 0 ? 'up' : 'down'}">${t.revenue_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(t.revenue_change_pct)}% vs yesterday</div>` : ''}
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">All-time Orders</div>
+                <div class="mini-stat-val">${a.orders}</div>
+                <div class="mini-stat-sub">${a.pending_now} pending now</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">All-time Revenue</div>
+                <div class="mini-stat-val">₹${a.revenue.toLocaleString()}</div>
+                <div class="mini-stat-sub">${a.active_tables} active tables</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+                <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Payment Modes</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">${payHtml}</div>
+            </div>
+            <div style="flex:1;min-width:180px;">
+                <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Order Sources (Today)</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">${srcHtml}</div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadRestaurantDishes(clientId) {
+    const dishEl = document.getElementById('overall-dishes');
+    dishEl.innerHTML = '<div class="loading">Loading...</div>';
+    const res = await fetch(`/api/admin/restaurant/${clientId}/analytics`);
+    const d = await res.json();
+    renderTopDishes(d.top_items || []);
+}
+
+function clearRestaurantDrill() {
+    currentDrillClientId = null;
+    document.getElementById('dishes-panel-title').textContent = 'Top Dishes (Overall)';
+    document.getElementById('dishes-back-btn').style.display = 'none';
+    document.querySelectorAll('#dish-period-pills .filter-pill').forEach((b, i) => {
+        b.classList.toggle('active', i === 0);
+    });
+    currentDishPeriod = 'alltime';
+    document.getElementById('rest-detail-section').style.display = 'none';
+    document.querySelectorAll('.rest-row').forEach(r => r.classList.remove('row-selected'));
+    loadTopDishes('alltime');
 }
