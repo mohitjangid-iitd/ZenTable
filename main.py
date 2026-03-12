@@ -159,7 +159,11 @@ class MarkPaidRequest(BaseModel):
     payment_mode: str = 'cash'
 
 class ReadyItemsRequest(BaseModel):
-    ready_items: List[str]
+    ready_items: list  # List[str] ya List[{name,qty}] dono accept
+
+class EditOrderItemsRequest(BaseModel):
+    items: List[dict]           # [{name, qty, price}]
+    extra_items: List[dict] = []  # [{name, qty, price}] — waiter ne baad mein add kiye
 
 class LoginRequest(BaseModel):
     username: str
@@ -738,6 +742,76 @@ async def api_update_order_status(order_id: int, body: UpdateStatusRequest):
 async def api_update_ready_items(order_id: int, body: ReadyItemsRequest):
     update_ready_items(order_id, body.ready_items)
     return {"message": f"Order {order_id} ready items updated"}
+
+@app.patch("/api/order/{order_id}/items")
+async def api_edit_order_items(order_id: int, body: EditOrderItemsRequest,
+                                request: Request):
+    import json
+    auth_token = request.cookies.get("auth_token")
+    require_auth(auth_token, ["waiter", "owner", "admin"])
+
+    conn = __import__('database').get_db()
+    order = conn.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
+    if not order:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order = dict(order)
+    if order["status"] in ("done", "cancelled", "paid"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Order already done/cancelled")
+
+    old_items   = json.loads(order["items"])
+    ready_raw   = json.loads(order.get("ready_items") or "[]")
+    old_qty_map = {i["name"]: i["qty"] for i in old_items}
+
+    # ready_qty_map — {name: ready_qty}
+    # List[str] legacy: ready_qty = old qty (jo kitchen ne ready kiya tha)
+    # List[{name,qty}] new format
+    ready_qty_map = {}
+    for r in ready_raw:
+        if isinstance(r, dict):
+            ready_qty_map[r["name"]] = r["qty"]
+        else:
+            ready_qty_map[str(r)] = old_qty_map.get(str(r), 0)
+
+    new_items      = []
+    new_ready_list = []  # updated ready_items — qty-aware
+
+    for item in body.items:
+        name  = item["name"]
+        qty   = item["qty"]
+        price = item["price"]
+        ready_qty = ready_qty_map.get(name, 0)
+
+        # qty ready_qty se kam nahi ho sakti
+        if qty < ready_qty:
+            qty = ready_qty
+
+        if qty <= 0:
+            continue
+
+        new_items.append({"name": name, "qty": qty, "price": price})
+
+        # ready_items update — agar qty badhi toh ready_qty same rehti hai
+        # (naya added qty pending rahega kitchen mein)
+        if ready_qty > 0:
+            new_ready_list.append({"name": name, "qty": ready_qty})
+
+    if not new_items:
+        conn.execute("UPDATE orders SET status='cancelled' WHERE id=?", (order_id,))
+        conn.commit()
+        conn.close()
+        return {"message": "Order cancelled — no items left"}
+
+    new_total = sum(i["qty"] * i["price"] for i in new_items)
+    conn.execute(
+        "UPDATE orders SET items=?, total=?, ready_items=? WHERE id=?",
+        (json.dumps(new_items), new_total, json.dumps(new_ready_list), order_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Order updated", "items": new_items, "total": new_total}
 
 # ════════════════════════════════
 # BILL API

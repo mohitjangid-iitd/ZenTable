@@ -42,10 +42,21 @@ function setFilter(filter, btn) {
     currentFilter = filter;
     document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+
+    // Cancelled pill sirf Paid Today ya Cancelled filter pe dikhao
+    const cp = document.getElementById('cancelled-pill');
+    if (cp) cp.style.display = (filter === 'paid' || filter === 'cancelled') ? 'inline-flex' : 'none';
+
     loadOrders();
 }
 
 async function loadOrders() {
+    // Cancelled pill sirf Paid Today tab mein dikhao
+    const cancelledPill = document.getElementById('cancelled-pill');
+    if (cancelledPill) {
+        cancelledPill.style.display = (currentFilter === 'paid' || currentFilter === 'cancelled') ? 'inline-flex' : 'none';
+    }
+
     const [ordersRes, summaryRes] = await Promise.all([
         fetch(`/api/orders/${clientId}`),
         fetch(`/api/tables/${clientId}/summary`)
@@ -92,6 +103,13 @@ async function loadOrders() {
             }
         });
         filtered = filtered.filter(o => paidTodaySet.has(o.id));
+        // Store cancelled today separately for toggle
+        const _n2 = new Date(); const today2 = _n2.getFullYear()+'-'+String(_n2.getMonth()+1).padStart(2,'0')+'-'+String(_n2.getDate()).padStart(2,'0');
+        window._cancelledToday = all.filter(o => o.status === 'cancelled' && (o.created_at || '').substring(0, 10) === today2);
+        window._showCancelledInPaid = window._showCancelledInPaid || false;
+    } else if (currentFilter === 'cancelled') {
+        const _now = new Date(); const today = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
+        filtered = all.filter(o => o.status === 'cancelled' && (o.created_at || '').substring(0, 10) === today);
     }
 
     // Group by table
@@ -109,6 +127,7 @@ async function loadOrders() {
             done: 'Koi delivered order nahi',
             billed: 'Koi billed table nahi',
             paid: 'Aaj koi paid table nahi',
+            cancelled: 'Koi cancelled order nahi',
         };
         list.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#4caf50"></i><p>${emptyMsg[currentFilter] || 'Koi order nahi'}</p></div>`;
         return;
@@ -146,6 +165,14 @@ async function loadOrders() {
             rightEl = `<span class="bill-tag-paid">✅ PAID</span>`;
         }
 
+        // Paid Today section ke upar cancelled toggle button inject (sirf ek baar)
+        if (currentFilter === 'paid' && !document.getElementById('cancelled-toggle-btn')) {
+            const toolbar = document.querySelector('#tab-orders .toolbar');
+            if (toolbar && !document.getElementById('cancelled-toggle-btn')) {
+                // add after list render — handled below
+            }
+        }
+
         html += `<div class="table-group">
             <div class="table-group-head">
                 <div class="table-group-title">Table ${tableNo}</div>
@@ -154,16 +181,18 @@ async function loadOrders() {
             <div class="table-group-body">
             ${orders.map(o => {
             const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-            const readyItems = typeof o.ready_items === 'string'
+            const _rRaw = typeof o.ready_items === 'string'
                 ? JSON.parse(o.ready_items || '[]')
                 : (o.ready_items || []);
+            const _rMap = {};
+            _rRaw.forEach(r => typeof r === 'string' ? (_rMap[r] = Infinity) : (_rMap[r.name] = r.qty));
             const canDeliver = o.status === 'ready';
 
             // Item-wise ready status — active aur ready filter mein dikhao
             let itemsHtml = '';
             if (currentFilter === 'active' || currentFilter === 'ready') {
                 itemsHtml = items.map(i => {
-                    const isReady = readyItems.includes(i.name);
+                    const isReady = (_rMap[i.name] || 0) > 0;
                     return `<div class="waiter-item-row">
                             <span class="waiter-item-dot ${isReady ? 'dot-ready' : 'dot-pending'}"></span>
                             <span class="waiter-item-name ${isReady ? 'waiter-item-ready' : ''}">${i.name} ×${i.qty}</span>
@@ -175,15 +204,18 @@ async function loadOrders() {
                 itemsHtml = `<div class="order-items-text">${items.map(i => `${i.name} ×${i.qty}`).join(', ')}</div>`;
             }
 
-            // Ready progress badge for active filter
-            const progressBadge = (currentFilter === 'active' && readyItems.length > 0)
-                ? `<span class="ready-progress ${readyItems.length === items.length ? 'rp-full' : 'rp-partial'}">
-                        ${readyItems.length}/${items.length} ready</span>`
+            // Ready progress badge — qty-aware
+            const _readyQtyTotal = items.reduce((s,i) => s + (_rMap[i.name] ? Math.min(_rMap[i.name], i.qty) : 0), 0);
+            const _totalQty = items.reduce((s,i) => s + i.qty, 0);
+            const progressBadge = (currentFilter === 'active' && _readyQtyTotal > 0)
+                ? `<span class="ready-progress ${_readyQtyTotal === _totalQty ? 'rp-full' : 'rp-partial'}">
+                        ${_readyQtyTotal}/${_totalQty} ready</span>`
                 : '';
 
             return `<div class="order-row ${o.status}">
                     <div class="order-row-top">
-                        <div style="display:flex;gap:5px;align-items:center">
+                        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+                            <span style="background:var(--primary);color:var(--secondary);padding:1px 7px;border-radius:5px;font-weight:700;font-size:0.8rem">#${o.id}</span>
                             <span class="badge ${o.status}">${o.status}</span>
                             <span class="badge staff">${o.source === 'waiter' ? 'staff' : o.source}</span>
                             ${progressBadge}
@@ -193,9 +225,10 @@ async function loadOrders() {
                     <div class="waiter-items-list">${itemsHtml}</div>
                     <div class="order-row-foot">
                         <span class="order-total-sm">₹${o.total}</span>
-                        ${canDeliver
-                    ? `<button class="deliver-btn" onclick="markDelivered(${o.id})">✓ Delivered</button>`
-                    : ''}
+                        <div style="display:flex;gap:6px;">
+                        ${canDeliver ? `<button class="deliver-btn" onclick="markDelivered(${o.id})">✓ Delivered</button>` : ''}
+                        ${['pending','preparing'].includes(o.status) ? `<button class="edit-order-btn" onclick="openEditOrder(${o.id})">✏️</button>` : ''}
+                        </div>
                     </div>
                 </div>`;
         }).join('')}
@@ -203,6 +236,45 @@ async function loadOrders() {
         </div>`;
     }
     list.innerHTML = html;
+
+    // Paid Today: cancelled toggle button inject karo
+    if (currentFilter === 'paid') {
+        const cancelledToday = window._cancelledToday || [];
+        const ordersDiv = document.getElementById('orders-list');
+
+        // Button inject at top
+        const btnWrap = document.createElement('div');
+        btnWrap.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:10px;';
+        btnWrap.innerHTML = `<button id="cancelled-toggle-btn"
+            onclick="toggleCancelledSection()"
+            style="padding:5px 12px;border-radius:20px;border:1.5px solid #ffcdd2;background:${window._showCancelledInPaid ? '#fff0f0' : 'white'};color:#e53935;font-size:0.78rem;font-weight:600;cursor:pointer;">
+            ❌ Cancelled${cancelledToday.length ? ' ('+cancelledToday.length+')' : ''}
+        </button>`;
+        ordersDiv.insertBefore(btnWrap, ordersDiv.firstChild);
+
+        // Cancelled section
+        if (window._showCancelledInPaid && cancelledToday.length) {
+            const sec = document.createElement('div');
+            sec.id = 'cancelled-section';
+            sec.style.cssText = 'margin-bottom:14px;';
+            sec.innerHTML = cancelledToday.map(o => {
+                const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+                return `<div class="order-row cancelled" style="margin-bottom:8px;opacity:0.7;">
+                    <div class="order-row-top">
+                        <div style="display:flex;gap:5px;align-items:center">
+                            <span style="background:#e53935;color:white;padding:1px 7px;border-radius:5px;font-weight:700;font-size:0.8rem">#${o.id}</span>
+                            <span class="badge cancelled">cancelled</span>
+                            <span style="font-size:0.75rem;color:#bbb">Table ${o.table_no}</span>
+                        </div>
+                        <span style="font-size:0.72rem;color:#bbb">${(o.created_at||'').substring(11,16)}</span>
+                    </div>
+                    <div style="font-size:0.82rem;color:#aaa;margin:6px 0">${items.map(i=>`${i.name} ×${i.qty}`).join(', ')}</div>
+                    <div class="order-row-foot"><span class="order-total-sm" style="color:#e53935">₹${o.total}</span></div>
+                </div>`;
+            }).join('');
+            ordersDiv.insertBefore(sec, ordersDiv.children[1] || null);
+        }
+    }
 }
 
 async function markDelivered(orderId) {
@@ -249,13 +321,15 @@ async function openModal(tableNo) {
 
         bodyHtml = sorted.map(o => {
             const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-            const readyItems = typeof o.ready_items === 'string'
+            const _rRaw2 = typeof o.ready_items === 'string'
                 ? JSON.parse(o.ready_items || '[]')
                 : (o.ready_items || []);
+            const _rMap2 = {};
+            _rRaw2.forEach(r => typeof r === 'string' ? (_rMap2[r] = Infinity) : (_rMap2[r.name] = r.qty));
             const statusEmoji = { pending: '⏳', preparing: '👨‍🍳', ready: '✅', done: '📦' }[o.status] || '';
 
             const itemsHtml = items.map(i => {
-                const isReady = readyItems.includes(i.name);
+                const isReady = (_rMap2[i.name] || 0) > 0;
                 return `<div class="waiter-item-row">
                     <span class="waiter-item-dot ${isReady ? 'dot-ready' : 'dot-pending'}"></span>
                     <span class="waiter-item-name ${isReady ? 'waiter-item-ready' : ''}">${i.name} ×${i.qty}</span>
@@ -268,7 +342,7 @@ async function openModal(tableNo) {
                     <div style="display:flex;gap:5px;align-items:center">
                         <span class="badge ${o.status}">${statusEmoji} ${o.status}</span>
                         <span class="badge staff">${o.source === 'waiter' ? 'staff' : o.source}</span>
-                        ${readyItems.length > 0 ? `<span class="ready-progress ${readyItems.length === items.length ? 'rp-full' : 'rp-partial'}">${readyItems.length}/${items.length} ready</span>` : ''}
+                        ${Object.keys(_rMap2).length > 0 ? `<span class="ready-progress ${Object.keys(_rMap2).length === items.length ? 'rp-full' : 'rp-partial'}">${Object.keys(_rMap2).length}/${items.length} ready</span>` : ''}
                     </div>
                     <span style="font-size:0.72rem;color:#bbb">${(o.created_at || '').substring(11, 16)}</span>
                 </div>
@@ -751,3 +825,143 @@ setInterval(loadTables, 15000);
 setInterval(() => {
     if (document.getElementById('tab-orders').style.display !== 'none') loadOrders();
 }, 15000);
+
+// ── ORDER EDIT ──
+let editOrderId = null;
+let editOrderData = null;
+
+async function openEditOrder(orderId) {
+    const allRes = await fetch(`/api/orders/${clientId}`);
+    const all = await allRes.json();
+    const order = all.find(o => o.id === orderId);
+    if (!order) return;
+
+    editOrderId = orderId;
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    const readyList = typeof order.ready_items === 'string'
+        ? JSON.parse(order.ready_items || '[]')
+        : (order.ready_items || []);
+
+    // readyList: [{name,qty}] ya legacy List[str]
+    const readyQtyMap = {};
+    readyList.forEach(r => {
+        if (typeof r === 'string') readyQtyMap[r] = (items.find(i => i.name === r) || {}).qty || 1;
+        else readyQtyMap[r.name] = r.qty;
+    });
+
+    editOrderData = items.map(i => ({
+        ...i,
+        _readyQty: readyQtyMap[i.name] || 0,
+        _originalQty: i.qty
+    }));
+
+    document.getElementById('edit-modal-title').textContent = `Edit Order #${orderId} — Table ${order.table_no}`;
+    renderEditItems();
+    document.getElementById('edit-modal').style.display = 'block';
+}
+
+function renderEditItems() {
+    const wrap = document.getElementById('edit-modal-items');
+    wrap.innerHTML = editOrderData.map((item, idx) => {
+        const canDecrease = item.qty > item._readyQty;
+        const delta = item.qty - item._originalQty;
+        const deltaHtml = delta > 0
+            ? `<span style="color:#4caf50;font-size:0.72rem;margin-left:4px">+${delta} added</span>`
+            : delta < 0
+            ? `<span style="color:#e53935;font-size:0.72rem;margin-left:4px">${delta} removed</span>`
+            : '';
+
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f5f5f5;">
+            <div>
+                <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size:0.9rem;font-weight:600;color:var(--secondary)">${item.name}</span>
+                    ${deltaHtml}
+                </div>
+                <div style="font-size:0.75rem;color:#aaa;margin-top:2px">
+                    ₹${item.price} each
+                    ${item._readyQty > 0 ? `<span style="color:#4caf50;margin-left:6px">✓ ${item._readyQty} ready</span>` : ''}
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button onclick="editQty(${idx},-1)" ${!canDecrease ? 'disabled' : ''}
+                    style="width:28px;height:28px;border-radius:50%;
+                    border:1.5px solid ${canDecrease ? 'var(--primary)' : '#ddd'};
+                    background:${canDecrease ? 'transparent' : '#f5f5f5'};
+                    color:${canDecrease ? 'var(--primary)' : '#ccc'};
+                    cursor:${canDecrease ? 'pointer' : 'not-allowed'};
+                    font-size:1rem;opacity:${canDecrease ? '1' : '0.4'}">−</button>
+                <span style="font-weight:700;min-width:20px;text-align:center">${item.qty}</span>
+                <button onclick="editQty(${idx},1)"
+                    style="width:28px;height:28px;border-radius:50%;border:none;
+                    background:var(--primary);color:var(--secondary);cursor:pointer;font-size:1rem;">+</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function editQty(idx, delta) {
+    const item = editOrderData[idx];
+    const newQty = item.qty + delta;
+    if (newQty < item._readyQty) return;
+    if (newQty < 0) return;
+    item.qty = newQty;
+    renderEditItems();
+}
+
+async function cancelOrderDirect() {
+    if (!editOrderId) return;
+    if (!confirm('Poora order cancel kar dein?')) return;
+
+    const res = await fetch(`/api/order/${editOrderId}/items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [] })  // saari items 0 — backend cancel karega
+    });
+
+    if (res.ok) {
+        closeEditModal();
+        toast('🚫 Order cancelled');
+        loadOrders();
+        loadTables();
+    } else {
+        const err = await res.json();
+        toast('❌ ' + (err.detail || 'Error'));
+    }
+}
+
+async function saveOrderEdit() {
+    if (!editOrderId) return;
+
+    const items = editOrderData.map(i => ({
+        name: i.name, qty: i.qty, price: i.price
+    }));
+
+    const res = await fetch(`/api/order/${editOrderId}/items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+    });
+
+    if (res.ok) {
+        const data = await res.json();
+        closeEditModal();
+        toast(data.message.includes('cancelled') ? '🚫 Order cancelled' : '✅ Order updated');
+        loadOrders();
+        loadTables();
+    } else {
+        const err = await res.json();
+        toast('❌ ' + (err.detail || 'Error'));
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    editOrderId   = null;
+    editOrderData = null;
+}
+
+// Cancelled toggle in Paid Today section
+function toggleCancelledSection() {
+    window._showCancelledInPaid = !window._showCancelledInPaid;
+    loadOrders();
+}
