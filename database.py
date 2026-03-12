@@ -369,6 +369,21 @@ def get_table_summary(client_id: str):
         else:
             billed_ids = []
         t["billed_order_ids"] = billed_ids
+
+        # Paid today — current session ke paid order ids
+        paid_today_ids = []
+        try:
+            today = __import__('datetime').date.today().isoformat()
+            paid_today_rows = conn.execute(
+                "SELECT order_ids FROM bills WHERE client_id=? AND table_no=? AND payment_status='paid' AND DATE(created_at)=?",
+                (client_id, table_no, today)
+            ).fetchall()
+            for row in paid_today_rows:
+                paid_today_ids.extend(_json.loads(row[0]))
+        except Exception:
+            paid_today_ids = []
+        t["paid_today_order_ids"] = paid_today_ids
+
         result.append(t)
 
     conn.close()

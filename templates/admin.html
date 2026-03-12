@@ -1,690 +1,762 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel — {{ site.name }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="/static/css/admin.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/admin.css">
 </head>
+
 <body>
 
-<!-- TOPBAR -->
-<div class="topbar">
-    <div class="topbar-left">
-        <div class="top-logo">{{ site.name }}<span>.</span></div>
-        <div class="admin-badge">ADMIN</div>
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="top-logo">{{ site.name }}<span>.</span></div>
+            <div class="admin-badge">ADMIN</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div class="top-user">Logged in as <span>{{ user.name }}</span></div>
+            <button class="btn btn-ghost btn-sm" onclick="openAddAdmin()" style="font-size:0.7rem;">+ Add Admin</button>
+            <button class="btn btn-ghost btn-sm" onclick="openAdminPassword()" style="font-size:0.7rem;">🔑
+                Password</button>
+            <a href="#" class="logout-btn" onclick="doLogout()">Logout</a>
+        </div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-        <div class="top-user">Logged in as <span>{{ user.name }}</span></div>
-        <button class="btn btn-ghost btn-sm" onclick="openAddAdmin()" style="font-size:0.7rem;">+ Add Admin</button>
-        <button class="btn btn-ghost btn-sm" onclick="openAdminPassword()" style="font-size:0.7rem;">🔑 Password</button>
-        <a href="#" class="logout-btn" onclick="doLogout()">Logout</a>
+
+    <!-- TABS -->
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
+        <button class="tab-btn" onclick="switchTab('restaurants', this)">Restaurants</button>
+        <button class="tab-btn" onclick="switchTab('staff', this)">Staff</button>
+        <button class="tab-btn" onclick="window.open('https://hiukim.github.io/mind-ar-js-doc/tools/compile', '_blank')"
+            style="margin-left:auto; background:var(--primary); color:#fff; border:none; padding:8px 15px; border-radius:6px;">
+            🧠 Target Compiler
+        </button>
     </div>
-</div>
 
-<!-- TABS -->
-<div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
-    <button class="tab-btn" onclick="switchTab('restaurants', this)">Restaurants</button>
-    <button class="tab-btn" onclick="switchTab('staff', this)">Staff</button>
-</div>
+    <!-- CONTENT -->
+    <div class="content">
 
-<!-- CONTENT -->
-<div class="content">
+        <!-- ══ OVERVIEW TAB ══ -->
+        <div class="tab-pane active" id="tab-overview">
+            <div class="stats-grid" id="overall-stats">
+                <div class="loading">Loading...</div>
+            </div>
 
-    <!-- ══ OVERVIEW TAB ══ -->
-    <div class="tab-pane active" id="tab-overview">
-        <div class="stats-grid" id="overall-stats">
-            <div class="loading">Loading...</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
+                <!-- Restaurants summary table -->
+                <div class="card">
+                    <div class="card-head">
+                        <div class="section-title">Restaurants</div>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <table class="data-table" id="overview-rest-table">
+                            <thead>
+                                <tr>
+                                    <th>Restaurant</th>
+                                    <th>Today Orders</th>
+                                    <th>Today Revenue</th>
+                                    <th>Staff</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overview-rest-body">
+                                <tr>
+                                    <td colspan="4" class="loading">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right column: top dishes + detail section -->
+                <div style="display:flex;flex-direction:column;gap:18px;">
+
+                    <!-- Top dishes panel — overall ya restaurant specific -->
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="section-title" id="dishes-panel-title">Top Dishes (Overall)</div>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <button id="dishes-back-btn" onclick="clearRestaurantDrill()"
+                                    style="display:none;font-size:0.72rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">
+                                    ← Overall
+                                </button>
+                                <div id="dish-period-pills" style="display:flex;gap:6px;">
+                                    <button class="filter-pill active" onclick="setDishPeriod('alltime',this)">All
+                                        Time</button>
+                                    <button class="filter-pill" onclick="setDishPeriod('today',this)">Today</button>
+                                    <button class="filter-pill" onclick="setDishPeriod('week',this)">Week</button>
+                                    <button class="filter-pill" onclick="setDishPeriod('month',this)">Month</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body" id="overall-dishes">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Restaurant detail section — top dishes ke niche, row click pe expand -->
+                    <div id="rest-detail-section" style="display:none;">
+                        <div class="card">
+                            <div class="card-head">
+                                <div class="section-title" id="rest-detail-title">Restaurant Detail</div>
+                                <button onclick="clearRestaurantDrill()"
+                                    style="font-size:0.72rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">
+                                    ✕ Close
+                                </button>
+                            </div>
+                            <div class="card-body" id="rest-detail-body"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
-            <!-- Restaurants summary table -->
-            <div class="card">
-                <div class="card-head">
-                    <div class="section-title">Restaurants</div>
+        <!-- ══ RESTAURANTS TAB ══ -->
+        <div class="tab-pane" id="tab-restaurants">
+            <div class="section-head">
+                <div class="section-title">All Restaurants</div>
+                <button class="btn btn-primary" onclick="openAddRestaurant()">+ Add Restaurant</button>
+            </div>
+            <div class="rest-grid" id="rest-grid">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- ══ STAFF TAB ══ -->
+        <div class="tab-pane" id="tab-staff">
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+                    <select id="staff-rest-select"
+                        style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;padding:9px 12px;border-radius:8px;font-size:0.84rem;outline:none;min-width:200px;"
+                        onchange="loadStaff()">
+                        <option value="">-- Restaurant Select Karo --</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="openAddStaff()">+ Add Staff</button>
                 </div>
+            </div>
+            <div class="card">
                 <div class="card-body" style="padding:0;">
-                    <table class="data-table" id="overview-rest-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Restaurant</th>
-                                <th>Today Orders</th>
-                                <th>Today Revenue</th>
-                                <th>Staff</th>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="overview-rest-body">
-                            <tr><td colspan="4" class="loading">Loading...</td></tr>
+                        <tbody id="staff-table-body">
+                            <tr>
+                                <td colspan="6" class="empty">Restaurant select karo</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
+        </div>
 
-            <!-- Right column: top dishes + detail section -->
-            <div style="display:flex;flex-direction:column;gap:18px;">
+    </div><!-- /content -->
 
-                <!-- Top dishes panel — overall ya restaurant specific -->
-                <div class="card">
-                    <div class="card-head">
-                        <div class="section-title" id="dishes-panel-title">Top Dishes (Overall)</div>
-                        <div style="display:flex;gap:6px;align-items:center;">
-                            <button id="dishes-back-btn" onclick="clearRestaurantDrill()"
-                                style="display:none;font-size:0.72rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">
-                                ← Overall
-                            </button>
-                            <div id="dish-period-pills" style="display:flex;gap:6px;">
-                                <button class="filter-pill active" onclick="setDishPeriod('alltime',this)">All Time</button>
-                                <button class="filter-pill" onclick="setDishPeriod('today',this)">Today</button>
-                                <button class="filter-pill" onclick="setDishPeriod('week',this)">Week</button>
-                                <button class="filter-pill" onclick="setDishPeriod('month',this)">Month</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body" id="overall-dishes">
-                        <div class="loading">Loading...</div>
-                    </div>
-                </div>
+    <!-- ══ TOAST ══ -->
+    <div id="toast"></div>
 
-                <!-- Restaurant detail section — top dishes ke niche, row click pe expand -->
-                <div id="rest-detail-section" style="display:none;">
-                    <div class="card">
-                        <div class="card-head">
-                            <div class="section-title" id="rest-detail-title">Restaurant Detail</div>
-                            <button onclick="clearRestaurantDrill()"
-                                style="font-size:0.72rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">
-                                ✕ Close
-                            </button>
-                        </div>
-                        <div class="card-body" id="rest-detail-body"></div>
-                    </div>
-                </div>
+    <!-- ══ MODALS ══ -->
 
+    <!-- Add Restaurant Modal -->
+    <div class="modal-overlay" id="modal-add-rest">
+        <div class="modal">
+            <div class="modal-head">
+                <div class="modal-title">Naya Restaurant Add Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-add-rest')">✕</button>
             </div>
-        </div>
-    </div>
-
-    <!-- ══ RESTAURANTS TAB ══ -->
-    <div class="tab-pane" id="tab-restaurants">
-        <div class="section-head">
-            <div class="section-title">All Restaurants</div>
-            <button class="btn btn-primary" onclick="openAddRestaurant()">+ Add Restaurant</button>
-        </div>
-        <div class="rest-grid" id="rest-grid">
-            <div class="loading">Loading...</div>
-        </div>
-    </div>
-
-    <!-- ══ STAFF TAB ══ -->
-    <div class="tab-pane" id="tab-staff">
-        <div class="card" style="margin-bottom:18px;">
-            <div class="card-body" style="display:flex;align-items:center;gap:12px;">
-                <select id="staff-rest-select" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;padding:9px 12px;border-radius:8px;font-size:0.84rem;outline:none;min-width:200px;" onchange="loadStaff()">
-                    <option value="">-- Restaurant Select Karo --</option>
-                </select>
-                <button class="btn btn-primary" onclick="openAddStaff()">+ Add Staff</button>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-body" style="padding:0;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="staff-table-body">
-                        <tr><td colspan="6" class="empty">Restaurant select karo</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-</div><!-- /content -->
-
-<!-- ══ TOAST ══ -->
-<div id="toast"></div>
-
-<!-- ══ MODALS ══ -->
-
-<!-- Add Restaurant Modal -->
-<div class="modal-overlay" id="modal-add-rest">
-    <div class="modal">
-        <div class="modal-head">
-            <div class="modal-title">Naya Restaurant Add Karo</div>
-            <button class="modal-close" onclick="closeModal('modal-add-rest')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-section">Required</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Restaurant ID</label>
-                    <input type="text" id="nr-id" placeholder="e.g. pinky_hotel">
-                </div>
-                <div class="form-group">
-                    <label>Restaurant Name</label>
-                    <input type="text" id="nr-name" placeholder="e.g. Pinky Hotel">
-                </div>
-                <div class="form-group">
-                    <label>Number of Tables</label>
-                    <input type="number" id="nr-tables" value="6" min="1">
-                </div>
-                <div class="form-group">
-                    <label>Cuisine Type</label>
-                    <input type="text" id="nr-cuisine" placeholder="e.g. North Indian">
-                </div>
-            </div>
-            <div class="form-section">Optional</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Tagline</label>
-                    <input type="text" id="nr-tagline" placeholder="Welcome tagline...">
-                </div>
-                <div class="form-group">
-                    <label>Phone</label>
-                    <input type="text" id="nr-phone" placeholder="+91 ...">
-                </div>
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="text" id="nr-email" placeholder="contact@...">
-                </div>
-                <div class="form-group">
-                    <label>Address</label>
-                    <input type="text" id="nr-address" placeholder="123 Main Road...">
-                </div>
-                <div class="form-group full">
-                    <label>Description</label>
-                    <textarea id="nr-desc" placeholder="Restaurant ke baare mein..."></textarea>
-                </div>
-            </div>
-            <div class="form-section">Timings</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Lunch</label>
-                    <input type="text" id="nr-lunch" placeholder="12:00 PM - 3:30 PM">
-                </div>
-                <div class="form-group">
-                    <label>Dinner</label>
-                    <input type="text" id="nr-dinner" placeholder="7:00 PM - 11:30 PM">
-                </div>
-                <div class="form-group">
-                    <label>Closed On</label>
-                    <input type="text" id="nr-closed" placeholder="Monday">
-                </div>
-            </div>
-            <div class="form-section">Social Media</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Instagram</label>
-                    <input type="text" id="nr-instagram" placeholder="https://instagram.com/...">
-                </div>
-                <div class="form-group">
-                    <label>Facebook</label>
-                    <input type="text" id="nr-facebook" placeholder="https://facebook.com/...">
-                </div>
-                <div class="form-group">
-                    <label>Twitter/X</label>
-                    <input type="text" id="nr-twitter" placeholder="https://twitter.com/...">
-                </div>
-            </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-add-rest')">Cancel</button>
-            <button class="btn btn-ghost" id="preview-new-btn" style="display:none" onclick="window.open('/'+lastCreatedClientId, '_blank')">👁 Preview</button>
-            <button class="btn btn-primary" id="create-rest-btn" onclick="createRestaurant()">Create Restaurant</button>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Restaurant Modal -->
-<div class="modal-overlay" id="modal-edit-rest">
-    <div class="modal" style="max-width:640px;">
-        <div class="modal-head">
-            <div class="modal-title" id="edit-rest-title">Restaurant Edit</div>
-            <button class="modal-close" onclick="closeModal('modal-edit-rest')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="json-tabs">
-                <button class="json-tab active" onclick="switchEditTab('info',this)">Info</button>
-                <button class="json-tab" onclick="switchEditTab('theme',this)">Theme</button>
-                <button class="json-tab" onclick="switchEditTab('items',this)">Dishes</button>
-            </div>
-
-            <!-- INFO -->
-            <div class="section-editor active" id="edit-info">
+            <div class="modal-body">
+                <div class="form-section">Required</div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Name</label>
-                        <input type="text" id="ei-name">
+                        <label>Restaurant ID</label>
+                        <input type="text" id="nr-id" placeholder="e.g. pinky_hotel">
                     </div>
                     <div class="form-group">
-                        <label>Tables</label>
-                        <input type="number" id="ei-tables" min="1">
+                        <label>Restaurant Name</label>
+                        <input type="text" id="nr-name" placeholder="e.g. Pinky Hotel">
                     </div>
-                    <div class="form-group full">
-                        <label>Tagline</label>
-                        <input type="text" id="ei-tagline">
-                    </div>
-                    <div class="form-group full">
-                        <label>Description</label>
-                        <textarea id="ei-desc"></textarea>
+                    <div class="form-group">
+                        <label>Number of Tables</label>
+                        <input type="number" id="nr-tables" value="6" min="1">
                     </div>
                     <div class="form-group">
                         <label>Cuisine Type</label>
-                        <input type="text" id="ei-cuisine">
+                        <input type="text" id="nr-cuisine" placeholder="e.g. North Indian">
+                    </div>
+                </div>
+                <div class="form-section">Optional</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Tagline</label>
+                        <input type="text" id="nr-tagline" placeholder="Welcome tagline...">
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="text" id="ei-phone">
+                        <input type="text" id="nr-phone" placeholder="+91 ...">
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="text" id="ei-email">
+                        <input type="text" id="nr-email" placeholder="contact@...">
                     </div>
                     <div class="form-group">
                         <label>Address</label>
-                        <input type="text" id="ei-address">
+                        <input type="text" id="nr-address" placeholder="123 Main Road...">
                     </div>
-                    <div class="form-group">
-                        <label>Logo Path</label>
-                        <input type="text" id="ei-logo">
-                    </div>
-                    <div class="form-group">
-                        <label>Banner Path</label>
-                        <input type="text" id="ei-banner">
+                    <div class="form-group full">
+                        <label>Description</label>
+                        <textarea id="nr-desc" placeholder="Restaurant ke baare mein..."></textarea>
                     </div>
                 </div>
                 <div class="form-section">Timings</div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Lunch</label>
-                        <input type="text" id="ei-lunch">
+                        <input type="text" id="nr-lunch" placeholder="12:00 PM - 3:30 PM">
                     </div>
                     <div class="form-group">
                         <label>Dinner</label>
-                        <input type="text" id="ei-dinner">
+                        <input type="text" id="nr-dinner" placeholder="7:00 PM - 11:30 PM">
                     </div>
                     <div class="form-group">
                         <label>Closed On</label>
-                        <input type="text" id="ei-closed">
+                        <input type="text" id="nr-closed" placeholder="Monday">
                     </div>
                 </div>
                 <div class="form-section">Social Media</div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Instagram</label>
-                        <input type="text" id="ei-instagram">
+                        <input type="text" id="nr-instagram" placeholder="https://instagram.com/...">
                     </div>
                     <div class="form-group">
                         <label>Facebook</label>
-                        <input type="text" id="ei-facebook">
+                        <input type="text" id="nr-facebook" placeholder="https://facebook.com/...">
                     </div>
                     <div class="form-group">
                         <label>Twitter/X</label>
-                        <input type="text" id="ei-twitter">
+                        <input type="text" id="nr-twitter" placeholder="https://twitter.com/...">
                     </div>
                 </div>
-                <div class="form-section">Subscription Features</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.5;">
-                        <input type="checkbox" checked disabled style="accent-color:var(--primary);width:16px;height:16px;">
-                        <span>
-                            <div style="font-size:0.82rem;font-weight:600;color:white;">Basic</div>
-                            <div style="font-size:0.7rem;color:var(--muted);">Home page + Menu</div>
-                        </span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
-                        <input type="checkbox" id="feat-ordering" value="ordering" style="accent-color:var(--primary);width:16px;height:16px;">
-                        <span>
-                            <div style="font-size:0.82rem;font-weight:600;color:white;">Ordering System</div>
-                            <div style="font-size:0.7rem;color:var(--muted);">Staff pages, Orders</div>
-                        </span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
-                        <input type="checkbox" id="feat-analytics" value="analytics" style="accent-color:var(--primary);width:16px;height:16px;">
-                        <span>
-                            <div style="font-size:0.82rem;font-weight:600;color:white;">Analytics</div>
-                            <div style="font-size:0.7rem;color:var(--muted);">Owner dashboard, Reports</div>
-                        </span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
-                        <input type="checkbox" id="feat-ar_menu" value="ar_menu" style="accent-color:var(--primary);width:16px;height:16px;">
-                        <span>
-                            <div style="font-size:0.82rem;font-weight:600;color:white;">AR Menu</div>
-                            <div style="font-size:0.7rem;color:var(--muted);">3D dish viewer</div>
-                        </span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.35;">
-                        <input type="checkbox" disabled style="accent-color:var(--primary);width:16px;height:16px;">
-                        <span>
-                            <div style="font-size:0.82rem;font-weight:600;color:white;">Attendance <span style="font-size:0.6rem;color:var(--muted);">(soon)</span></div>
-                            <div style="font-size:0.7rem;color:var(--muted);">Staff attendance</div>
-                        </span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.35;">
-                        <input type="checkbox" disabled style="accent-color:var(--primary);width:16px;height:16px;">
-                        <span>
-                            <div style="font-size:0.82rem;font-weight:600;color:white;">Inventory <span style="font-size:0.6rem;color:var(--muted);">(soon)</span></div>
-                            <div style="font-size:0.7rem;color:var(--muted);">Stock management</div>
-                        </span>
-                    </label>
-                </div>
-            </div><!-- /edit-info -->
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-add-rest')">Cancel</button>
+                <button class="btn btn-ghost" id="preview-new-btn" style="display:none"
+                    onclick="window.open('/'+lastCreatedClientId, '_blank')">👁 Preview</button>
+                <button class="btn btn-primary" id="create-rest-btn" onclick="createRestaurant()">Create
+                    Restaurant</button>
+            </div>
+        </div>
+    </div>
 
-            <!-- THEME -->
-            <div class="section-editor" id="edit-theme">
+    <!-- Edit Restaurant Modal -->
+    <div class="modal-overlay" id="modal-edit-rest">
+        <div class="modal" style="max-width:640px;">
+            <div class="modal-head">
+                <div class="modal-title" id="edit-rest-title">Restaurant Edit</div>
+                <button class="modal-close" onclick="closeModal('modal-edit-rest')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="json-tabs">
+                    <button class="json-tab active" onclick="switchEditTab('info',this)">Info</button>
+                    <button class="json-tab" onclick="switchEditTab('theme',this)">Theme</button>
+                    <button class="json-tab" onclick="switchEditTab('items',this)">Dishes</button>
+                </div>
+
+                <!-- INFO -->
+                <div class="section-editor active" id="edit-info">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="ei-name">
+                        </div>
+                        <div class="form-group">
+                            <label>Tables</label>
+                            <input type="number" id="ei-tables" min="1">
+                        </div>
+                        <div class="form-group full">
+                            <label>Tagline</label>
+                            <input type="text" id="ei-tagline">
+                        </div>
+                        <div class="form-group full">
+                            <label>Description</label>
+                            <textarea id="ei-desc"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Cuisine Type</label>
+                            <input type="text" id="ei-cuisine">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="text" id="ei-phone">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="text" id="ei-email">
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" id="ei-address">
+                        </div>
+                        <div class="form-group">
+                            <label>Logo Path</label>
+                            <input type="text" id="ei-logo">
+                        </div>
+                        <div class="form-group">
+                            <label>Banner Path</label>
+                            <input type="text" id="ei-banner">
+                        </div>
+                    </div>
+                    <div class="form-section">Timings</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Lunch</label>
+                            <input type="text" id="ei-lunch">
+                        </div>
+                        <div class="form-group">
+                            <label>Dinner</label>
+                            <input type="text" id="ei-dinner">
+                        </div>
+                        <div class="form-group">
+                            <label>Closed On</label>
+                            <input type="text" id="ei-closed">
+                        </div>
+                    </div>
+                    <div class="form-section">Social Media</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Instagram</label>
+                            <input type="text" id="ei-instagram">
+                        </div>
+                        <div class="form-group">
+                            <label>Facebook</label>
+                            <input type="text" id="ei-facebook">
+                        </div>
+                        <div class="form-group">
+                            <label>Twitter/X</label>
+                            <input type="text" id="ei-twitter">
+                        </div>
+                    </div>
+                    <div class="form-section">Subscription Features</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <label
+                            style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.5;">
+                            <input type="checkbox" checked disabled
+                                style="accent-color:var(--primary);width:16px;height:16px;">
+                            <span>
+                                <div style="font-size:0.82rem;font-weight:600;color:white;">Basic</div>
+                                <div style="font-size:0.7rem;color:var(--muted);">Home page + Menu</div>
+                            </span>
+                        </label>
+                        <label
+                            style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
+                            <input type="checkbox" id="feat-ordering" value="ordering"
+                                style="accent-color:var(--primary);width:16px;height:16px;">
+                            <span>
+                                <div style="font-size:0.82rem;font-weight:600;color:white;">Ordering System</div>
+                                <div style="font-size:0.7rem;color:var(--muted);">Staff pages, Orders</div>
+                            </span>
+                        </label>
+                        <label
+                            style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
+                            <input type="checkbox" id="feat-analytics" value="analytics"
+                                style="accent-color:var(--primary);width:16px;height:16px;">
+                            <span>
+                                <div style="font-size:0.82rem;font-weight:600;color:white;">Analytics</div>
+                                <div style="font-size:0.7rem;color:var(--muted);">Owner dashboard, Reports</div>
+                            </span>
+                        </label>
+                        <label
+                            style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;">
+                            <input type="checkbox" id="feat-ar_menu" value="ar_menu"
+                                style="accent-color:var(--primary);width:16px;height:16px;">
+                            <span>
+                                <div style="font-size:0.82rem;font-weight:600;color:white;">AR Menu</div>
+                                <div style="font-size:0.7rem;color:var(--muted);">3D dish viewer</div>
+                            </span>
+                        </label>
+                        <label
+                            style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.35;">
+                            <input type="checkbox" disabled style="accent-color:var(--primary);width:16px;height:16px;">
+                            <span>
+                                <div style="font-size:0.82rem;font-weight:600;color:white;">Attendance <span
+                                        style="font-size:0.6rem;color:var(--muted);">(soon)</span></div>
+                                <div style="font-size:0.7rem;color:var(--muted);">Staff attendance</div>
+                            </span>
+                        </label>
+                        <label
+                            style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid var(--border);cursor:not-allowed;opacity:0.35;">
+                            <input type="checkbox" disabled style="accent-color:var(--primary);width:16px;height:16px;">
+                            <span>
+                                <div style="font-size:0.82rem;font-weight:600;color:white;">Inventory <span
+                                        style="font-size:0.6rem;color:var(--muted);">(soon)</span></div>
+                                <div style="font-size:0.7rem;color:var(--muted);">Stock management</div>
+                            </span>
+                        </label>
+                    </div>
+                </div><!-- /edit-info -->
+
+                <!-- THEME -->
+                <div class="section-editor" id="edit-theme">
+                    <div class="form-grid one">
+                        <div class="form-group">
+                            <label>Primary Color</label>
+                            <div class="color-row">
+                                <input type="color" id="et-primary-picker"
+                                    oninput="document.getElementById('et-primary').value=this.value">
+                                <input type="text" id="et-primary" placeholder="#D4AF37"
+                                    oninput="document.getElementById('et-primary-picker').value=this.value">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Secondary Color</label>
+                            <div class="color-row">
+                                <input type="color" id="et-secondary-picker"
+                                    oninput="document.getElementById('et-secondary').value=this.value">
+                                <input type="text" id="et-secondary" placeholder="#1a1a1a"
+                                    oninput="document.getElementById('et-secondary-picker').value=this.value">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Accent Color</label>
+                            <div class="color-row">
+                                <input type="color" id="et-accent-picker"
+                                    oninput="document.getElementById('et-accent').value=this.value">
+                                <input type="text" id="et-accent" placeholder="#8B4513"
+                                    oninput="document.getElementById('et-accent-picker').value=this.value">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Text Color</label>
+                            <div class="color-row">
+                                <input type="color" id="et-text-picker"
+                                    oninput="document.getElementById('et-text').value=this.value">
+                                <input type="text" id="et-text" placeholder="#333333"
+                                    oninput="document.getElementById('et-text-picker').value=this.value">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Background Color</label>
+                            <div class="color-row">
+                                <input type="color" id="et-bg-picker"
+                                    oninput="document.getElementById('et-bg').value=this.value">
+                                <input type="text" id="et-bg" placeholder="#ffffff"
+                                    oninput="document.getElementById('et-bg-picker').value=this.value">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Font Primary (Display)</label>
+                            <select id="et-font-primary">
+                                <option>Playfair Display</option>
+                                <option>Space Grotesk</option>
+                                <option>Poppins</option>
+                                <option>Montserrat</option>
+                                <option>Raleway</option>
+                                <option>Lora</option>
+                                <option>Merriweather</option>
+                                <option>Nunito</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Font Secondary (Body)</label>
+                            <select id="et-font-secondary">
+                                <option>Poppins</option>
+                                <option>Inter</option>
+                                <option>Roboto</option>
+                                <option>Open Sans</option>
+                                <option>Lato</option>
+                                <option>Source Sans Pro</option>
+                                <option>Space Grotesk</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ITEMS / DISHES -->
+                <div class="section-editor" id="edit-items">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+                        <button class="btn btn-primary btn-sm" onclick="openAddItem()">+ Add Dish</button>
+                    </div>
+                    <div id="items-list">
+                        <div class="empty">No dishes yet</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-edit-rest')">Cancel</button>
+                <button class="btn btn-ghost" onclick="window.open('/'+currentEditClientId, '_blank')">👁
+                    Preview</button>
+                <button class="btn btn-primary" onclick="saveRestaurant()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Dish Modal -->
+    <div class="modal-overlay" id="modal-dish">
+        <div class="modal">
+            <div class="modal-head">
+                <div class="modal-title" id="dish-modal-title">Dish Add Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-dish')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Dish Name</label>
+                        <input type="text" id="di-name" placeholder="Butter Chicken">
+                    </div>
+                    <div class="form-group">
+                        <label>Price (INR)</label>
+                        <input type="text" id="di-price" placeholder="INR 450">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="di-category" placeholder="Main Course">
+                    </div>
+                    <div class="form-group">
+                        <label>Veg / Non-Veg</label>
+                        <select id="di-veg">
+                            <option value="true">Veg ✅</option>
+                            <option value="false">Non-Veg 🍗</option>
+                        </select>
+                    </div>
+                    <div class="form-group full">
+                        <label>Description</label>
+                        <textarea id="di-desc" placeholder="Dish ki description..."></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label>Ingredients</label>
+                        <input type="text" id="di-ingredients" placeholder="Chicken, Tomatoes, Butter...">
+                    </div>
+                    <div class="form-group full">
+                        <label>Image Path</label>
+                        <input type="text" id="di-image" placeholder="/static/assets/clint_one/butter_chicken.jpg">
+                    </div>
+                    <div class="form-group full">
+                        <label>3D Model Path</label>
+                        <input type="text" id="di-model" placeholder="clint_one/model.glb">
+                    </div>
+                    <div class="form-group">
+                        <label>Position</label>
+                        <input type="text" id="di-position" value="0 0 0">
+                    </div>
+                    <div class="form-group">
+                        <label>Scale</label>
+                        <input type="text" id="di-scale" value="2 2 2">
+                    </div>
+                    <div class="form-group">
+                        <label>Rotation</label>
+                        <input type="text" id="di-rotation" value="0 0 0">
+                    </div>
+                    <div class="form-group">
+                        <label>Auto Rotate</label>
+                        <select id="di-autorotate">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rotate Speed (ms)</label>
+                        <input type="number" id="di-rotatespeed" value="10000">
+                    </div>
+                    <div class="form-group">
+                        <label>Featured</label>
+                        <select id="di-featured">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-dish')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDish()">Save Dish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Staff Modal -->
+    <div class="modal-overlay" id="modal-add-staff">
+        <div class="modal">
+            <div class="modal-head">
+                <div class="modal-title">Staff Add Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-add-staff')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="ns-name" placeholder="Full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="ns-username" placeholder="username" autocapitalize="none">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="ns-password" placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="ns-role">
+                            <option value="owner">Owner</option>
+                            <option value="kitchen">Kitchen</option>
+                            <option value="waiter">Waiter</option>
+                            <option value="counter">Counter</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-add-staff')">Cancel</button>
+                <button class="btn btn-primary" onclick="createStaff()">Add Staff</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal-overlay" id="modal-change-pass">
+        <div class="modal" style="max-width:380px;">
+            <div class="modal-head">
+                <div class="modal-title">Password Change Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-change-pass')">✕</button>
+            </div>
+            <div class="modal-body">
                 <div class="form-grid one">
                     <div class="form-group">
-                        <label>Primary Color</label>
-                        <div class="color-row">
-                            <input type="color" id="et-primary-picker" oninput="document.getElementById('et-primary').value=this.value">
-                            <input type="text" id="et-primary" placeholder="#D4AF37" oninput="document.getElementById('et-primary-picker').value=this.value">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Secondary Color</label>
-                        <div class="color-row">
-                            <input type="color" id="et-secondary-picker" oninput="document.getElementById('et-secondary').value=this.value">
-                            <input type="text" id="et-secondary" placeholder="#1a1a1a" oninput="document.getElementById('et-secondary-picker').value=this.value">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Accent Color</label>
-                        <div class="color-row">
-                            <input type="color" id="et-accent-picker" oninput="document.getElementById('et-accent').value=this.value">
-                            <input type="text" id="et-accent" placeholder="#8B4513" oninput="document.getElementById('et-accent-picker').value=this.value">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Text Color</label>
-                        <div class="color-row">
-                            <input type="color" id="et-text-picker" oninput="document.getElementById('et-text').value=this.value">
-                            <input type="text" id="et-text" placeholder="#333333" oninput="document.getElementById('et-text-picker').value=this.value">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Background Color</label>
-                        <div class="color-row">
-                            <input type="color" id="et-bg-picker" oninput="document.getElementById('et-bg').value=this.value">
-                            <input type="text" id="et-bg" placeholder="#ffffff" oninput="document.getElementById('et-bg-picker').value=this.value">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Font Primary (Display)</label>
-                        <select id="et-font-primary">
-                            <option>Playfair Display</option>
-                            <option>Space Grotesk</option>
-                            <option>Poppins</option>
-                            <option>Montserrat</option>
-                            <option>Raleway</option>
-                            <option>Lora</option>
-                            <option>Merriweather</option>
-                            <option>Nunito</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Font Secondary (Body)</label>
-                        <select id="et-font-secondary">
-                            <option>Poppins</option>
-                            <option>Inter</option>
-                            <option>Roboto</option>
-                            <option>Open Sans</option>
-                            <option>Lato</option>
-                            <option>Source Sans Pro</option>
-                            <option>Space Grotesk</option>
-                        </select>
+                        <label>New Password</label>
+                        <input type="password" id="cp-password" placeholder="Naya password">
                     </div>
                 </div>
             </div>
-
-            <!-- ITEMS / DISHES -->
-            <div class="section-editor" id="edit-items">
-                <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-                    <button class="btn btn-primary btn-sm" onclick="openAddItem()">+ Add Dish</button>
-                </div>
-                <div id="items-list">
-                    <div class="empty">No dishes yet</div>
-                </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-change-pass')">Cancel</button>
+                <button class="btn btn-primary" onclick="changePassword()">Update</button>
             </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-edit-rest')">Cancel</button>
-            <button class="btn btn-ghost" onclick="window.open('/'+currentEditClientId, '_blank')">👁 Preview</button>
-            <button class="btn btn-primary" onclick="saveRestaurant()">Save Changes</button>
         </div>
     </div>
-</div>
 
-<!-- Add/Edit Dish Modal -->
-<div class="modal-overlay" id="modal-dish">
-    <div class="modal">
-        <div class="modal-head">
-            <div class="modal-title" id="dish-modal-title">Dish Add Karo</div>
-            <button class="modal-close" onclick="closeModal('modal-dish')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Dish Name</label>
-                    <input type="text" id="di-name" placeholder="Butter Chicken">
-                </div>
-                <div class="form-group">
-                    <label>Price (INR)</label>
-                    <input type="text" id="di-price" placeholder="INR 450">
-                </div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <input type="text" id="di-category" placeholder="Main Course">
-                </div>
-                <div class="form-group">
-                    <label>Veg / Non-Veg</label>
-                    <select id="di-veg">
-                        <option value="true">Veg ✅</option>
-                        <option value="false">Non-Veg 🍗</option>
-                    </select>
-                </div>
-                <div class="form-group full">
-                    <label>Description</label>
-                    <textarea id="di-desc" placeholder="Dish ki description..."></textarea>
-                </div>
-                <div class="form-group full">
-                    <label>Ingredients</label>
-                    <input type="text" id="di-ingredients" placeholder="Chicken, Tomatoes, Butter...">
-                </div>
-                <div class="form-group full">
-                    <label>Image Path</label>
-                    <input type="text" id="di-image" placeholder="/static/assets/clint_one/butter_chicken.jpg">
-                </div>
-                <div class="form-group full">
-                    <label>3D Model Path</label>
-                    <input type="text" id="di-model" placeholder="clint_one/model.glb">
-                </div>
-                <div class="form-group">
-                    <label>Position</label>
-                    <input type="text" id="di-position" value="0 0 0">
-                </div>
-                <div class="form-group">
-                    <label>Scale</label>
-                    <input type="text" id="di-scale" value="2 2 2">
-                </div>
-                <div class="form-group">
-                    <label>Rotation</label>
-                    <input type="text" id="di-rotation" value="0 0 0">
-                </div>
-                <div class="form-group">
-                    <label>Auto Rotate</label>
-                    <select id="di-autorotate">
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Rotate Speed (ms)</label>
-                    <input type="number" id="di-rotatespeed" value="10000">
-                </div>
-                <div class="form-group">
-                    <label>Featured</label>
-                    <select id="di-featured">
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                    </select>
+
+    <!-- Add Admin Modal -->
+    <div class="modal-overlay" id="modal-add-admin">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-head">
+                <div class="modal-title">Naya Admin Add Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-add-admin')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="na-name" placeholder="Admin name">
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="na-username" placeholder="username" autocapitalize="none">
+                    </div>
+                    <div class="form-group full">
+                        <label>Password</label>
+                        <input type="password" id="na-password" placeholder="••••••••">
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-dish')">Cancel</button>
-            <button class="btn btn-primary" onclick="saveDish()">Save Dish</button>
-        </div>
-    </div>
-</div>
-
-<!-- Add Staff Modal -->
-<div class="modal-overlay" id="modal-add-staff">
-    <div class="modal">
-        <div class="modal-head">
-            <div class="modal-title">Staff Add Karo</div>
-            <button class="modal-close" onclick="closeModal('modal-add-staff')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="ns-name" placeholder="Full name">
-                </div>
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="ns-username" placeholder="username" autocapitalize="none">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="ns-password" placeholder="••••••••">
-                </div>
-                <div class="form-group">
-                    <label>Role</label>
-                    <select id="ns-role">
-                        <option value="owner">Owner</option>
-                        <option value="kitchen">Kitchen</option>
-                        <option value="waiter">Waiter</option>
-                        <option value="counter">Counter</option>
-                    </select>
-                </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-add-admin')">Cancel</button>
+                <button class="btn btn-primary" onclick="createAdmin()">Add Admin</button>
             </div>
         </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-add-staff')">Cancel</button>
-            <button class="btn btn-primary" onclick="createStaff()">Add Staff</button>
-        </div>
     </div>
-</div>
 
-<!-- Change Password Modal -->
-<div class="modal-overlay" id="modal-change-pass">
-    <div class="modal" style="max-width:380px;">
-        <div class="modal-head">
-            <div class="modal-title">Password Change Karo</div>
-            <button class="modal-close" onclick="closeModal('modal-change-pass')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-grid one">
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" id="cp-password" placeholder="Naya password">
+    <!-- Admin Change Password Modal -->
+    <div class="modal-overlay" id="modal-admin-pass">
+        <div class="modal" style="max-width:380px;">
+            <div class="modal-head">
+                <div class="modal-title">Apna Password Change Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-admin-pass')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid one">
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" id="ap-password" placeholder="Naya password">
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-change-pass')">Cancel</button>
-            <button class="btn btn-primary" onclick="changePassword()">Update</button>
-        </div>
-    </div>
-</div>
-
-
-<!-- Add Admin Modal -->
-<div class="modal-overlay" id="modal-add-admin">
-    <div class="modal" style="max-width:400px;">
-        <div class="modal-head">
-            <div class="modal-title">Naya Admin Add Karo</div>
-            <button class="modal-close" onclick="closeModal('modal-add-admin')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="na-name" placeholder="Admin name">
-                </div>
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="na-username" placeholder="username" autocapitalize="none">
-                </div>
-                <div class="form-group full">
-                    <label>Password</label>
-                    <input type="password" id="na-password" placeholder="••••••••">
-                </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-admin-pass')">Cancel</button>
+                <button class="btn btn-primary" onclick="changeAdminPassword()">Update</button>
             </div>
         </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-add-admin')">Cancel</button>
-            <button class="btn btn-primary" onclick="createAdmin()">Add Admin</button>
-        </div>
     </div>
-</div>
-
-<!-- Admin Change Password Modal -->
-<div class="modal-overlay" id="modal-admin-pass">
-    <div class="modal" style="max-width:380px;">
-        <div class="modal-head">
-            <div class="modal-title">Apna Password Change Karo</div>
-            <button class="modal-close" onclick="closeModal('modal-admin-pass')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-grid one">
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" id="ap-password" placeholder="Naya password">
-                </div>
-            </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('modal-admin-pass')">Cancel</button>
-            <button class="btn btn-primary" onclick="changeAdminPassword()">Update</button>
-        </div>
-    </div>
-</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="/static/js/admin.js"></script>
-<style>
-.rest-row { cursor: pointer; transition: background 0.15s; }
-.rest-row:hover { background: rgba(255,255,255,0.04); }
-.rest-row.row-selected { background: rgba(108,99,255,0.12); }
-.rest-row.row-selected td:first-child { border-left: 3px solid var(--primary); }
+    <style>
+        .rest-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
 
-.mini-stat {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-}
-.mini-stat-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: var(--muted);
-    margin-bottom: 4px;
-}
-.mini-stat-val {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: white;
-    font-family: var(--font-m);
-}
-.mini-stat-sub { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
-.mini-stat-sub.up { color: #81c784; }
-.mini-stat-sub.down { color: #e57373; }
-</style>
+        .rest-row:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .rest-row.row-selected {
+            background: rgba(108, 99, 255, 0.12);
+        }
+
+        .rest-row.row-selected td:first-child {
+            border-left: 3px solid var(--primary);
+        }
+
+        .mini-stat {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+
+        .mini-stat-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .mini-stat-val {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: white;
+            font-family: var(--font-m);
+        }
+
+        .mini-stat-sub {
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .mini-stat-sub.up {
+            color: #81c784;
+        }
+
+        .mini-stat-sub.down {
+            color: #e57373;
+        }
+    </style>
 </body>
+
 </html>
