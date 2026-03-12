@@ -407,7 +407,7 @@ def place_order(client_id: str, table_no: int, items: list,
     conn.close()
     return order_id
 
-def get_orders(client_id: str, status: str = None, table_no: int = None, source: str = None):
+def get_orders(client_id: str, status: str = None, table_no: int = None, source: str = None, from_date: str = None):
     conn = get_db()
     query = "SELECT * FROM orders WHERE client_id=?"
     params = [client_id]
@@ -420,6 +420,9 @@ def get_orders(client_id: str, status: str = None, table_no: int = None, source:
     if source:
         query += " AND source=?"
         params.append(source)
+    if from_date:
+        query += " AND DATE(created_at) >= ?"
+        params.append(from_date)
     query += " ORDER BY created_at DESC"
     rows = conn.execute(query, params).fetchall()
     conn.close()

@@ -192,18 +192,58 @@ function renderLineChart(id, labels, data, label, color) {
 
 // ── ORDERS ──
 async function loadOrders() {
-    const status  = document.getElementById('f-status').value;
-    const source  = document.getElementById('f-source').value;
-    const tableNo = document.getElementById('f-table').value;
-    let url = `/api/orders/${clientId}/filter?`;
-    if (status)  url += `status=${status}&`;
-    if (source)  url += `source=${source}&`;
-    if (tableNo) url += `table_no=${tableNo}&`;
+    const status  = (document.getElementById('f-status')  || {value:''}).value;
+    const source  = (document.getElementById('f-source')  || {value:''}).value;
+    const time    = (document.getElementById('f-time')    || {value:''}).value;
 
-    const [ordersRes, summaryRes] = await Promise.all([
+    let url = `/api/orders/${clientId}/filter?`;
+
+    // "kitchen" = pending + preparing — dono fetch karke merge
+    if (status === 'kitchen') {
+        url += `status=pending&`;
+    } else if (status === 'paid') {
+        // paid = done orders jinke table paid hain — all done for now
+        url += `status=done&`;
+    } else if (status) {
+        url += `status=${status}&`;
+    }
+    if (source === 'waiter') {
+        // waiter filter — 'waiter' (purane orders) aur 'Staff' (naye orders) dono
+        url += `source=waiter&`;
+        window._fetchStaffAlso = true;
+    } else if (source) {
+        url += `source=${source}&`;
+        window._fetchStaffAlso = false;
+    } else {
+        window._fetchStaffAlso = false;
+    }
+
+    // Time filter — local date
+    if (time) {
+        const now = new Date();
+        const pad = n => String(n).padStart(2,'0');
+        const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+        let fromDate = '';
+        if (time === 'today') fromDate = todayStr;
+        else if (time === 'week') {
+            const d = new Date(now); d.setDate(d.getDate() - d.getDay());
+            fromDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        } else if (time === 'month') fromDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+        else if (time === 'year')  fromDate = `${now.getFullYear()}-01-01`;
+        if (fromDate) url += `from_date=${fromDate}&`;
+    }
+
+    let [ordersRes, summaryRes] = await Promise.all([
         fetch(url), fetch(`/api/tables/${clientId}/summary`)
     ]);
-    const orders  = await ordersRes.json();
+    let orders = await ordersRes.json();
+    // Staff filter — merge 'waiter' + 'Staff' source orders
+    if (window._fetchStaffAlso) {
+        const staffUrl = url.replace('source=waiter&', 'source=Staff&');
+        const staffRes = await fetch(staffUrl);
+        const staffOrders = await staffRes.json();
+        orders = [...orders, ...staffOrders].sort((a,b) => b.id - a.id);
+    }
     const summary = await summaryRes.json();
     const tMap = {};
     summary.forEach(t => tMap[String(t.table_no)] = t);
@@ -243,14 +283,7 @@ async function loadTables() {
     const map = {};
     tables.forEach(t => map[t.table_no] = t);
 
-    const sel = document.getElementById('f-table');
-    if (sel.options.length <= 1 && tables.length) {
-        tables.forEach(t => {
-            const o = document.createElement('option');
-            o.value = t.table_no; o.textContent = `Table ${t.table_no}`;
-            sel.appendChild(o);
-        });
-    }
+    // f-table removed
 
     const maxTable = tables.length ? Math.max(...tables.map(t => t.table_no)) : 0;
     const count = numTables;

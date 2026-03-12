@@ -853,8 +853,13 @@ async def api_table_detail(client_id: str, table_no: int):
 
 @app.get("/api/orders/{client_id}/filter")
 async def api_filter_orders(client_id: str, status: str = None,
-                             table_no: int = None, source: str = None):
-    return get_orders(client_id, status=status, table_no=table_no, source=source)
+                             table_no: int = None, source: str = None,
+                             from_date: str = None):
+    if status == "kitchen":
+        p = get_orders(client_id, status="pending",   table_no=table_no, source=source, from_date=from_date)
+        r = get_orders(client_id, status="preparing", table_no=table_no, source=source, from_date=from_date)
+        return sorted(p + r, key=lambda x: x["created_at"], reverse=True)
+    return get_orders(client_id, status=status, table_no=table_no, source=source, from_date=from_date)
 
 @app.get("/api/admin/summary/{client_id}")
 async def api_summary(client_id: str):
