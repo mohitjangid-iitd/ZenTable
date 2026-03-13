@@ -17,16 +17,3 @@ Thumbs.db
 
 # Environment variables
 .env
-
-# Notes
-Notes.txt
-
-# Production scripts
-clean_db.py
-create_first_admin.py
-manage_restaurant.py
-
-# Database
-data/orders.db
-data/*.db-wal
-data/*.db-shm
