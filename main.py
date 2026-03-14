@@ -208,9 +208,12 @@ class CreateRestaurantRequest(BaseModel):
 # Landing Page
 # ════════════════════════════════
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def landing(request: Request):
-    return templates.TemplateResponse("landing.html", {"request": request, "site": SITE_CONFIG})
+    return templates.TemplateResponse("landing.html", {
+        "request": request,
+        "config": SITE_CONFIG
+    })
 
 # ════════════════════════════════
 # ASSET SERVING

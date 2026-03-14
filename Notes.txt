@@ -7,3 +7,27 @@
 4. restaurent chain (multiple restaurent one owner, multiple managers, and all)
 
 5. Full Demo
+
+--- Mohit ---
+
+# Kaam karo main pe
+git checkout main
+# ... code likho ...
+git add .
+git commit -m "feature: kuch naya"
+git push origin main
+
+# Deploy karna ho
+git checkout deployment
+git merge main        # bas itna!
+git push origin deployment
+
+--- Shubhanshu ---
+
+# Update
+
+git pull
+git status
+git add *
+git commit -m "____"
+git push
