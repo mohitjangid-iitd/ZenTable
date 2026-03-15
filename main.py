@@ -126,7 +126,7 @@ async def lifespan(app):
     
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 # ════════════════════════════════

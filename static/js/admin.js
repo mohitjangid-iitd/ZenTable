@@ -362,7 +362,7 @@ function renderItemsList() {
                     <span class="veg-dot ${item.veg ? 'veg' : 'nonveg'}"></span>
                     ${item.name}
                 </div>
-                <div class="item-meta">${item.category || ''} &nbsp;·&nbsp; ${item.price || ''}</div>
+                <div class="item-meta">${item.category || ''} &nbsp;·&nbsp; ${item.sizes ? item.sizes.map(s => s.label + ': ' + s.price).join(' / ') : (item.price || '')}</div>
                 <div class="item-meta" style="margin-top:3px">${item.description || ''}</div>
             </div>
             <div class="item-actions">
@@ -384,6 +384,11 @@ function openAddItem() {
     document.getElementById('di-veg').value = 'true';
     document.getElementById('di-autorotate').value = 'true';
     document.getElementById('di-featured').value = 'true';
+    // Reset size mode
+    document.getElementById('di-multisize').checked = false;
+    document.getElementById('di-sizes-list').innerHTML = '';
+    document.getElementById('di-price-single').style.display = '';
+    document.getElementById('di-price-multi').style.display = 'none';
     openModal('modal-dish');
 }
 
@@ -405,13 +410,69 @@ function openEditItem(index) {
     document.getElementById('di-veg').value         = String(item.veg ?? true);
     document.getElementById('di-autorotate').value  = String(item.auto_rotate ?? true);
     document.getElementById('di-featured').value    = String(item.featured ?? true);
+    // Sizes
+    if (item.sizes && item.sizes.length > 0) {
+        document.getElementById('di-multisize').checked = true;
+        document.getElementById('di-price-single').style.display = 'none';
+        document.getElementById('di-price-multi').style.display = '';
+        const list = document.getElementById('di-sizes-list');
+        list.innerHTML = '';
+        item.sizes.forEach(s => addSizeRow(s.label, s.price));
+    } else {
+        document.getElementById('di-multisize').checked = false;
+        document.getElementById('di-price-single').style.display = '';
+        document.getElementById('di-price-multi').style.display = 'none';
+        document.getElementById('di-sizes-list').innerHTML = '';
+    }
     openModal('modal-dish');
 }
 
+
+// ── Size helpers ──
+function toggleSizeMode() {
+    const on = document.getElementById('di-multisize').checked;
+    document.getElementById('di-price-single').style.display = on ? 'none' : '';
+    document.getElementById('di-price-multi').style.display  = on ? '' : 'none';
+    if (on && document.getElementById('di-sizes-list').children.length === 0) {
+        addSizeRow(); addSizeRow();
+    }
+}
+
+function addSizeRow(label = '', price = '') {
+    const list = document.getElementById('di-sizes-list');
+    const row = document.createElement('div');
+    row.className = 'size-row';
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    row.innerHTML = `
+        <input class="size-label" type="text" placeholder="e.g. Half" value="${label}"
+            style="flex:1;padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:var(--input-bg, rgba(255,255,255,0.06));color:white;font-size:0.84rem;outline:none;">
+        <input class="size-price" type="text" placeholder="INR 180" value="${price}"
+            style="flex:1;padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:var(--input-bg, rgba(255,255,255,0.06));color:white;font-size:0.84rem;outline:none;">
+        <button type="button" onclick="this.parentElement.remove()"
+            style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:4px;">✕</button>
+    `;
+    list.appendChild(row);
+}
+
 function saveDish() {
+    const isMultiSize = document.getElementById('di-multisize').checked;
+    let priceField = {};
+    if (isMultiSize) {
+        const rows = document.getElementById('di-sizes-list').querySelectorAll('.size-row');
+        const sizes = [];
+        rows.forEach(row => {
+            const label = row.querySelector('.size-label').value.trim();
+            const price = row.querySelector('.size-price').value.trim();
+            if (label && price) sizes.push({ label, price });
+        });
+        if (sizes.length === 0) { toast('At least one size required', 'error'); return; }
+        priceField = { sizes };
+    } else {
+        priceField = { price: document.getElementById('di-price').value.trim() };
+    }
     const item = {
         name:        document.getElementById('di-name').value.trim(),
-        price:       document.getElementById('di-price').value.trim(),
+        ...priceField,
         category:    document.getElementById('di-category').value.trim(),
         description: document.getElementById('di-desc').value.trim(),
         ingredients: document.getElementById('di-ingredients').value.trim(),

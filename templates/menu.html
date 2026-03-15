@@ -27,7 +27,7 @@
         }
     </style>
 
-    <link rel="stylesheet" href="/static/css/menu.css">
+    <link rel="stylesheet" href="/static/css/menu.css?v={{ static_v('css/menu.css') }}">
 </head>
 <body>
 
@@ -206,7 +206,7 @@
 </script>
 
 <!-- Static JS -->
-<script src="/static/js/menu.js"></script>
+<script src="/static/js/menu.js?v={{ static_v('js/menu.js') }}"></script>
 
 <!-- Ordering Locked Popup -->
 <div id="ordering-locked-popup" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">

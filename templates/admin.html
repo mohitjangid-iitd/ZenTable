@@ -8,7 +8,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/admin.css?v={{ static_v('css/admin.css') }}">
 </head>
 
 <body>
@@ -516,9 +516,23 @@
                         <label>Dish Name</label>
                         <input type="text" id="di-name" placeholder="Butter Chicken">
                     </div>
-                    <div class="form-group">
-                        <label>Price (INR)</label>
-                        <input type="text" id="di-price" placeholder="INR 450">
+                    <div class="form-group full">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <label style="margin:0;">Pricing</label>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <input type="checkbox" id="di-multisize" onchange="toggleSizeMode()" style="cursor:pointer;width:14px;height:14px;accent-color:var(--primary,#D4AF37);">
+                                <span style="font-size:0.78rem;color:var(--muted);cursor:pointer;" onclick="var cb=document.getElementById('di-multisize');cb.checked=!cb.checked;toggleSizeMode();">Multiple sizes</span>
+                            </div>
+                        </div>
+                        <!-- Single price -->
+                        <div id="di-price-single">
+                            <input type="text" id="di-price" placeholder="INR 450">
+                        </div>
+                        <!-- Multi-size -->
+                        <div id="di-price-multi" style="display:none;">
+                            <div id="di-sizes-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+                            <button type="button" onclick="addSizeRow()" style="font-size:0.75rem;padding:5px 12px;border-radius:6px;border:1px dashed var(--border);background:transparent;color:var(--muted);cursor:pointer;width:100%;">+ Add Size</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Category</label>
@@ -702,7 +716,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/admin.js?v={{ static_v('js/admin.js') }}"></script>
     <style>
         .rest-row {
             cursor: pointer;
