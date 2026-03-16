@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236C63FF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l19-9-9 19-2-8-8-2z'/></svg>" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Login — {{ site.name }}</title>
@@ -77,8 +78,12 @@
 <div class="page-wrap">
     <div class="brand-panel">
         <div class="logo-row">
-            <div class="logo-icon">🍽️</div>
-            <div class="logo-name">Menu<span>AR</span></div>
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+                </svg>
+            </div>
+            <div class="logo-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span></div>
         </div>
         <div class="brand-tagline">{{ site.tagline }}<br>Manage your restaurant smarter.</div>
         <div class="brand-features">
@@ -90,11 +95,16 @@
     </div>
     <div class="login-card">
         <div class="mobile-logo">
-            <div class="logo-icon">🍽️</div>
-            <div class="m-name">Menu<span>AR</span></div>
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+                </svg>
+            </div>
+            <div class="m-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span></div>
         </div>
         <div class="card-title">Welcome back</div>
         <div class="card-sub">Sign in to your restaurant dashboard</div>
+        <form onsubmit="event.preventDefault(); doLogin()">
         <div class="form-group">
             <label>Restaurant ID</label>
             <input type="text" id="restaurant_id" placeholder="e.g. golden_spoon" autocomplete="off" autocapitalize="none">
@@ -116,6 +126,7 @@
             <span id="btn-text">Sign In</span>
             <div class="spinner" id="spinner"></div>
         </button>
+        </form>
         <div class="error-msg" id="error-msg"></div>
         <div class="card-footer">
             Powered by <span>{{ site.name }}</span> &nbsp;·&nbsp; v{{ site.version }}
