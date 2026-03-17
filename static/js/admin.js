@@ -894,16 +894,42 @@ async function downloadAllQRs(clientId) {
                     const img = new Image();
                     img.onload = () => {
                         ctx.drawImage(img, pad, y, qrSize, qrSize);
-                        y += qrSize + pad;
 
-                        // Bottom bar
-                        ctx.fillStyle = primary;
-                        ctx.fillRect(0, totalH - barH, totalW, barH);
+                        // ZenTable logo QR center mein
+                        const ztR      = qrSize * 0.07;
+                        const ztCx     = pad + qrSize / 2;
+                        const ztCy     = y + qrSize / 2;
 
-                        canvas.toBlob(blob => {
-                            document.body.removeChild(wrap);
-                            resolve(blob);
-                        }, 'image/png');
+                        // White circle bg
+                        ctx.fillStyle = '#F5F0E8';
+                        ctx.beginPath();
+                        ctx.arc(ztCx, ztCy, ztR + 5, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        const finalize = () => {
+                            y += qrSize + pad;
+                            // Bottom bar
+                            ctx.fillStyle = primary;
+                            ctx.fillRect(0, totalH - barH, totalW, barH);
+                            canvas.toBlob(blob => {
+                                document.body.removeChild(wrap);
+                                resolve(blob);
+                            }, 'image/png');
+                        };
+
+                        const ztLogo = new Image();
+                        ztLogo.onload = () => {
+                            const iw = ztLogo.naturalWidth;
+                            const ih = ztLogo.naturalHeight;
+                            const aspect = iw / ih;
+                            const diam = ztR * 2;
+                            let dw = aspect > 1 ? diam : diam * aspect;
+                            let dh = aspect > 1 ? diam / aspect : diam;
+                            ctx.drawImage(ztLogo, ztCx - dw/2, ztCy - dh/2 + 3, dw, dh);
+                            finalize();
+                        };
+                        ztLogo.onerror = finalize;
+                        ztLogo.src = '/static/assets/zentable/logo_golden_192.png';
                     };
                     img.src = src;
                 };

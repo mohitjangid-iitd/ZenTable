@@ -117,7 +117,9 @@
   "subscription": {
     "features": [
       "basic",
-      "ordering"
+      "ordering",
+      "analytics",
+      "ar_menu"
     ]
   }
 }

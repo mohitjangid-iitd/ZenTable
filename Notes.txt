@@ -1,8 +1,8 @@
-1.
+1. Database SQL change karna h
 
-2.
+2. 
 
-3.
+3. 
 
 4. restaurent chain (multiple restaurent one owner, multiple managers, and all)
 

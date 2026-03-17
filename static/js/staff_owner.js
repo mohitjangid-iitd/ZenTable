@@ -338,16 +338,59 @@ function downloadTableQR(tableNo) {
         ctx.fillText('Table ' + tableNo, W / 2, pad + textH / 2);
 
         const drawQR = (src) => {
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, pad, pad + textH, qrSize, qrSize);
-                const link = document.createElement('a');
-                link.download = 'table_' + tableNo + '_qr.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                document.body.removeChild(wrap);
+            const qrImg = new Image();
+            qrImg.onload = () => {
+                ctx.drawImage(qrImg, pad, pad + textH, qrSize, qrSize);
+
+                const circleR = qrSize * 0.06;  // circle radius
+                const cx = pad + qrSize / 2;
+                const cy = pad + textH + qrSize / 2;
+
+                // White circle background
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(cx, cy, circleR + 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Logo — aspect ratio maintain karte hue circle mein fit karo
+                const logoImg = new Image();
+                logoImg.onload = () => {
+                    const iw = logoImg.naturalWidth;
+                    const ih = logoImg.naturalHeight;
+                    const aspect = iw / ih;
+
+                    // contain fit — dono dimensions circle diameter se chhoti rahein
+                    const diameter = circleR * 2;
+                    let dw, dh;
+                    if (aspect > 1) {
+                        dw = diameter;
+                        dh = diameter / aspect;
+                    } else {
+                        dh = diameter;
+                        dw = diameter * aspect;
+                    }
+
+                    const dx = cx - dw / 2;
+                    const dy = cy - dh / 2 + 3;
+
+                    ctx.drawImage(logoImg, dx, dy, dw, dh);
+
+                    const link = document.createElement('a');
+                    link.download = 'table_' + tableNo + '_qr.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    document.body.removeChild(wrap);
+                };
+                logoImg.onerror = () => {
+                    const link = document.createElement('a');
+                    link.download = 'table_' + tableNo + '_qr.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    document.body.removeChild(wrap);
+                };
+                logoImg.src = '/static/assets/zentable/logo_golden_192.png';
             };
-            img.src = src;
+            qrImg.src = src;
         };
 
         if (qrEl.tagName === 'CANVAS') drawQR(qrEl.toDataURL());
