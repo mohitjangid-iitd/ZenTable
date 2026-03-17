@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="{{ config.tagline }} — Smart restaurant management with AR menus, digital ordering, kitchen dashboards, and owner analytics." />
   <title>{{ config.name }} — {{ config.tagline }}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236C63FF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l19-9-9 19-2-8-8-2z'/></svg>" />
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/landing.css') }}" />
 </head>
 <body>
@@ -17,9 +19,7 @@
   <div class="nav-inner">
     <a href="#hero" class="logo">
       <div class="logo-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-        </svg>
+        <img src="/static/assets/zentable/logo_white_192.png" alt="{{ config.name }}" style="width:80%;height:80%;object-fit:contain;" />
       </div>
       <span style="letter-spacing:0;">{{ config.name[:3] }}<span style="color:var(--accent);">{{ config.name[3:] }}</span>.</span>
     </a>
@@ -829,9 +829,7 @@
       <div class="footer-brand">
         <div class="logo" style="margin-bottom:14px;">
           <div class="logo-mark">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-            </svg>
+            <img src="/static/assets/zentable/logo_white_192.png" alt="{{ config.name }}" style="width:80%;height:80%;object-fit:contain;" />
           </div>
           <span style="letter-spacing:0;">{{ config.name[:3] }}<span style="color:var(--accent);">{{ config.name[3:] }}</span>.</span>
         </div>

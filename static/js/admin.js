@@ -655,7 +655,7 @@ async function changeAdminPassword() {
 // ════════════════════════════════
 async function doLogout() {
     await fetch('/api/auth/logout', { method:'POST' });
-    window.location.href = '/admin/login';
+    window.location.replace('/admin/login');
 }
 
 // ════════════════════════════════

@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236C63FF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l19-9-9 19-2-8-8-2z'/></svg>" />
+    <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Kitchen — {{ data.restaurant.name }}</title>
@@ -63,7 +65,7 @@
 <script>
 async function doLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
+    window.location.replace('/login');
 }
 </script>
 

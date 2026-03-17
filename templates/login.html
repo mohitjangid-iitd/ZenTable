@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236C63FF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l19-9-9 19-2-8-8-2z'/></svg>" />
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Login — {{ site.name }}</title>
@@ -79,11 +81,9 @@
     <div class="brand-panel">
         <div class="logo-row">
             <div class="logo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                    <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-                </svg>
+                <img src="/static/assets/zentable/logo_white_192.png" alt="{{ site.name }}" style="width:70%;height:70%;object-fit:contain;" />
             </div>
-            <div class="logo-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span></div>
+            <div class="logo-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span>.</div>
         </div>
         <div class="brand-tagline">{{ site.tagline }}<br>Manage your restaurant smarter.</div>
         <div class="brand-features">
@@ -96,11 +96,9 @@
     <div class="login-card">
         <div class="mobile-logo">
             <div class="logo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                    <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-                </svg>
-            </div>
-            <div class="m-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span></div>
+            <img src="/static/assets/zentable/logo_white_192.png" alt="{{ site.name }}" style="width:70%;height:70%;object-fit:contain;" />
+        </div>
+            <div class="m-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span>.</div>
         </div>
         <div class="card-title">Welcome back</div>
         <div class="card-sub">Sign in to your restaurant dashboard</div>
@@ -168,7 +166,7 @@
                 body: JSON.stringify({ username, password, restaurant_id })
             });
             const data = await res.json();
-            if (res.ok) { window.location.href = data.redirect; }
+            if (res.ok) { window.location.replace(data.redirect); }
             else { showError(data.detail || 'Invalid credentials'); setLoading(false); }
         } catch(e) {
             showError('Connection error — try again');
