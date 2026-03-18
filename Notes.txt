@@ -2,11 +2,15 @@
 
 2. 
 
-3. 
+3. delivery app intigration
 
 4. restaurent chain (multiple restaurent one owner, multiple managers, and all)
 
 5. Full Demo
+
+6 chat bot 
+
+7. 
 
 --- Mohit ---
 
