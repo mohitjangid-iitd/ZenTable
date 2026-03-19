@@ -17,7 +17,9 @@ import psycopg2.pool
 import psycopg2.extras
 from datetime import datetime
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable not set!")
 
 # ThreadedConnectionPool — min 2, max 20 connections
 # Adjust minconn/maxconn based on your server's pg_max_connections
@@ -26,7 +28,6 @@ _pool = psycopg2.pool.ThreadedConnectionPool(
     maxconn=20,
     dsn=DATABASE_URL
 )
-
 
 class _PgConn:
     """
