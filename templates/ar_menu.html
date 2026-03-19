@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>AR Menu</title>
@@ -23,11 +26,16 @@
     </div>
 </div>
 
+<div style="position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:0.65rem;color:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;gap:4px;z-index:100;pointer-events:none;">
+    <img src="/static/assets/zentable/logo_white_192.png" style="width:10px;height:10px;object-fit:contain;opacity:0.4;" />
+    <span>Powered by {{ site.name }}</span>
+</div>
+
 <div id="ui-layer">
     <div id="carousel-wrapper"></div>
 </div>
 
-<a-scene mindar-image="imageTargetSrc: /static/assets/{{ client_id }}/targets.mind; autoStart: true; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
+<a-scene style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;" mindar-image="imageTargetSrc: /static/assets/{{ client_id }}/targets.mind; autoStart: true; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
     color-space="sRGB" renderer="colorManagement:true, physicallyCorrectLights:true" vr-mode-ui="enabled:false"
     device-orientation-permission-ui="enabled:false">
 

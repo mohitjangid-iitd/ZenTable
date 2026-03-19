@@ -87,12 +87,39 @@
       "rotation": "0 0 0",
       "auto_rotate": false,
       "rotate_speed": 10000
+    },
+    {
+      "name": "Mojito",
+      "description": "Refreshing mint and lime drink mixed with soda and crushed ice",
+      "image": "/static/assets/clint_one/mojito.jpg",
+      "sizes": [
+        {
+          "label": "Regular",
+          "price": "INR 120"
+        },
+        {
+          "label": "Large",
+          "price": "INR 180"
+        }
+      ],
+      "veg": true,
+      "featured": false,
+      "category": "Beverages",
+      "ingredients": "Fresh Mint, Lime, Sugar Syrup, Soda, Crushed Ice",
+      "model": "",
+      "position": "0 0 0",
+      "scale": "2 2 2",
+      "rotation": "0 0 0",
+      "auto_rotate": false,
+      "rotate_speed": 10000
     }
   ],
   "subscription": {
     "features": [
       "basic",
-      "ordering"
+      "ordering",
+      "analytics",
+      "ar_menu"
     ]
   }
 }

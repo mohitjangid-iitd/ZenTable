@@ -3,1319 +3,981 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ site.name }} — {{ site.tagline }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family={{ site.font_body }}:wght@300;400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --violet:  {{ site.primary }};
-      --navy:    {{ site.secondary }};
-      --coral:   {{ site.accent }};
-      --bg:      {{ site.bg }};
-      --text:    {{ site.text }};
-      --muted:   #8888A0;
-      --border:  #E4E2F5;
-      --white:   #FFFFFF;
-      --green:   {{ site.success }};
-    }
-
-    html { scroll-behavior: smooth; }
-
-    body {
-      font-family: '{{ site.font_body }}', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      overflow-x: hidden;
-    }
-
-    /* ── NOISE TEXTURE OVERLAY ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.4;
-    }
-
-    /* ── NAV ── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.4rem 5%;
-      background: rgba(248, 247, 255, 0.85);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .nav-logo {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.6rem;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      color: var(--navy);
-      text-decoration: none;
-    }
-
-    .nav-logo span { color: var(--violet); }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 2.5rem;
-      list-style: none;
-    }
-
-    .nav-links a {
-      font-size: 0.875rem;
-      font-weight: 400;
-      color: var(--muted);
-      text-decoration: none;
-      letter-spacing: 0.02em;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover { color: var(--text); }
-
-    .nav-login {
-      border: 1px solid var(--border);
-      color: var(--text) !important;
-      padding: 0.5rem 1.2rem;
-      border-radius: 6px;
-      font-weight: 400 !important;
-      font-size: 0.85rem !important;
-      transition: border-color 0.2s, color 0.2s !important;
-    }
-
-    .nav-login:hover {
-      border-color: var(--violet) !important;
-      color: var(--violet) !important;
-    }
-
-    .nav-cta {
-      background: var(--navy);
-      color: var(--white) !important;
-      padding: 0.55rem 1.4rem;
-      border-radius: 6px;
-      font-weight: 500 !important;
-      font-size: 0.85rem !important;
-      transition: background 0.2s, transform 0.15s !important;
-    }
-
-    .nav-cta:hover {
-      background: var(--violet) !important;
-      transform: translateY(-1px);
-    }
-
-    /* ── HERO ── */
-    .hero {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      align-items: center;
-      gap: 4rem;
-      padding: 8rem 5% 5rem;
-      position: relative;
-    }
-
-    .hero::after {
-      content: '';
-      position: absolute;
-      top: -10%;
-      right: -5%;
-      width: 55%;
-      height: 80%;
-      background: radial-gradient(ellipse at 70% 30%, rgba(108, 99, 255, 0.08) 0%, transparent 65%),
-                  radial-gradient(ellipse at 30% 70%, rgba(255, 101, 132, 0.06) 0%, transparent 60%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .hero-content { position: relative; z-index: 1; }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: rgba(108, 99, 255, 0.08);
-      border: 1px solid rgba(108, 99, 255, 0.2);
-      color: var(--violet);
-      font-size: 0.78rem;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 0.4rem 0.9rem;
-      border-radius: 100px;
-      margin-bottom: 1.8rem;
-      animation: fadeUp 0.6s ease both;
-    }
-
-    .hero-badge .dot {
-      width: 6px; height: 6px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.8); }
-    }
-
-    .hero-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(2.8rem, 5vw, 4.5rem);
-      font-weight: 300;
-      line-height: 1.1;
-      letter-spacing: -0.01em;
-      color: var(--navy);
-      margin-bottom: 1.5rem;
-      animation: fadeUp 0.6s 0.1s ease both;
-    }
-
-    .hero-title em {
-      font-style: italic;
-      color: var(--violet);
-    }
-
-    .hero-title .line-accent {
-      display: block;
-      position: relative;
-    }
-
-    .hero-sub {
-      font-size: 1.05rem;
-      font-weight: 300;
-      color: var(--muted);
-      line-height: 1.75;
-      max-width: 460px;
-      margin-bottom: 2.5rem;
-      animation: fadeUp 0.6s 0.2s ease both;
-    }
-
-    .hero-actions {
-      display: flex;
-      align-items: center;
-      gap: 1.2rem;
-      flex-wrap: wrap;
-      animation: fadeUp 0.6s 0.3s ease both;
-    }
-
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      background: var(--navy);
-      color: var(--white);
-      padding: 0.85rem 1.8rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-      box-shadow: 0 4px 20px rgba(30, 30, 46, 0.15);
-    }
-
-    .btn-primary:hover {
-      background: var(--violet);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(108, 99, 255, 0.3);
-    }
-
-    .btn-primary svg { transition: transform 0.2s; }
-    .btn-primary:hover svg { transform: translateX(3px); }
-
-    .btn-ghost {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--muted);
-      font-size: 0.875rem;
-      font-weight: 400;
-      text-decoration: none;
-      padding: 0.85rem 0;
-      transition: color 0.2s;
-    }
-
-    .btn-ghost:hover { color: var(--text); }
-
-    .hero-trust {
-      margin-top: 3rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      animation: fadeUp 0.6s 0.4s ease both;
-    }
-
-    .trust-avatars {
-      display: flex;
-    }
-
-    .trust-avatars span {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      border: 2px solid var(--white);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--white);
-      margin-left: -8px;
-    }
-
-    .trust-avatars span:first-child { margin-left: 0; background: #6C63FF; }
-    .trust-avatars span:nth-child(2) { background: #FF6584; }
-    .trust-avatars span:nth-child(3) { background: #43E97B; color: #1E1E2E; }
-
-    .trust-text {
-      font-size: 0.8rem;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    .trust-text strong { color: var(--text); font-weight: 500; }
-
-    /* ── HERO VISUAL ── */
-    .hero-visual {
-      position: relative;
-      z-index: 1;
-      animation: fadeUp 0.7s 0.2s ease both;
-    }
-
-    .mockup-card {
-      background: var(--white);
-      border-radius: 20px;
-      padding: 2rem;
-      box-shadow: 0 20px 60px rgba(30, 30, 46, 0.1), 0 4px 16px rgba(30, 30, 46, 0.06);
-      position: relative;
-    }
-
-    .mockup-header {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1.2rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .mockup-logo {
-      width: 36px; height: 36px;
-      background: var(--navy);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1rem;
-      color: var(--white);
-      font-weight: 500;
-    }
-
-    .mockup-title { font-size: 0.85rem; font-weight: 500; }
-    .mockup-sub { font-size: 0.75rem; color: var(--muted); }
-
-    .mockup-status {
-      margin-left: auto;
-      background: rgba(67, 233, 123, 0.1);
-      color: #2BAD5E;
-      font-size: 0.7rem;
-      font-weight: 500;
-      padding: 0.3rem 0.7rem;
-      border-radius: 100px;
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    .mockup-status::before {
-      content: '';
-      width: 5px; height: 5px;
-      background: #43E97B;
-      border-radius: 50%;
-    }
-
-    .dish-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-      margin-bottom: 1.2rem;
-    }
-
-    .dish-item {
-      background: var(--bg);
-      border-radius: 12px;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      transition: transform 0.2s;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .dish-item:hover { transform: translateY(-2px); }
-
-    .dish-emoji { font-size: 1.6rem; }
-    .dish-name { font-size: 0.78rem; font-weight: 500; }
-    .dish-price { font-size: 0.75rem; color: var(--violet); font-weight: 500; }
-
-    .dish-ar-badge {
-      position: absolute;
-      top: 0.5rem; right: 0.5rem;
-      background: var(--navy);
-      color: var(--white);
-      font-size: 0.6rem;
-      font-weight: 500;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      letter-spacing: 0.04em;
-    }
-
-    .mockup-order {
-      background: var(--navy);
-      border-radius: 12px;
-      padding: 1rem 1.2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--white);
-    }
-
-    .order-info { font-size: 0.78rem; opacity: 0.7; }
-    .order-table { font-size: 0.9rem; font-weight: 500; }
-
-    .order-btn {
-      background: var(--violet);
-      color: var(--white);
-      border: none;
-      padding: 0.4rem 0.9rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    /* Floating badges */
-    .float-badge {
-      position: absolute;
-      background: var(--white);
-      border-radius: 12px;
-      padding: 0.7rem 1rem;
-      box-shadow: 0 8px 30px rgba(30,30,46,0.12);
-      font-size: 0.78rem;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      animation: float 4s ease-in-out infinite;
-    }
-
-    .float-badge.badge-ar {
-      top: -1.5rem;
-      right: -1.5rem;
-      color: var(--violet);
-      animation-delay: 0s;
-    }
-
-    .float-badge.badge-order {
-      bottom: -1.5rem;
-      left: -1.5rem;
-      color: var(--navy);
-      animation-delay: 2s;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-
-    /* ── LOGOS ── */
-    .logos-section {
-      padding: 3rem 5%;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      text-align: center;
-    }
-
-    .logos-label {
-      font-size: 0.75rem;
-      font-weight: 400;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1.8rem;
-    }
-
-    .logos-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 3.5rem;
-      flex-wrap: wrap;
-    }
-
-    .logo-item {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: #BBBBD0;
-      letter-spacing: 0.06em;
-      transition: color 0.2s;
-    }
-
-    .logo-item:hover { color: var(--muted); }
-
-    /* ── FEATURES ── */
-    .features {
-      padding: 7rem 5%;
-      position: relative;
-    }
-
-    .section-label {
-      font-size: 0.75rem;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--violet);
-      margin-bottom: 1rem;
-    }
-
-    .section-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(2rem, 3.5vw, 3rem);
-      font-weight: 300;
-      color: var(--navy);
-      line-height: 1.2;
-      max-width: 500px;
-      margin-bottom: 1rem;
-    }
-
-    .section-title em { font-style: italic; color: var(--violet); }
-
-    .section-sub {
-      font-size: 1rem;
-      color: var(--muted);
-      font-weight: 300;
-      max-width: 480px;
-      line-height: 1.7;
-      margin-bottom: 4rem;
-    }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-
-    .feature-card {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2rem;
-      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .feature-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--violet), var(--coral));
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.3s;
-    }
-
-    .feature-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 16px 40px rgba(108, 99, 255, 0.1);
-      border-color: rgba(108, 99, 255, 0.2);
-    }
-
-    .feature-card:hover::before { transform: scaleX(1); }
-
-    .feature-icon {
-      width: 48px; height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-      margin-bottom: 1.2rem;
-    }
-
-    .icon-violet { background: rgba(108, 99, 255, 0.1); }
-    .icon-coral { background: rgba(255, 101, 132, 0.1); }
-    .icon-green { background: rgba(67, 233, 123, 0.1); }
-    .icon-navy { background: rgba(30, 30, 46, 0.08); }
-    .icon-orange { background: rgba(255, 179, 71, 0.12); }
-    .icon-teal { background: rgba(67, 200, 233, 0.1); }
-
-    .feature-title {
-      font-size: 1rem;
-      font-weight: 500;
-      color: var(--navy);
-      margin-bottom: 0.6rem;
-    }
-
-    .feature-desc {
-      font-size: 0.875rem;
-      color: var(--muted);
-      line-height: 1.65;
-      font-weight: 300;
-    }
-
-    /* ── HOW IT WORKS ── */
-    .how {
-      padding: 7rem 5%;
-      background: var(--navy);
-      color: var(--white);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .how::before {
-      content: '';
-      position: absolute;
-      top: -30%;
-      right: -10%;
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(circle, rgba(108, 99, 255, 0.15) 0%, transparent 65%);
-      pointer-events: none;
-    }
-
-    .how .section-title { color: var(--white); max-width: 100%; }
-    .how .section-sub { color: rgba(255,255,255,0.5); }
-
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 2rem;
-      margin-top: 1rem;
-      position: relative;
-    }
-
-    .steps::before {
-      content: '';
-      position: absolute;
-      top: 1.5rem;
-      left: 10%;
-      right: 10%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(108,99,255,0.4), rgba(255,101,132,0.4), transparent);
-    }
-
-    .step {
-      text-align: center;
-      padding: 1rem;
-      position: relative;
-    }
-
-    .step-num {
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      background: rgba(108, 99, 255, 0.15);
-      border: 1px solid rgba(108, 99, 255, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--violet);
-      margin: 0 auto 1.2rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    .step-title {
-      font-size: 0.9rem;
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-      color: rgba(255,255,255,0.9);
-    }
-
-    .step-desc {
-      font-size: 0.8rem;
-      color: rgba(255,255,255,0.4);
-      line-height: 1.6;
-      font-weight: 300;
-    }
-
-    /* ── AR SECTION ── */
-    .ar-section {
-      padding: 7rem 5%;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 5rem;
-      align-items: center;
-    }
-
-    .ar-visual {
-      background: var(--navy);
-      border-radius: 24px;
-      aspect-ratio: 4/3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .ar-visual::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 50% 50%, rgba(108,99,255,0.25), transparent 65%);
-    }
-
-    .ar-glow {
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(108, 99, 255, 0.1);
-      border: 1px solid rgba(108, 99, 255, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 4rem;
-      animation: spin3d 8s linear infinite;
-      position: relative;
-    }
-
-    .ar-glow::before, .ar-glow::after {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      border: 1px dashed rgba(108,99,255,0.2);
-    }
-
-    .ar-glow::before {
-      width: 200px; height: 200px;
-      animation: spin3d 12s linear infinite reverse;
-    }
-
-    .ar-glow::after {
-      width: 240px; height: 240px;
-      animation: spin3d 16s linear infinite;
-    }
-
-    @keyframes spin3d {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .ar-label {
-      position: absolute;
-      bottom: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.7);
-      font-size: 0.75rem;
-      padding: 0.4rem 1rem;
-      border-radius: 100px;
-      white-space: nowrap;
-    }
-
-    .ar-content .section-title { max-width: 100%; }
-
-    .ar-points {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.9rem;
-    }
-
-    .ar-points li {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.8rem;
-      font-size: 0.9rem;
-      color: var(--muted);
-      font-weight: 300;
-      line-height: 1.6;
-    }
-
-    .ar-points li::before {
-      content: '✦';
-      color: var(--violet);
-      font-size: 0.6rem;
-      margin-top: 0.35rem;
-      flex-shrink: 0;
-    }
-
-    /* ── PRICING ── */
-    .pricing {
-      padding: 7rem 5%;
-      text-align: center;
-    }
-
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    .pricing-card {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 2.5rem 2rem;
-      text-align: left;
-      transition: transform 0.25s, box-shadow 0.25s;
-      position: relative;
-    }
-
-    .pricing-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 16px 40px rgba(30,30,46,0.08);
-    }
-
-    .pricing-card.featured {
-      background: var(--navy);
-      border-color: transparent;
-      color: var(--white);
-    }
-
-    .pricing-badge {
-      position: absolute;
-      top: -0.8rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--violet);
-      color: var(--white);
-      font-size: 0.7rem;
-      font-weight: 500;
-      padding: 0.25rem 0.8rem;
-      border-radius: 100px;
-      letter-spacing: 0.06em;
-      white-space: nowrap;
-    }
-
-    .plan-name {
-      font-size: 0.8rem;
-      font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--violet);
-      margin-bottom: 0.8rem;
-    }
-
-    .featured .plan-name { color: rgba(108,99,255,0.8); }
-
-    .plan-price {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 2.5rem;
-      font-weight: 400;
-      color: var(--navy);
-      line-height: 1;
-      margin-bottom: 0.3rem;
-    }
-
-    .featured .plan-price { color: var(--white); }
-
-    .plan-period {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-bottom: 1.5rem;
-    }
-
-    .featured .plan-period { color: rgba(255,255,255,0.4); }
-
-    .plan-desc {
-      font-size: 0.82rem;
-      color: var(--muted);
-      font-weight: 300;
-      line-height: 1.6;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .featured .plan-desc { color: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.1); }
-
-    .plan-features {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      margin-bottom: 2rem;
-    }
-
-    .plan-features li {
-      font-size: 0.825rem;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      font-weight: 300;
-    }
-
-    .featured .plan-features li { color: rgba(255,255,255,0.75); }
-
-    .plan-features li::before {
-      content: '✓';
-      color: var(--green);
-      font-weight: 500;
-      font-size: 0.75rem;
-    }
-
-    .plan-btn {
-      display: block;
-      text-align: center;
-      padding: 0.75rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: all 0.2s;
-      background: var(--bg);
-      color: var(--navy);
-      border: 1px solid var(--border);
-    }
-
-    .featured .plan-btn {
-      background: var(--violet);
-      color: var(--white);
-      border-color: transparent;
-    }
-
-    .plan-btn:hover { opacity: 0.85; transform: translateY(-1px); }
-
-    /* ── CTA ── */
-    .cta-section {
-      padding: 7rem 5%;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-section::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 600px; height: 400px;
-      background: radial-gradient(ellipse, rgba(108,99,255,0.07) 0%, transparent 65%);
-      pointer-events: none;
-    }
-
-    .cta-inner {
-      position: relative;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    .cta-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(2.2rem, 4vw, 3.5rem);
-      font-weight: 300;
-      color: var(--navy);
-      line-height: 1.15;
-      margin-bottom: 1.2rem;
-    }
-
-    .cta-title em { font-style: italic; color: var(--violet); }
-
-    .cta-sub {
-      font-size: 1rem;
-      color: var(--muted);
-      font-weight: 300;
-      margin-bottom: 2.5rem;
-      line-height: 1.7;
-    }
-
-    .cta-buttons {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .btn-whatsapp {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      background: #25D366;
-      color: var(--white);
-      padding: 0.9rem 2rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: all 0.2s;
-      box-shadow: 0 4px 20px rgba(37,211,102,0.25);
-    }
-
-    .btn-whatsapp:hover {
-      background: #1EBA59;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(37,211,102,0.35);
-    }
-
-    .btn-outline {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      background: transparent;
-      color: var(--navy);
-      padding: 0.9rem 1.8rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      border: 1px solid var(--border);
-      transition: all 0.2s;
-    }
-
-    .btn-outline:hover {
-      border-color: var(--violet);
-      color: var(--violet);
-    }
-
-    /* ── FOOTER ── */
-    footer {
-      padding: 3rem 5%;
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1.5rem;
-    }
-
-    .footer-logo {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.3rem;
-      font-weight: 500;
-      color: var(--navy);
-      text-decoration: none;
-    }
-
-    .footer-logo span { color: var(--violet); }
-
-    .footer-links {
-      display: flex;
-      gap: 2rem;
-      list-style: none;
-    }
-
-    .footer-links a {
-      font-size: 0.82rem;
-      color: var(--muted);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .footer-links a:hover { color: var(--text); }
-
-    .footer-copy {
-      font-size: 0.78rem;
-      color: var(--muted);
-    }
-
-    /* ── ANIMATIONS ── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .reveal {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-
-    .reveal.visible {
-      opacity: 1;
-      transform: none;
-    }
-
-    /* ── RESPONSIVE ── */
-    @media (max-width: 900px) {
-      .hero { grid-template-columns: 1fr; padding: 7rem 5% 4rem; }
-      .hero::after { display: none; }
-      .hero-visual { display: none; }
-      .features-grid { grid-template-columns: 1fr 1fr; }
-      .steps { grid-template-columns: 1fr 1fr; }
-      .steps::before { display: none; }
-      .ar-section { grid-template-columns: 1fr; }
-      .ar-visual { display: none; }
-      .pricing-grid { grid-template-columns: 1fr; max-width: 360px; }
-      .nav-links { display: none; }
-    }
-
-    @media (max-width: 600px) {
-      .features-grid { grid-template-columns: 1fr; }
-      .hero-actions { flex-direction: column; align-items: flex-start; }
-    }
-  </style>
+  <meta name="description" content="{{ config.tagline }} — Smart restaurant management with AR menus, digital ordering, kitchen dashboards, and owner analytics." />
+  <title>{{ config.name }} — {{ config.tagline }}</title>
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/landing.css') }}" />
 </head>
 <body>
 
-  <!-- NAV -->
-  <nav>
-    <a class="nav-logo" href="#">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span></a>
+<!-- ════════════════════════════════════════════
+   NAVBAR
+════════════════════════════════════════════ -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <a href="#hero" class="logo">
+      <div class="logo-mark">
+        <img src="/static/assets/zentable/logo_white_192.png" alt="{{ config.name }}" style="width:80%;height:80%;object-fit:contain;" />
+      </div>
+      <span style="letter-spacing:0;">{{ config.name[:3] }}<span style="color:var(--accent);">{{ config.name[3:] }}</span>.</span>
+    </a>
+
     <ul class="nav-links">
+      <li><a href="#product">Product</a></li>
       <li><a href="#features">Features</a></li>
-      <li><a href="#how">How it works</a></li>
-      <li><a href="/login" class="nav-login">Login</a></li>
-      <li><a href="https://wa.me/{{ site.whatsapp }}?text=Hi%2C%20I%20want%20a%20{{ site.name }}%20demo" class="nav-cta">Get a Demo</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#cta">Contact</a></li>
     </ul>
-  </nav>
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-content">
-      <div class="hero-badge">
-        <span class="dot"></span>
-        Now Live — {{ site.name }}
-      </div>
-      <h1 class="hero-title">
-        Your Restaurant,<br>
-        <em>Elevated</em> with<br>
-        <span class="line-accent">Smart Technology</span>
-      </h1>
-      <p class="hero-sub">
-        From AR dish previews to real-time order management — {{ site.name }} gives fine dining restaurants the digital edge their guests expect.
-      </p>
-      <div class="hero-actions">
-        <a href="https://wa.me/{{ site.whatsapp }}?text=Hi%2C%20I%20want%20a%20{{ site.name }}%20demo" class="btn-primary">
-          Book a Free Demo
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-        <a href="#features" class="btn-ghost">
-          See what's included →
-        </a>
-      </div>
-      <div class="hero-trust">
-        <div class="trust-avatars">
-          <span>A</span><span>R</span><span>S</span>
+    <div class="nav-actions">
+      <a href="/login" class="nav-login">Login</a>
+      <a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener" class="btn btn-primary btn-nav">Get Started →</a>
+    </div>
+
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#product">Product</a>
+  <a href="#features">Features</a>
+  <a href="#how-it-works">How It Works</a>
+  <a href="#cta">Contact</a>
+  <div class="mobile-menu-actions">
+    <a href="/login" class="btn btn-outline">Login</a>
+    <a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener" class="btn btn-primary">Get Started →</a>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+   HERO
+════════════════════════════════════════════ -->
+<section id="hero">
+  <div class="hero-blob hero-blob-1"></div>
+  <div class="hero-blob hero-blob-2"></div>
+  <div class="hero-blob hero-blob-3"></div>
+
+  <div class="container">
+    <div class="hero-inner">
+
+      <div class="hero-text">
+        <div class="hero-pill">
+          <span class="live-dot"></span>
+          <span class="pill-chip">NEW</span>
+          AR Food Visualization — Now Live
         </div>
-        <p class="trust-text">
-          <strong>Built for premium restaurants</strong><br>
-          AR menus · Smart ordering · Real-time analytics
+
+        <h1>
+          Transform Your<br/>
+          Restaurant with<br/>
+          <span class="grad">Smart Digital</span><br/>
+          Management
+        </h1>
+
+        <p class="hero-sub">
+          {{ config.tagline }}. Connect your kitchen, waiters, counter, and customers into a single real-time workflow — powered by AR menus that make every dish irresistible.
         </p>
-      </div>
-    </div>
 
-    <div class="hero-visual">
-      <div class="float-badge badge-ar">
-        🥽 AR Preview Live
-      </div>
-      <div class="mockup-card">
-        <div class="mockup-header">
-          <div class="mockup-logo">Z</div>
-          <div>
-            <div class="mockup-title">The Grand Table</div>
-            <div class="mockup-sub">Fine Dining · Table 7</div>
-          </div>
-          <div class="mockup-status">Open</div>
-        </div>
-        <div class="dish-grid">
-          <div class="dish-item">
-            <span class="dish-emoji">🍗</span>
-            <span class="dish-name">Butter Chicken</span>
-            <span class="dish-price">₹520</span>
-            <span class="dish-ar-badge">3D</span>
-          </div>
-          <div class="dish-item">
-            <span class="dish-emoji">🧀</span>
-            <span class="dish-name">Paneer Tikka</span>
-            <span class="dish-price">₹380</span>
-            <span class="dish-ar-badge">3D</span>
-          </div>
-          <div class="dish-item">
-            <span class="dish-emoji">🫘</span>
-            <span class="dish-name">Dal Makhani</span>
-            <span class="dish-price">₹290</span>
-            <span class="dish-ar-badge">3D</span>
-          </div>
-          <div class="dish-item">
-            <span class="dish-emoji">🍮</span>
-            <span class="dish-name">Gulab Jamun</span>
-            <span class="dish-price">₹180</span>
-            <span class="dish-ar-badge">3D</span>
-          </div>
-        </div>
-        <div class="mockup-order">
-          <div>
-            <div class="order-info">2 items · Total</div>
-            <div class="order-table">₹900</div>
-          </div>
-          <button class="order-btn">Place Order</button>
+        <div class="hero-ctas">
+          <a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener" class="btn btn-primary btn-lg">Get Started on WhatsApp →</a>
+          <a href="#demo" class="btn-play">
+            <div class="play-circle">▶</div>
+            See the Panels
+          </a>
         </div>
       </div>
-      <div class="float-badge badge-order">
-        📋 Order sent to kitchen
+
+      <div class="hero-visual">
+        <div class="phone-mockup">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="phone-header">
+              <div class="phone-header-top">
+                <span class="phone-rest-name">The Grand Spice</span>
+                <span class="phone-table-tag">Table 7</span>
+              </div>
+              <div class="phone-qr-hint">📱 Scan QR · Browse · Order in AR</div>
+            </div>
+            <div class="phone-tabs">
+              <div class="ptab active">Starters</div>
+              <div class="ptab">Mains</div>
+              <div class="ptab">Desserts</div>
+            </div>
+            <div class="phone-dishes">
+              <div class="pdish">
+                <div class="pdish-emoji">🥗</div>
+                <div class="pdish-info">
+                  <div class="pdish-name">Paneer Tikka</div>
+                  <div class="pdish-sub">Cottage cheese · Grilled</div>
+                </div>
+                <div class="pdish-right">
+                  <div class="pdish-price">₹280</div>
+                  <div class="ar-btn">👓 AR</div>
+                </div>
+              </div>
+              <div class="pdish">
+                <div class="pdish-emoji">🍗</div>
+                <div class="pdish-info">
+                  <div class="pdish-name">Butter Chicken</div>
+                  <div class="pdish-sub">Creamy · Chef's Special</div>
+                </div>
+                <div class="pdish-right">
+                  <div class="pdish-price">₹380</div>
+                  <div class="ar-btn">👓 AR</div>
+                </div>
+              </div>
+              <div class="pdish">
+                <div class="pdish-emoji">🫓</div>
+                <div class="pdish-info">
+                  <div class="pdish-name">Dal Makhani</div>
+                  <div class="pdish-sub">Slow-cooked · Veg</div>
+                </div>
+                <div class="pdish-right">
+                  <div class="pdish-price">₹220</div>
+                  <div class="ar-btn">👓 AR</div>
+                </div>
+              </div>
+            </div>
+            <div class="phone-cart-bar">
+              <span class="cart-items-count">2 items in cart</span>
+              <span class="cart-cta">View Order →</span>
+            </div>
+          </div>
+        </div>
+        <div class="float-card float-card-1">
+          <div class="fc-icon">📊</div>
+          <div class="fc-val">₹84K</div>
+          <div class="fc-label">Today's Revenue</div>
+        </div>
+        <div class="float-card float-card-2">
+          <div class="fc2-dot"></div>
+          Kitchen Live · 23 orders
+        </div>
+        <div class="float-card float-card-3">👓 AR Mode Active</div>
       </div>
+
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- LOGOS -->
-  <section class="logos-section">
-    <p class="logos-label">Works for every kind of restaurant</p>
-    <div class="logos-row">
-      <span class="logo-item">Dine-in</span>
-      <span class="logo-item">Cafés</span>
-      <span class="logo-item">Multi-outlet</span>
-      <span class="logo-item">Quick Service</span>
-      <span class="logo-item">Cloud Kitchens</span>
+<!-- ════════════════════════════════════════════
+   PRODUCT OVERVIEW
+════════════════════════════════════════════ -->
+<section id="product">
+  <div class="container">
+    <div class="product-inner">
+
+      <div class="product-text reveal">
+        <span class="section-label">The Platform</span>
+        <h2>One System.<br/>Every Role.<br/>Zero Chaos.</h2>
+        <p>{{ config.name }} connects everyone in your restaurant — from the customer scanning a QR code to the chef at the kitchen station — into a single, real-time digital workflow.</p>
+        <p>No more paper tickets, miscommunication, or frustrated customers waiting. Everything flows instantly, accurately, and digitally.</p>
+        <ul class="check-list">
+          <li><span class="chk">✓</span>Digital menu with AR food visualization per dish</li>
+          <li><span class="chk">✓</span>Real-time kitchen order dashboard with instant alerts</li>
+          <li><span class="chk">✓</span>Waiter app for table-side order management</li>
+          <li><span class="chk">✓</span>Counter &amp; billing with multi-payment support</li>
+          <li><span class="chk">✓</span>Owner analytics with daily/weekly revenue insights</li>
+        </ul>
+      </div>
+
+      <div class="flow-stack reveal reveal-delay-1">
+        <div class="flow-node">
+          <div class="fn-icon">📱</div>
+          <div><div class="fn-title">Customer Interface</div><div class="fn-desc">QR scan → AR Menu → Place order</div></div>
+          <div class="fn-badge">Guest</div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-node">
+          <div class="fn-icon">👨‍🍳</div>
+          <div><div class="fn-title">Kitchen Dashboard</div><div class="fn-desc">Instant order alerts &amp; prep tracking</div></div>
+          <div class="fn-badge">Chef</div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-node">
+          <div class="fn-icon">🧑‍💼</div>
+          <div><div class="fn-title">Waiter Panel</div><div class="fn-desc">Table management &amp; order updates</div></div>
+          <div class="fn-badge">Staff</div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-node">
+          <div class="fn-icon">💳</div>
+          <div><div class="fn-title">Counter &amp; Billing</div><div class="fn-desc">Payments, receipts &amp; settlements</div></div>
+          <div class="fn-badge">Counter</div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-node">
+          <div class="fn-icon">📊</div>
+          <div><div class="fn-title">Owner Analytics</div><div class="fn-desc">Revenue, trends &amp; daily reports</div></div>
+          <div class="fn-badge">Owner</div>
+        </div>
+      </div>
+
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- FEATURES -->
-  <section class="features" id="features">
-    <p class="section-label reveal">What {{ site.name }} Offers</p>
-    <h2 class="section-title reveal">Everything your <em>guests</em> and staff need</h2>
-    <p class="section-sub reveal">One platform. From the moment guests scan the menu to the final bill — seamless.</p>
-
+<!-- ════════════════════════════════════════════
+   FEATURES
+════════════════════════════════════════════ -->
+<section id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Features</span>
+      <h2>Everything Your Restaurant Needs in One Platform</h2>
+      <p>Purpose-built tools for every role, every workflow, and every moment of service.</p>
+    </div>
     <div class="features-grid">
-      <div class="feature-card reveal">
-        <div class="feature-icon icon-violet">🥽</div>
-        <h3 class="feature-title">AR Dish Preview</h3>
-        <p class="feature-desc">Guests see 3D models of dishes before ordering — no app needed. Just scan with phone camera. Reduces order regret, increases confidence.</p>
+      <div class="feat-card reveal">
+        <div class="feat-icon">📋</div>
+        <h3>Digital Menu Management</h3>
+        <p>Create, update, and manage your full menu digitally. Add photos, descriptions, prices, dietary tags, and availability — all from one place. No reprints ever again.</p>
+        <span class="feat-link">Explore feature →</span>
       </div>
-      <div class="feature-card reveal">
-        <div class="feature-icon icon-coral">📱</div>
-        <h3 class="feature-title">Digital Menu</h3>
-        <p class="feature-desc">QR-based menu with your branding, colors, and fonts. Update items instantly — no reprinting. Works offline too.</p>
+      <div class="feat-card accent-card reveal reveal-delay-1">
+        <div class="feat-icon">👓</div>
+        <h3>AR Food Visualization</h3>
+        <p>Customers see a 3D AR preview of every dish before ordering — right on their table. Boost confidence, reduce order regret, and effortlessly upsell premium items.</p>
+        <span class="feat-link">Industry-first →</span>
       </div>
-      <div class="feature-card reveal">
-        <div class="feature-icon icon-green">🔄</div>
-        <h3 class="feature-title">Real-time Ordering</h3>
-        <p class="feature-desc">Orders flow directly from table → waiter → kitchen → counter. No miscommunication, no paper slips, no delays.</p>
+      <div class="feat-card reveal reveal-delay-2">
+        <div class="feat-icon">👨‍🍳</div>
+        <h3>Kitchen Order Dashboard</h3>
+        <p>Kitchen staff see orders in real-time the instant a customer places them. Priority queuing, category sorting, and completion tracking — zero paper tickets.</p>
+        <span class="feat-link">See it live →</span>
       </div>
-      <div class="feature-card reveal">
-        <div class="feature-icon icon-navy">👨‍🍳</div>
-        <h3 class="feature-title">Kitchen Display</h3>
-        <p class="feature-desc">Kitchen staff see live orders as they come in. Mark items ready, track status in real-time. No more shouting across the kitchen.</p>
+      <div class="feat-card reveal">
+        <div class="feat-icon">🧑‍💼</div>
+        <h3>Waiter Order System</h3>
+        <p>Waiters manage assigned tables, take orders, track dish status, and notify customers — all from a tablet or phone. No back-and-forth, no mistakes.</p>
+        <span class="feat-link">Explore feature →</span>
       </div>
-      <div class="feature-card reveal">
-        <div class="feature-icon icon-orange">📊</div>
-        <h3 class="feature-title">Owner Analytics</h3>
-        <p class="feature-desc">See top-selling dishes, peak hours, table performance. Make smarter decisions with data that's actually useful.</p>
+      <div class="feat-card accent-card reveal reveal-delay-1">
+        <div class="feat-icon">🔄</div>
+        <h3>Real-Time Order Tracking</h3>
+        <p>Every order status — from placement to preparation to delivery — is visible to all stakeholders simultaneously. Full transparency across your entire team.</p>
+        <span class="feat-link">Explore feature →</span>
       </div>
-      <div class="feature-card reveal">
-        <div class="feature-icon icon-teal">🧾</div>
-        <h3 class="feature-title">Billing & Counter</h3>
-        <p class="feature-desc">Counter staff generate bills in one tap. Track what's paid, what's pending. Clean, fast, professional.</p>
+      <div class="feat-card reveal reveal-delay-2">
+        <div class="feat-icon">💳</div>
+        <h3>Billing &amp; Counter Management</h3>
+        <p>Itemized bills, payment processing, discounts, split bills, and digital receipts — all from a single counter interface. Supports UPI, card, and cash.</p>
+        <span class="feat-link">Explore feature →</span>
       </div>
-    </div>
-  </section>
-
-  <!-- HOW IT WORKS -->
-  <section class="how" id="how">
-    <p class="section-label reveal" style="color:rgba(108,99,255,0.7)">How It Works</p>
-    <h2 class="section-title reveal">Live in <em>days</em>,<br>not months</h2>
-    <p class="section-sub reveal" style="margin-bottom:4rem">We handle setup. You focus on your guests.</p>
-
-    <div class="steps">
-      <div class="step reveal">
-        <div class="step-num">01</div>
-        <div class="step-title">Share your menu</div>
-        <div class="step-desc">Send us your existing menu. We digitize and siteure everything for you.</div>
+      <div class="feat-card reveal">
+        <div class="feat-icon">📊</div>
+        <h3>Owner Analytics Dashboard</h3>
+        <p>Revenue trends, top-selling items, peak hours, staff performance, and customer patterns. Make data-driven decisions every single day.</p>
+        <span class="feat-link">View analytics →</span>
       </div>
-      <div class="step reveal">
-        <div class="step-num">02</div>
-        <div class="step-title">We set up your system</div>
-        <div class="step-desc">Custom branding, staff accounts, AR models — all siteured in 48 hours.</div>
+      <div class="feat-card accent-card reveal reveal-delay-1">
+        <div class="feat-icon">📱</div>
+        <h3>QR Code Integration</h3>
+        <p>Each table gets a unique QR code. Customers scan to access your branded digital menu instantly — no app download required. Works on any smartphone.</p>
+        <span class="feat-link">Learn more →</span>
       </div>
-      <div class="step reveal">
-        <div class="step-num">03</div>
-        <div class="step-title">Train your staff</div>
-        <div class="step-desc">30-minute onboarding call. Kitchen, waiter, counter — everyone learns their app.</div>
-      </div>
-      <div class="step reveal">
-        <div class="step-num">04</div>
-        <div class="step-title">Go live</div>
-        <div class="step-desc">Print QR codes for tables. Guests scan and order. You're live.</div>
+      <div class="feat-card reveal reveal-delay-2">
+        <div class="feat-icon">🔔</div>
+        <h3>Smart Push Notifications</h3>
+        <p>Keep your entire team in sync with intelligent alerts for new orders, delays, table requests, and inventory warnings. Everyone stays in the loop.</p>
+        <span class="feat-link">Explore feature →</span>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- AR SECTION -->
-  <section class="ar-section">
-    <div class="ar-visual reveal">
-      <div class="ar-glow">🍽️</div>
-      <div class="ar-label">WebAR — No App Required</div>
+<!-- ════════════════════════════════════════════
+   HOW IT WORKS
+════════════════════════════════════════════ -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">How It Works</span>
+      <h2>From Scan to Served in Minutes</h2>
+      <p>A seamless, fully digital flow that eliminates delays and errors at every step of service.</p>
     </div>
-    <div class="ar-content reveal">
-      <p class="section-label">AR Menu Technology</p>
-      <h2 class="section-title">Let guests <em>see</em> their food before ordering</h2>
-      <p class="section-sub">The most unique dining experience your guests will talk about — 3D dish previews powered by WebAR, right in their browser.</p>
-      <ul class="ar-points">
-        <li>No app download required — just scan a QR code</li>
-        <li>Realistic 3D models of your signature dishes</li>
-        <li>Works on any modern smartphone</li>
-        <li>Increases order value — guests discover dishes they'd have missed</li>
-        <li>A conversation starter that sets your restaurant apart</li>
-      </ul>
+
+    <div class="steps-wrapper">
+      <div class="steps-list" id="stepsList">
+        <div class="step-item reveal" data-step="0">
+          <div class="step-num-wrap"><div class="step-num">1</div></div>
+          <div class="step-content-inner">
+            <span class="step-emoji">📲</span>
+            <h3>Customer Scans QR Code</h3>
+            <p>Each table has a unique QR code. Customers scan with any smartphone — no app needed. They land on your restaurant's branded digital menu instantly.</p>
+          </div>
+        </div>
+        <div class="step-item reveal reveal-delay-1" data-step="1">
+          <div class="step-num-wrap"><div class="step-num">2</div></div>
+          <div class="step-content-inner">
+            <span class="step-emoji">📖</span>
+            <h3>Browses Digital Menu</h3>
+            <p>A beautifully designed digital menu loads instantly. Categories, dish photos, descriptions, prices, dietary filters, and chef recommendations — all at a glance.</p>
+          </div>
+        </div>
+        <div class="step-item reveal reveal-delay-2" data-step="2">
+          <div class="step-num-wrap"><div class="step-num">3</div></div>
+          <div class="step-content-inner">
+            <span class="step-emoji">👓</span>
+            <h3>Views Dishes in AR</h3>
+            <p>Customers tap any dish to see a realistic 3D AR preview on their actual table before ordering. Dramatically increases confidence and reduces order regret.</p>
+          </div>
+        </div>
+        <div class="step-item reveal" data-step="3">
+          <div class="step-num-wrap"><div class="step-num">4</div></div>
+          <div class="step-content-inner">
+            <span class="step-emoji">✅</span>
+            <h3>Places the Order</h3>
+            <p>Customer adds items to cart and confirms. The system logs the order instantly with table number, timestamp, quantities, and all special instructions.</p>
+          </div>
+        </div>
+        <div class="step-item reveal reveal-delay-1" data-step="4">
+          <div class="step-num-wrap"><div class="step-num">5</div></div>
+          <div class="step-content-inner">
+            <span class="step-emoji">👨‍🍳</span>
+            <h3>Kitchen Receives Order Instantly</h3>
+            <p>The kitchen dashboard lights up with the new order in real-time. Chefs see exactly what's needed, with priority flagging and preparation timers.</p>
+          </div>
+        </div>
+        <div class="step-item reveal reveal-delay-2" data-step="5">
+          <div class="step-num-wrap"><div class="step-num">6</div></div>
+          <div class="step-content-inner">
+            <span class="step-emoji">🍽️</span>
+            <h3>Waiter Serves &amp; Bill Generated</h3>
+            <p>The waiter is notified when food is ready. They serve the table and the counter generates a complete itemized bill — ready for instant payment.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-visual">
+        <div class="step-visual-card">
+          <div class="svcard-header">
+            <span class="svcard-title">{{ config.name }} Flow</span>
+            <span class="svcard-badge" id="sv-badge">Step 1</span>
+          </div>
+          <div class="svcard-body">
+            <span id="sv-emoji" style="font-size:48px;text-align:center;display:block;margin-bottom:12px;">📲</span>
+            <div class="svcard-step-num" id="sv-num">01</div>
+            <div class="svcard-step-title" id="sv-stitle">Customer Scans QR Code</div>
+            <div class="svcard-step-desc" id="sv-sdesc">Each table has a unique QR. Customers scan with any phone — no app needed — and land on your branded digital menu instantly.</div>
+          </div>
+        </div>
+      </div>
     </div>
-  </section>
+  </div>
+</section>
 
+<!-- ════════════════════════════════════════════
+   BENEFITS
+════════════════════════════════════════════ -->
+<section id="benefits">
+  <div class="container">
+    <div class="benefits-inner">
+      <div class="reveal">
+        <span class="section-label">Business Value</span>
+        <h2>Why Restaurants Choose {{ config.name }}</h2>
+        <div class="benefit-cards">
+          <div class="benefit-card">
+            <div class="bc-icon">⚡</div>
+            <div>
+              <h4>Faster Service, Every Time</h4>
+              <p>Orders reach the kitchen instantly — no verbal relay, no paper tickets. Service time drops significantly across every table.</p>
+            </div>
+          </div>
+          <div class="benefit-card">
+            <div class="bc-icon accent">🎯</div>
+            <div>
+              <h4>Eliminated Order Mistakes</h4>
+              <p>Digital ordering means every instruction is logged exactly. Customers choose, system records, kitchen receives — perfectly.</p>
+            </div>
+          </div>
+          <div class="benefit-card">
+            <div class="bc-icon">💰</div>
+            <div>
+              <h4>Higher Average Order Value</h4>
+              <p>AR visualization makes every dish look extraordinary. Customers explore more, order more, and return more often.</p>
+            </div>
+          </div>
+          <div class="benefit-card">
+            <div class="bc-icon accent">😍</div>
+            <div>
+              <h4>Unforgettable Guest Experience</h4>
+              <p>Customers who interact with AR menus are significantly more satisfied and far more likely to recommend your restaurant.</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div class="benefits-visual-side reveal reveal-delay-2">
+        <div class="float-badge fb1">✓ Zero downtime</div>
+        <div class="metrics-card">
+          <div class="mc-title">📈 What Changes</div>
+          <div class="mc-stat-grid">
+            <div class="mc-stat-box"><div class="mcsb-num">0</div><div class="mcsb-label">Paper Tickets</div></div>
+            <div class="mc-stat-box"><div class="mcsb-num accent">Live</div><div class="mcsb-label">Real-time Sync</div></div>
+            <div class="mc-stat-box"><div class="mcsb-num">All</div><div class="mcsb-label">Devices Supported</div></div>
+            <div class="mc-stat-box"><div class="mcsb-num accent">AR</div><div class="mcsb-label">Every Dish</div></div>
+          </div>
+          <div class="mc-bar-title">Platform Coverage</div>
+          <div class="mc-bar-group">
+            <div class="mc-bar-item">
+              <div class="mc-bar-label">Kitchen</div>
+              <div class="mc-bar-track"><div class="mc-bar-fill" data-width="100"></div></div>
+              <div class="mc-bar-val">✓</div>
+            </div>
+            <div class="mc-bar-item">
+              <div class="mc-bar-label">Waiter</div>
+              <div class="mc-bar-track"><div class="mc-bar-fill" data-width="100"></div></div>
+              <div class="mc-bar-val">✓</div>
+            </div>
+            <div class="mc-bar-item">
+              <div class="mc-bar-label">Counter</div>
+              <div class="mc-bar-track"><div class="mc-bar-fill" data-width="100"></div></div>
+              <div class="mc-bar-val">✓</div>
+            </div>
+            <div class="mc-bar-item">
+              <div class="mc-bar-label">AR Menu</div>
+              <div class="mc-bar-track"><div class="mc-bar-fill" data-width="100"></div></div>
+              <div class="mc-bar-val">✓</div>
+            </div>
+          </div>
+        </div>
+        <div class="float-badge fb2">↑ Real-time sync</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <!-- CTA -->
-  <section class="cta-section">
-    <div class="cta-inner">
-      <p class="section-label reveal">Ready to elevate your restaurant?</p>
-      <h2 class="cta-title reveal">See {{ site.name }} in <em>your</em> restaurant — live</h2>
-      <p class="cta-sub reveal">Book a 20-minute demo. We'll show you exactly how it works with your menu, your branding, your team.</p>
-      <div class="cta-buttons reveal">
-        <a href="https://wa.me/{{ site.whatsapp }}?text=Hi%2C%20I%20want%20a%20free%20{{ site.name }}%20demo%20for%20my%20restaurant." class="btn-whatsapp">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.098.544 4.063 1.494 5.771L.057 23.43l5.766-1.515A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.819 9.819 0 0 1-5.006-1.368l-.36-.213-3.421.9.913-3.32-.235-.38A9.818 9.818 0 0 1 2.182 12c0-5.42 4.398-9.818 9.818-9.818 5.42 0 9.818 4.398 9.818 9.818 0 5.42-4.398 9.818-9.818 9.818z"/></svg>
-          WhatsApp Demo
+<!-- ════════════════════════════════════════════
+   DEMO — Real Panel UI
+   Faithfully recreated from:
+     staff_kitchen.css / staff_kitchen.html
+     staff_owner.css   / staff_owner.html
+     staff_waiter.css  / staff_waiter.html
+════════════════════════════════════════════ -->
+<section id="demo">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Product Preview</span>
+      <h2>Real Panels Your Team Will Use</h2>
+      <p>This is the actual UI — not a mockup. Switch between panels to see every role.</p>
+    </div>
+
+    <div class="demo-tabs-row">
+      <button class="dtab active" data-panel="kitchen">🔥 Kitchen</button>
+      <button class="dtab" data-panel="owner">📊 Owner</button>
+      <button class="dtab" data-panel="waiter">🪑 Waiter</button>
+    </div>
+
+    <div class="demo-frame-wrap">
+
+      <!-- ── KITCHEN ── -->
+      <div class="demo-panel active" id="panel-kitchen">
+        <div class="demo-window">
+          <div class="dw-bar">
+            <div class="dw-dots"><span></span><span></span><span></span></div>
+            <span class="dw-title">Kitchen Dashboard — Live Orders</span>
+            <span class="dw-badge">● 4 Active</span>
+          </div>
+          <div class="dw-body" style="padding:0;background:#f4f4f6;">
+            <!-- topbar — matches staff_kitchen.css -->
+            <div style="background:#1E1E2E;color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:30px;height:30px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:14px;">🍽️</div>
+                <span style="font-size:0.9rem;font-weight:700;">The Grand Spice</span>
+              </div>
+              <span style="font-size:0.65rem;background:var(--primary);color:#1E1E2E;padding:3px 10px;border-radius:20px;font-weight:700;">KITCHEN</span>
+            </div>
+            <div style="padding:12px 16px 6px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:700;color:#1E1E2E;font-size:0.9rem;">🔥 Live Orders</span>
+              <span style="font-size:0.7rem;color:#aaa;background:white;padding:5px 12px;border-radius:8px;border:1px solid #eee;">↻ Refresh</span>
+            </div>
+            <div style="padding:10px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+
+              <div class="rp-order-card rp-pending">
+                <div class="rp-order-head"><span class="rp-table">Table 7</span><span class="rp-time">2 min ago</span></div>
+                <div class="rp-order-id">#ORD-041</div>
+                <div class="rp-items">
+                  <div class="rp-item-row"><span class="rp-item-name">Paneer Tikka</span><span class="rp-item-qty">×2</span></div>
+                  <div class="rp-item-row"><span class="rp-item-name">Dal Makhani</span><span class="rp-item-qty">×1</span></div>
+                  <div class="rp-item-row"><span class="rp-item-name">Garlic Naan</span><span class="rp-item-qty">×3</span></div>
+                </div>
+                <div class="rp-order-foot">
+                  <span class="rp-total">₹840</span>
+                  <select class="rp-status-sel"><option selected>Pending</option><option>Preparing</option><option>Ready</option></select>
+                </div>
+              </div>
+
+              <div class="rp-order-card rp-preparing">
+                <div class="rp-order-head"><span class="rp-table">Table 12</span><span class="rp-time">8 min ago</span></div>
+                <div class="rp-order-id">#ORD-038</div>
+                <div class="rp-items">
+                  <div class="rp-item-row"><span class="rp-item-name">Butter Chicken</span><span class="rp-item-qty">×1</span></div>
+                  <div class="rp-item-row"><span class="rp-item-name">Biryani</span><span class="rp-item-qty">×2</span></div>
+                </div>
+                <div class="rp-order-foot">
+                  <span class="rp-total">₹1,140</span>
+                  <select class="rp-status-sel"><option>Pending</option><option selected>Preparing</option><option>Ready</option></select>
+                </div>
+              </div>
+
+              <div class="rp-order-card rp-ready">
+                <div class="rp-order-head"><span class="rp-table">Table 4</span><span class="rp-time">14 min ago</span></div>
+                <div class="rp-order-id">#ORD-033</div>
+                <div class="rp-items">
+                  <div class="rp-item-row"><span class="rp-item-name">Masala Dosa</span><span class="rp-item-qty">×1</span></div>
+                  <div class="rp-item-row"><span class="rp-item-name">Filter Coffee</span><span class="rp-item-qty">×2</span></div>
+                </div>
+                <div class="rp-order-foot">
+                  <span class="rp-total">₹420</span>
+                  <select class="rp-status-sel"><option>Pending</option><option>Preparing</option><option selected>Ready ✓</option></select>
+                </div>
+              </div>
+
+              <div class="rp-order-card rp-pending">
+                <div class="rp-order-head"><span class="rp-table">Table 9</span><span class="rp-time">1 min ago</span></div>
+                <div class="rp-order-id">#ORD-042</div>
+                <div class="rp-items">
+                  <div class="rp-item-row"><span class="rp-item-name">Tandoori Platter</span><span class="rp-item-qty">×1</span></div>
+                  <div class="rp-item-row"><span class="rp-item-name">Lassi</span><span class="rp-item-qty">×2</span></div>
+                </div>
+                <div class="rp-order-foot">
+                  <span class="rp-total">₹680</span>
+                  <select class="rp-status-sel"><option selected>Pending</option><option>Preparing</option><option>Ready</option></select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── OWNER ── -->
+      <div class="demo-panel" id="panel-owner">
+        <div class="demo-window">
+          <div class="dw-bar">
+            <div class="dw-dots"><span></span><span></span><span></span></div>
+            <span class="dw-title">Owner Dashboard — Overview</span>
+            <span class="dw-badge">Today · Live</span>
+          </div>
+          <div class="dw-body" style="padding:0;background:#f4f4f6;">
+            <div style="background:#1E1E2E;color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:30px;height:30px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:14px;">🍽️</div>
+                <span style="font-size:0.9rem;font-weight:700;">The Grand Spice</span>
+              </div>
+              <span style="font-size:0.65rem;background:var(--primary);color:#1E1E2E;padding:3px 10px;border-radius:20px;font-weight:700;">OWNER</span>
+            </div>
+            <!-- tab nav — matches staff_owner.css .tab-nav -->
+            <div style="background:white;border-bottom:1px solid #eee;display:flex;overflow-x:auto;">
+              <div class="rp-tab active">📊 Overview</div>
+              <div class="rp-tab">📈 Analytics</div>
+              <div class="rp-tab">🧾 Orders</div>
+              <div class="rp-tab">🪑 Tables</div>
+              <div class="rp-tab">👥 Staff</div>
+            </div>
+            <div style="padding:14px 16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="font-size:0.75rem;color:#999;">Today, Saturday</span>
+                <span style="font-size:0.68rem;background:#f0f0f0;padding:5px 12px;border-radius:8px;font-weight:600;cursor:pointer;color:#555;">↻ Refresh</span>
+              </div>
+              <div class="rp-group-lbl">Today</div>
+              <!-- stats grid — matches staff_owner.css .stats-grid -->
+              <div class="rp-stats-grid">
+                <div class="rp-stat-card">
+                  <div style="font-size:1.2rem;margin-bottom:6px;">🛒</div>
+                  <div class="rp-stat-val">187</div>
+                  <div class="rp-stat-lbl">Orders Today</div>
+                  <div style="font-size:0.65rem;margin-top:4px;"><span style="color:#2e7d32;font-weight:700;">↑ +24</span> vs avg</div>
+                </div>
+                <div class="rp-stat-card">
+                  <div style="font-size:1.2rem;margin-bottom:6px;">💰</div>
+                  <div class="rp-stat-val">₹84K</div>
+                  <div class="rp-stat-lbl">Revenue Today</div>
+                  <div style="font-size:0.65rem;margin-top:4px;"><span style="color:#2e7d32;font-weight:700;">↑ 18%</span> vs yesterday</div>
+                </div>
+                <div class="rp-stat-card">
+                  <div style="font-size:1.2rem;margin-bottom:6px;">🧾</div>
+                  <div class="rp-stat-val">₹450</div>
+                  <div class="rp-stat-lbl">Avg Order Value</div>
+                </div>
+                <div class="rp-stat-card">
+                  <div style="font-size:1.2rem;margin-bottom:6px;">⏳</div>
+                  <div class="rp-stat-val">23</div>
+                  <div class="rp-stat-lbl">Pending Now</div>
+                </div>
+              </div>
+              <div class="rp-section-hd">🕐 Orders by Hour</div>
+              <div class="rp-chart-card">
+                <div class="rp-bar-chart">
+                  <div class="rp-bar" style="height:35%"></div>
+                  <div class="rp-bar" style="height:52%"></div>
+                  <div class="rp-bar" style="height:44%"></div>
+                  <div class="rp-bar" style="height:70%"></div>
+                  <div class="rp-bar rp-bar-accent" style="height:88%"></div>
+                  <div class="rp-bar rp-bar-accent" style="height:100%"></div>
+                  <div class="rp-bar" style="height:62%"></div>
+                  <div class="rp-bar" style="height:38%"></div>
+                </div>
+                <div class="rp-bar-labels">
+                  <span>12p</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7p</span>
+                </div>
+              </div>
+              <div class="rp-section-hd">🏆 Top Items Today</div>
+              <div class="rp-items-list">
+                <div class="rp-item-list-row">
+                  <span class="rp-rank rp-gold">1</span>
+                  <span class="rp-iname">Butter Chicken</span>
+                  <span class="rp-iqty">42 orders</span>
+                  <div class="rp-bar-wrap"><div class="rp-bar-fill" style="width:100%"></div></div>
+                  <span class="rp-irev">₹15,960</span>
+                </div>
+                <div class="rp-item-list-row">
+                  <span class="rp-rank rp-silver">2</span>
+                  <span class="rp-iname">Paneer Tikka</span>
+                  <span class="rp-iqty">38 orders</span>
+                  <div class="rp-bar-wrap"><div class="rp-bar-fill" style="width:90%"></div></div>
+                  <span class="rp-irev">₹10,640</span>
+                </div>
+                <div class="rp-item-list-row">
+                  <span class="rp-rank rp-bronze">3</span>
+                  <span class="rp-iname">Dal Makhani</span>
+                  <span class="rp-iqty">29 orders</span>
+                  <div class="rp-bar-wrap"><div class="rp-bar-fill" style="width:69%"></div></div>
+                  <span class="rp-irev">₹6,380</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── WAITER ── -->
+      <div class="demo-panel" id="panel-waiter">
+        <div class="demo-window">
+          <div class="dw-bar">
+            <div class="dw-dots"><span></span><span></span><span></span></div>
+            <span class="dw-title">Waiter Panel — Tables</span>
+            <span class="dw-badge dw-badge-accent">5 Assigned</span>
+          </div>
+          <div class="dw-body" style="padding:0;background:#f4f4f6;">
+            <div style="background:#1E1E2E;color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:30px;height:30px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:14px;">🍽️</div>
+                <span style="font-size:0.9rem;font-weight:700;">The Grand Spice</span>
+              </div>
+              <span style="font-size:0.65rem;background:var(--primary);color:#1E1E2E;padding:3px 10px;border-radius:20px;font-weight:700;">WAITER</span>
+            </div>
+            <!-- tab nav — matches staff_waiter.css .tab-nav -->
+            <div style="background:white;border-bottom:1px solid #eee;display:flex;">
+              <div class="rp-tab active">🪑 Tables</div>
+              <div class="rp-tab">📋 Orders</div>
+              <div class="rp-tab">➕ Place Order</div>
+            </div>
+            <div style="padding:14px 16px;">
+              <!-- legend — matches .legend -->
+              <div class="rp-legend">
+                <span><span class="rp-ldot" style="background:#81c784"></span>Active</span>
+                <span><span class="rp-ldot" style="background:#ffb74d"></span>Pending</span>
+                <span><span class="rp-ldot" style="background:#4caf50"></span>Ready ✨</span>
+                <span><span class="rp-ldot" style="background:#90caf9"></span>Delivered</span>
+                <span><span class="rp-ldot" style="background:#bdbdbd"></span>Paid</span>
+              </div>
+              <!-- tables grid — matches staff_waiter.css .tables-grid -->
+              <div class="rp-tables-grid">
+                <div class="rp-table-box rp-t-active"><div class="rp-t-num">1</div><div class="rp-t-status">Active</div></div>
+                <div class="rp-table-box rp-t-ready"><div class="rp-t-num">2</div><div class="rp-t-status">Ready ✨</div></div>
+                <div class="rp-table-box rp-t-occupied"><div class="rp-t-num">3</div><div class="rp-t-status">Pending</div></div>
+                <div class="rp-table-box rp-t-done"><div class="rp-t-num">4</div><div class="rp-t-status">Delivered</div></div>
+                <div class="rp-table-box rp-t-billed"><div class="rp-t-num">5</div><div class="rp-t-status">Billed</div></div>
+                <div class="rp-table-box rp-t-paid"><div class="rp-t-num">6</div><div class="rp-t-status">Paid</div></div>
+                <div class="rp-table-box rp-t-inactive"><div class="rp-t-num">7</div><div class="rp-t-status">Empty</div></div>
+                <div class="rp-table-box rp-t-active"><div class="rp-t-num">8</div><div class="rp-t-status">Active</div></div>
+                <div class="rp-table-box rp-t-occupied"><div class="rp-t-num">9</div><div class="rp-t-status">Pending</div></div>
+              </div>
+              <!-- order detail card — matches .order-row.ready from staff_waiter.css -->
+              <div style="margin-top:14px;">
+                <div class="rp-group-lbl">Table 2 — Ready to Serve</div>
+                <div class="rp-waiter-order-row rp-wo-ready">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <div style="display:flex;gap:5px;">
+                      <span class="rp-badge rp-badge-ready">Ready ✓</span>
+                      <span class="rp-badge rp-badge-customer">Customer</span>
+                    </div>
+                    <span style="font-size:0.72rem;color:#bbb;">#ORD-039 · 12 min ago</span>
+                  </div>
+                  <div style="font-size:0.82rem;color:#555;margin-bottom:8px;">Paneer Tikka ×2, Garlic Naan ×3, Lassi ×1</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;color:var(--primary);font-size:0.9rem;">₹940</span>
+                    <button class="rp-deliver-btn">Mark Delivered ✓</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+   TESTIMONIALS — commented out, site pe nahi dikhega
+   Real reviews milne par:
+     1. Neeche ka HTML un-comment karo
+     2. OWNER_NAME_X, OWNER_QUOTE_X, etc. bharo
+   ─────────────────────────────────────────
+{#
+<section id="testimonials">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Testimonials</span>
+      <h2>Restaurant Owners Love {{ config.name }}</h2>
+      <p>Hear directly from the people who transformed their operations with our platform.</p>
+    </div>
+    <div class="testi-grid">
+
+      <div class="testi-card reveal">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <p class="testi-text">OWNER_QUOTE_1</p>
+        <div class="testi-author">
+          <div class="testi-avatar">A</div>
+          <div>
+            <div class="testi-name">OWNER_NAME_1</div>
+            <div class="testi-role">Owner, RESTAURANT_NAME · CITY</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card reveal reveal-delay-1">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <p class="testi-text">OWNER_QUOTE_2</p>
+        <div class="testi-author">
+          <div class="testi-avatar">B</div>
+          <div>
+            <div class="testi-name">OWNER_NAME_2</div>
+            <div class="testi-role">Manager, RESTAURANT_NAME · CITY</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card reveal reveal-delay-2">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <p class="testi-text">OWNER_QUOTE_3</p>
+        <div class="testi-author">
+          <div class="testi-avatar">C</div>
+          <div>
+            <div class="testi-name">OWNER_NAME_3</div>
+            <div class="testi-role">Owner, RESTAURANT_NAME · CITY</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+#}
+════════════════════════════════════════════ -->
+
+<!-- ════════════════════════════════════════════
+   PRICING — removed completely
+   (Baad mein add karna ho to purani version se lo)
+════════════════════════════════════════════ -->
+
+<!-- ════════════════════════════════════════════
+   FINAL CTA
+════════════════════════════════════════════ -->
+<section id="cta">
+  <div class="cta-bg-blob"></div>
+  <div class="container" style="position:relative;z-index:2;">
+    <div class="cta-box reveal">
+      <span class="section-label">Get Started Today</span>
+      <h2>Ready to Modernize Your Restaurant?</h2>
+      <p>Let's get your restaurant set up on {{ config.name }}. Reach out on WhatsApp and we'll walk you through everything — personally.</p>
+      <div class="cta-btns">
+        <a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          Chat with us on WhatsApp
         </a>
-        <a href="mailto:{{ site.support_email }}" class="btn-outline">
-          ✉️ Email Us
-        </a>
+      </div>
+      <div class="cta-footnote">
+        <span><span class="ck">✓</span> Personal onboarding</span>
+        <span><span class="ck">✓</span> Setup support included</span>
+        <span><span class="ck">✓</span> No technical knowledge needed</span>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- FOOTER -->
-  <footer>
-    <a class="footer-logo" href="#">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span></a>
-    <ul class="footer-links">
-      <li><a href="#features">Features</a></li>
-      <li><a href="#how">How it works</a></li>
-      <li><a href="mailto:{{ site.support_email }}">Contact</a></li>
-    </ul>
-    <p class="footer-copy">© 2026 {{ site.name }} · {{ site.website }}</p>
-  </footer>
+<!-- ════════════════════════════════════════════
+   FOOTER
+════════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
 
-  <script>
-    // Scroll reveal
-    const reveals = document.querySelectorAll('.reveal');
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry, i) => {
-        if (entry.isIntersecting) {
-          setTimeout(() => entry.target.classList.add('visible'), i * 60);
-        }
-      });
-    }, { threshold: 0.1 });
-    reveals.forEach(el => observer.observe(el));
-  </script>
+      <div class="footer-brand">
+        <div class="logo" style="margin-bottom:14px;">
+          <div class="logo-mark">
+            <img src="/static/assets/zentable/logo_white_192.png" alt="{{ config.name }}" style="width:80%;height:80%;object-fit:contain;" />
+          </div>
+          <span style="letter-spacing:0;">{{ config.name[:3] }}<span style="color:var(--accent);">{{ config.name[3:] }}</span>.</span>
+        </div>
+        <p>{{ config.tagline }}. The complete smart restaurant management platform with AR-powered digital menus.</p>
+
+        <div class="footer-socials">
+          <!-- WhatsApp — always shown -->
+          <a class="fsocial" href="https://wa.me/{{ config.whatsapp }}" aria-label="WhatsApp" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+          </a>
+
+          <!-- Instagram — sirf tab dikhega jab config.instagram set ho -->
+          {% if config.instagram %}
+          <a class="fsocial" href="{{ config.instagram }}" aria-label="Instagram" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+          </a>
+          {% endif %}
+
+          <!-- X / Twitter — sirf tab dikhega jab config.twitter set ho -->
+          {% if config.twitter %}
+          <a class="fsocial" href="https://x.com/{{ config.twitter }}" aria-label="X" target="_blank" rel="noopener">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.736l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul class="footer-links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#demo">Demo</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <ul class="footer-links">
+          <li><a href="mailto:{{ config.support_email }}">{{ config.support_email }}</a></li>
+          <li><a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener">WhatsApp</a></li>
+          {% if config.instagram %}<li><a href="{{ config.instagram }}" target="_blank" rel="noopener">Instagram</a></li>{% endif %}
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="footer-bottom">
+      <p>© 2026 {{ config.name }}. Made in India 🇮🇳</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ════════════════════════════════════════════
+   JS
+════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  /* navbar scroll */
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  /* hamburger */
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    const open = mobileMenu.classList.toggle('open');
+    hamburger.classList.toggle('open', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      mobileMenu.classList.remove('open');
+      hamburger.classList.remove('open');
+      document.body.style.overflow = '';
+    });
+  });
+
+  /* scroll reveal */
+  const ro = new IntersectionObserver(entries =>
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+    { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+  );
+  document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+
+  /* demo tabs */
+  document.querySelectorAll('.dtab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.dtab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.demo-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      const p = document.getElementById('panel-' + tab.dataset.panel);
+      if (p) p.classList.add('active');
+    });
+  });
+
+  /* how it works step visual */
+  const steps = [
+    { num:'01', emoji:'📲', badge:'Step 1', title:'Customer Scans QR Code',         desc:'Each table has a unique QR. Customers scan with any phone — no app needed.' },
+    { num:'02', emoji:'📖', badge:'Step 2', title:'Browses Digital Menu',            desc:'Categories, dish photos, prices, and dietary filters — all at a glance.' },
+    { num:'03', emoji:'👓', badge:'Step 3', title:'Views Dishes in AR',              desc:'Tap any dish to see a 3D AR preview on the actual table before ordering.' },
+    { num:'04', emoji:'✅', badge:'Step 4', title:'Places the Order',                desc:'System logs it instantly — table, time, items, and all special instructions.' },
+    { num:'05', emoji:'👨‍🍳', badge:'Step 5', title:'Kitchen Receives Instantly',   desc:"Kitchen dashboard lights up in real-time with priority flags and timers." },
+    { num:'06', emoji:'🍽️', badge:'Step 6', title:'Waiter Serves & Bill Generated', desc:'Waiter is notified, serves the table, bill auto-generated at counter.' },
+  ];
+  document.querySelectorAll('.step-item').forEach((item, i) => {
+    item.addEventListener('mouseenter', () => {
+      const d = steps[i];
+      document.getElementById('sv-num').textContent    = d.num;
+      document.getElementById('sv-emoji').textContent  = d.emoji;
+      document.getElementById('sv-badge').textContent  = d.badge;
+      document.getElementById('sv-stitle').textContent = d.title;
+      document.getElementById('sv-sdesc').textContent  = d.desc;
+    });
+  });
+
+  /* bar fill animation */
+  const bo = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.width = (e.target.dataset.width || 0) + '%';
+        bo.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.mc-bar-fill').forEach(b => { b.style.width = '0%'; bo.observe(b); });
+
+  /* smooth scroll */
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (!t) return;
+      e.preventDefault();
+      window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
+    });
+  });
+
+})();
+</script>
 </body>
 </html>

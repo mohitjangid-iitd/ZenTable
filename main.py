@@ -90,14 +90,19 @@ def get_current_user(token: Optional[str]) -> Optional[dict]:
     return decode_token(token)
 
 def require_auth(token: Optional[str], allowed_roles: list, client_id: str = None) -> dict:
-    """
-    Auth check — unauthorized hone pe redirect raise karta hai.
-    client_id diya ho toh restaurant match bhi check karta hai.
-    """
     user = get_current_user(token)
     if not user:
         login_url = "/admin/login" if allowed_roles == ["admin"] else "/login"
-        raise HTTPException(status_code=302, headers={"Location": login_url})
+        # HTTPException ki jagah RedirectResponse raise karo
+        from fastapi.responses import RedirectResponse
+        raise HTTPException(
+            status_code=302,
+            headers={
+                "Location": login_url,
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache"
+            }
+        )
     if user.get("role") not in allowed_roles:
         raise HTTPException(status_code=403, detail="Access denied")
     if client_id and user.get("role") != "admin":
@@ -126,7 +131,7 @@ async def lifespan(app):
     
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 # ════════════════════════════════
@@ -208,9 +213,12 @@ class CreateRestaurantRequest(BaseModel):
 # Landing Page
 # ════════════════════════════════
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def landing(request: Request):
-    return templates.TemplateResponse("landing.html", {"request": request, "site": SITE_CONFIG})
+    return templates.TemplateResponse("landing.html", {
+        "request": request,
+        "config": SITE_CONFIG
+    })
 
 # ════════════════════════════════
 # ASSET SERVING
@@ -287,17 +295,28 @@ async def api_login(body: LoginRequest, response: Response):
 @app.post("/api/auth/logout")
 async def api_logout(response: Response):
     response.delete_cookie("auth_token")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return {"redirect": "/login"}
 
 @app.get("/logout")
 async def logout_redirect(response: Response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     response.delete_cookie("auth_token")
     return RedirectResponse(url="/login")
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(None)):
     user = require_auth(auth_token, ["admin"])
-    return templates.TemplateResponse("admin.html", {"request": request, "site": SITE_CONFIG, "user": user})
+    response = templates.TemplateResponse("admin.html", {
+        "request": request, "site": SITE_CONFIG, "user": user
+    })
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 # ════════════════════════════════
 # ADMIN APIs
@@ -535,10 +554,13 @@ async def staff_owner(request: Request, client_id: str,
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
-    return templates.TemplateResponse("staff_owner.html", {
+    response = templates.TemplateResponse("staff_owner.html", {
         "request": request, "client_id": client_id, "data": data, "user": user,
         "features": data.get("subscription", {}).get("features", ["basic"])
     })
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 @app.get("/{client_id}/staff/kitchen", response_class=HTMLResponse)
 async def staff_kitchen(request: Request, client_id: str,
@@ -547,9 +569,12 @@ async def staff_kitchen(request: Request, client_id: str,
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
-    return templates.TemplateResponse("staff_kitchen.html", {
+    response = templates.TemplateResponse("staff_kitchen.html", {
         "request": request, "client_id": client_id, "data": data, "user": user
     })
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 @app.get("/{client_id}/staff/waiter", response_class=HTMLResponse)
 async def staff_waiter(request: Request, client_id: str,
@@ -558,9 +583,12 @@ async def staff_waiter(request: Request, client_id: str,
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
-    return templates.TemplateResponse("staff_waiter.html", {
+    response = templates.TemplateResponse("staff_waiter.html", {
         "request": request, "client_id": client_id, "data": data, "user": user
     })
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 @app.get("/{client_id}/staff/counter", response_class=HTMLResponse)
 async def staff_counter(request: Request, client_id: str,
@@ -569,9 +597,12 @@ async def staff_counter(request: Request, client_id: str,
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
-    return templates.TemplateResponse("staff_counter.html", {
+    response = templates.TemplateResponse("staff_counter.html", {
         "request": request, "client_id": client_id, "data": data, "user": user
     })
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 # ════════════════════════════════
 # STAFF MANAGEMENT API (owner only)

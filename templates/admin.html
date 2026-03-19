@@ -2,13 +2,16 @@
 <html lang="en">
 
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel — {{ site.name }}</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/admin.css?v={{ static_v('css/admin.css') }}">
 </head>
 
 <body>
@@ -16,7 +19,12 @@
     <!-- TOPBAR -->
     <div class="topbar">
         <div class="topbar-left">
-            <div class="top-logo">{{ site.name }}<span>.</span></div>
+            <div class="title" style="display:flex;align-items:center;gap:10px;">
+                <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+                    <img src="/static/assets/zentable/logo_purple_192.png" alt="{{ site.name }}" style="width:100%;height:100%;object-fit:contain;" />
+                </div>
+                <span>{{ site.name }}<span style="color:var(--primary);">.</span></span>
+            </div>
             <div class="admin-badge">ADMIN</div>
         </div>
         <div style="display:flex;align-items:center;gap:16px;">
@@ -516,9 +524,23 @@
                         <label>Dish Name</label>
                         <input type="text" id="di-name" placeholder="Butter Chicken">
                     </div>
-                    <div class="form-group">
-                        <label>Price (INR)</label>
-                        <input type="text" id="di-price" placeholder="INR 450">
+                    <div class="form-group full">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <label style="margin:0;">Pricing</label>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <input type="checkbox" id="di-multisize" onchange="toggleSizeMode()" style="cursor:pointer;width:14px;height:14px;accent-color:var(--primary,#D4AF37);">
+                                <span style="font-size:0.78rem;color:var(--muted);cursor:pointer;" onclick="var cb=document.getElementById('di-multisize');cb.checked=!cb.checked;toggleSizeMode();">Multiple sizes</span>
+                            </div>
+                        </div>
+                        <!-- Single price -->
+                        <div id="di-price-single">
+                            <input type="text" id="di-price" placeholder="INR 450">
+                        </div>
+                        <!-- Multi-size -->
+                        <div id="di-price-multi" style="display:none;">
+                            <div id="di-sizes-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+                            <button type="button" onclick="addSizeRow()" style="font-size:0.75rem;padding:5px 12px;border-radius:6px;border:1px dashed var(--border);background:transparent;color:var(--muted);cursor:pointer;width:100%;">+ Add Size</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Category</label>
@@ -702,7 +724,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/admin.js?v={{ static_v('js/admin.js') }}"></script>
     <style>
         .rest-row {
             cursor: pointer;
@@ -757,6 +779,13 @@
             color: #e57373;
         }
     </style>
+
+<div style="text-align:center;padding:10px;font-size:0.72rem;color:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;gap:6px;">
+    Powered by
+    <img src="/static/assets/zentable/logo_dark_512.png" alt="{{ site.name }}" style="width:13px;height:13px;object-fit:contain;opacity:0.5;vertical-align:middle;" />
+    <span>{{ site.name }}</span>
+</div>
+
 </body>
 
 </html>

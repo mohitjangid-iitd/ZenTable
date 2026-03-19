@@ -2,6 +2,9 @@
 <html lang="en">
 
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — {{ site.name }}</title>
@@ -336,32 +339,39 @@
     <div class="card">
         <div class="header">
             <div class="badge">Secure Access</div>
-            <div class="title">{{ site.name }}<span>.</span></div>
+            <div class="title" style="display:flex;align-items:center;gap:10px;">
+                <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+                    <img src="/static/assets/zentable/logo_purple_192.png" alt="{{ site.name }}" style="width:100%;height:100%;object-fit:contain;" />
+                </div>
+                <span>{{ site.name }}<span style="color:var(--primary);">.</span></span>
+            </div>
             <div class="subtitle">ADMIN CONTROL PANEL // RESTRICTED</div>
         </div>
 
-        <div class="form-group">
-            <label>Username</label>
-            <div class="input-wrap">
-                <input type="text" id="username" placeholder="Admin username" autocomplete="username"
-                    autocapitalize="none" spellcheck="false">
+        <form onsubmit="event.preventDefault(); doLogin()">
+            <div class="form-group">
+                <label>Username</label>
+                <div class="input-wrap">
+                    <input type="text" id="username" placeholder="Admin username" autocomplete="username"
+                        autocapitalize="none" spellcheck="false">
+                </div>
             </div>
-        </div>
-        <div class="form-group">
-            <label>Password</label>
-            <div class="input-wrap" style="position:relative">
-                <input type="password" id="password" placeholder="••••••••••••" style="padding-right:44px"
-                    autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
-                <button type="button" onclick="togglePass('password','eye1')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
-                   background:none;border:none;cursor:pointer;
-                   color:rgba(255,255,255,0.25);font-size:1rem;padding:4px;" id="eye1">👁</button>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-wrap" style="position:relative">
+                    <input type="password" id="password" placeholder="••••••••••••" style="padding-right:44px"
+                        autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+                    <button type="button" onclick="togglePass('password','eye1')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                    background:none;border:none;cursor:pointer;
+                    color:rgba(255,255,255,0.25);font-size:1rem;padding:4px;" id="eye1">👁</button>
+                </div>
             </div>
-        </div>
 
-        <button class="submit-btn" id="login-btn" onclick="doLogin()">
-            <span id="btn-text">Authenticate</span>
-            <div class="spinner" id="spinner"></div>
-        </button>
+            <button class="submit-btn" id="login-btn" onclick="doLogin()">
+                <span id="btn-text">Authenticate</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+        </form>
 
         <div class="error-msg" id="error-msg"></div>
 
@@ -398,7 +408,7 @@
                     body: JSON.stringify({ username, password, restaurant_id: null })
                 });
                 const data = await res.json();
-                if (res.ok) { window.location.href = data.redirect; }
+                if (res.ok) { window.location.replace(data.redirect); }
                 else { showError(data.detail || 'Authentication failed'); setLoading(false); }
             } catch (e) {
                 showError('Connection error');

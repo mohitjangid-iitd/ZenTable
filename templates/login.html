@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Login — {{ site.name }}</title>
@@ -77,8 +80,10 @@
 <div class="page-wrap">
     <div class="brand-panel">
         <div class="logo-row">
-            <div class="logo-icon">🍽️</div>
-            <div class="logo-name">Menu<span>AR</span></div>
+            <div class="logo-icon">
+                <img src="/static/assets/zentable/logo_white_192.png" alt="{{ site.name }}" style="width:70%;height:70%;object-fit:contain;" />
+            </div>
+            <div class="logo-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span>.</div>
         </div>
         <div class="brand-tagline">{{ site.tagline }}<br>Manage your restaurant smarter.</div>
         <div class="brand-features">
@@ -90,11 +95,14 @@
     </div>
     <div class="login-card">
         <div class="mobile-logo">
-            <div class="logo-icon">🍽️</div>
-            <div class="m-name">Menu<span>AR</span></div>
+            <div class="logo-icon">
+            <img src="/static/assets/zentable/logo_white_192.png" alt="{{ site.name }}" style="width:70%;height:70%;object-fit:contain;" />
+        </div>
+            <div class="m-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span>.</div>
         </div>
         <div class="card-title">Welcome back</div>
         <div class="card-sub">Sign in to your restaurant dashboard</div>
+        <form onsubmit="event.preventDefault(); doLogin()">
         <div class="form-group">
             <label>Restaurant ID</label>
             <input type="text" id="restaurant_id" placeholder="e.g. golden_spoon" autocomplete="off" autocapitalize="none">
@@ -116,6 +124,7 @@
             <span id="btn-text">Sign In</span>
             <div class="spinner" id="spinner"></div>
         </button>
+        </form>
         <div class="error-msg" id="error-msg"></div>
         <div class="card-footer">
             Powered by <span>{{ site.name }}</span> &nbsp;·&nbsp; v{{ site.version }}
@@ -157,7 +166,7 @@
                 body: JSON.stringify({ username, password, restaurant_id })
             });
             const data = await res.json();
-            if (res.ok) { window.location.href = data.redirect; }
+            if (res.ok) { window.location.replace(data.redirect); }
             else { showError(data.detail || 'Invalid credentials'); setLoading(false); }
         } catch(e) {
             showError('Connection error — try again');

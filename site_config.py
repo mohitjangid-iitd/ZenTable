@@ -22,7 +22,9 @@ SITE_CONFIG = {
     "font_body":    "Inter",
 
     # ── Social / Contact (optional) ──
-    "support_email": "zentable@gmail.com",
+    "support_email": "zentable.in@gmail.com",
     "website":       "https://zentable.in",
     "whatsapp":      "919587493062",
+    "instagram":     "",   # baad mein URL daalna
+    "twitter":       "",     # X handle
 }
