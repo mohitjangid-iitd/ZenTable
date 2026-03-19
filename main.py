@@ -210,6 +210,14 @@ class CreateRestaurantRequest(BaseModel):
     twitter: str = ""
 
 # ════════════════════════════════
+# Uptimerobot ping route
+# ════════════════════════════════
+
+@app.get("/ping")
+def ping():
+    return {"status": "ok"}
+
+# ════════════════════════════════
 # Landing Page
 # ════════════════════════════════
 
