@@ -24,8 +24,8 @@ if not DATABASE_URL:
 # ThreadedConnectionPool — min 2, max 20 connections
 # Adjust minconn/maxconn based on your server's pg_max_connections
 _pool = psycopg2.pool.ThreadedConnectionPool(
-    minconn=2,
-    maxconn=20,
+    minconn=0,
+    maxconn=10,
     dsn=DATABASE_URL
 )
 
