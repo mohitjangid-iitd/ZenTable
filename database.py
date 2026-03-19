@@ -83,6 +83,21 @@ def init_db():
         )
     """)
 
+    # ── Branches table (multi-branch support) ──
+    # Single-outlet restaurants ke liye branch_id = NULL rehta hai — koi change nahi
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS branches (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   TEXT NOT NULL,
+            branch_id   TEXT NOT NULL,   -- e.g. "branch_1", "malviya_nagar"
+            name        TEXT NOT NULL,   -- display name e.g. "Malviya Nagar"
+            address     TEXT,
+            is_active   INTEGER DEFAULT 1,
+            created_at  TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(client_id, branch_id)
+        )
+    """)
+
     # ── Admin table (site admins — tum log) ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS admins (
@@ -102,6 +117,28 @@ def init_db():
         pass
     try:
         cur.execute("ALTER TABLE orders ADD COLUMN ready_items TEXT DEFAULT '[]'")
+    except Exception:
+        pass
+
+    # ── Multi-branch migrations (safe — NULL default, existing data untouched) ──
+    # branch_id = NULL → single-outlet restaurant (legacy + new single outlets)
+    # branch_id = "branch_1" etc → multi-branch restaurant
+    try:
+        cur.execute("ALTER TABLE tables ADD COLUMN branch_id TEXT DEFAULT NULL")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE orders ADD COLUMN branch_id TEXT DEFAULT NULL")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE bills ADD COLUMN branch_id TEXT DEFAULT NULL")
+    except Exception:
+        pass
+    # branch_ids = JSON list — ek staff multiple branches pe kaam kar sake
+    # e.g. '["branch_1"]' or '["branch_1","branch_2"]' or '[]' (single-outlet)
+    try:
+        cur.execute("ALTER TABLE staff ADD COLUMN branch_ids TEXT DEFAULT '[]'")
     except Exception:
         pass
 
