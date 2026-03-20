@@ -213,7 +213,7 @@ class CreateRestaurantRequest(BaseModel):
 # Uptimerobot ping route
 # ════════════════════════════════
 
-@app.get("/ping")
+@app.api_route("/ping", methods=["GET", "HEAD"])
 def ping():
     return {"status": "ok"}
 
