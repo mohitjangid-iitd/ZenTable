@@ -217,6 +217,15 @@ class CreateRestaurantRequest(BaseModel):
 def ping():
     return {"status": "ok"}
 
+@app.get("/setup-admin-temp-xyz123")
+def setup_admin():
+    from database import create_admin
+    success = create_admin("admin", "Admin@1234", "Super Admin")
+    if success:
+        return {"status": "Admin created! Username: admin, Password: Admin@1234"}
+    else:
+        return {"status": "Admin already exists!"}
+
 # ════════════════════════════════
 # Landing Page
 # ════════════════════════════════
