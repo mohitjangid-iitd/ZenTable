@@ -220,9 +220,9 @@ def ping():
 @app.get("/setup-admin-temp-xyz123")
 def setup_admin():
     from database import create_admin
-    success = create_admin("admin", "Admin@1234", "Super Admin")
+    success = create_admin("og_vishwakarma", "password", "Mohit Vishwakarma")
     if success:
-        return {"status": "Admin created! Username: admin, Password: Admin@1234"}
+        return {"status": "Admin created! Username: og_vishwakarma, Password: password"}
     else:
         return {"status": "Admin already exists!"}
 
