@@ -12,10 +12,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import json
+import bcrypt
 import psycopg2
 import psycopg2.pool
 import psycopg2.extras
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
@@ -197,7 +199,6 @@ def init_db():
 
 def create_staff(restaurant_id: str, username: str, password: str, name: str, role: str):
     """Naya staff member banao — password hash karke store hoga"""
-    import bcrypt
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
     try:
@@ -214,7 +215,6 @@ def create_staff(restaurant_id: str, username: str, password: str, name: str, ro
 
 def verify_staff(restaurant_id: str, username: str, password: str):
     """Staff login verify karo — match hone pe staff dict return karo"""
-    import bcrypt
     conn = get_db()
     cur = conn.execute("""
         SELECT * FROM staff
@@ -241,7 +241,6 @@ def get_staff_list(restaurant_id: str):
     return [dict(r) for r in rows]
 
 def update_staff_password(staff_id: int, new_password: str):
-    import bcrypt
     password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
     conn.execute("UPDATE staff SET password_hash=%s WHERE id=%s", (password_hash, staff_id))
@@ -267,7 +266,6 @@ def delete_staff(staff_id: int):
 
 def create_admin(username: str, password: str, name: str):
     """Site admin banao"""
-    import bcrypt
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
     try:
@@ -283,7 +281,6 @@ def create_admin(username: str, password: str, name: str):
         conn.close()
 
 def verify_admin(username: str, password: str):
-    import bcrypt
     conn = get_db()
     cur = conn.execute("""
         SELECT * FROM admins WHERE LOWER(username)=LOWER(%s) AND is_active=1
@@ -385,7 +382,6 @@ def get_table_summary(client_id: str):
     Returns each table with computed display_status based on current session.
     display_status: inactive | active | occupied | ready | done | billed | paid
     """
-    import json as _json
     conn = get_db()
 
     cur = conn.execute(
@@ -422,7 +418,7 @@ def get_table_summary(client_id: str):
             WHERE client_id=%s AND table_no=%s AND payment_status='paid' AND created_at >= %s
         """, (client_id, table_no, opened_at))
         for pb in cur4.fetchall():
-            paid_order_ids.update(_json.loads(pb["order_ids"]))
+            paid_order_ids.update(json.loads(pb["order_ids"]))
 
         unpaid_orders   = [o for o in orders if o["id"] not in paid_order_ids]
         unpaid_statuses = [o["status"] for o in unpaid_orders]
@@ -455,7 +451,7 @@ def get_table_summary(client_id: str):
                 cur5 = conn.execute(
                     "SELECT order_ids FROM bills WHERE id=%s", (session_bill["id"],)
                 )
-                billed_ids = _json.loads(cur5.fetchone()["order_ids"])
+                billed_ids = json.loads(cur5.fetchone()["order_ids"])
             except Exception:
                 billed_ids = []
         else:
@@ -465,13 +461,13 @@ def get_table_summary(client_id: str):
         # Paid today — current session ke paid order ids
         paid_today_ids = []
         try:
-            today = __import__('datetime').date.today().isoformat()
+            today = date.today().isoformat()
             cur6 = conn.execute(
                 "SELECT order_ids FROM bills WHERE client_id=%s AND table_no=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
                 (client_id, table_no, today)
             )
             for row in cur6.fetchall():
-                paid_today_ids.extend(_json.loads(row["order_ids"]))
+                paid_today_ids.extend(json.loads(row["order_ids"]))
         except Exception:
             paid_today_ids = []
         t["paid_today_order_ids"] = paid_today_ids
@@ -489,7 +485,6 @@ def get_table_summary(client_id: str):
 def place_order(client_id: str, table_no: int, items: list,
                 total: int, source: str = "customer",
                 customer_name: str = None, customer_phone: str = None):
-    import json
     conn = get_db()
     cur = conn._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
@@ -534,7 +529,6 @@ def update_order_status(order_id: int, status: str):
     conn.close()
 
 def update_ready_items(order_id: int, ready_items: list):
-    import json
     conn = get_db()
     conn.execute(
         "UPDATE orders SET ready_items=%s, updated_at=TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS') WHERE id=%s",
@@ -545,8 +539,6 @@ def update_ready_items(order_id: int, ready_items: list):
 
 def get_table_orders_detail(client_id: str, table_no: int):
     """Full orders for current session with billing context"""
-    import json as _json
-
     conn = get_db()
     cur = conn.execute(
         "SELECT * FROM tables WHERE client_id=%s AND table_no=%s",
@@ -574,7 +566,7 @@ def get_table_orders_detail(client_id: str, table_no: int):
     bills = [dict(b) for b in cur3.fetchall()]
 
     for b in bills:
-        b["order_ids"] = _json.loads(b["order_ids"])
+        b["order_ids"] = json.loads(b["order_ids"])
 
     paid_order_ids = set()
     for b in bills:
@@ -582,7 +574,7 @@ def get_table_orders_detail(client_id: str, table_no: int):
             paid_order_ids.update(b["order_ids"])
 
     for o in orders:
-        o["items"] = _json.loads(o["items"])
+        o["items"] = json.loads(o["items"])
         o["billed"] = o["id"] in paid_order_ids
 
     conn.close()
@@ -597,7 +589,6 @@ def generate_bill(client_id: str, table_no: int,
                   customer_name: str = None, customer_phone: str = None,
                   tax_percent: float = 0.0, discount: int = 0,
                   payment_mode: str = None):
-    import json
     orders = get_orders(client_id, table_no=table_no)
 
     conn = get_db()
@@ -655,7 +646,6 @@ def generate_bill(client_id: str, table_no: int,
     }
 
 def get_bill(bill_id: int):
-    import json
     conn = get_db()
     cur = conn.execute("SELECT * FROM bills WHERE id=%s", (bill_id,))
     row = cur.fetchone()
@@ -681,12 +671,7 @@ def mark_bill_paid(bill_id: int, payment_mode: str):
 
 def get_summary(client_id: str):
     conn = get_db()
-    total_orders = conn.execute(
-        "SELECT COUNT(*) FROM orders WHERE client_id=%s", (client_id,)
-    )._conn  # use raw fetch below
-    # Rewrite to use raw cursor for scalar queries
-    conn2 = get_db()
-    raw = conn2._conn.cursor()
+    raw = conn._conn.cursor()
 
     raw.execute("SELECT COUNT(*) FROM orders WHERE client_id=%s", (client_id,))
     total_orders = raw.fetchone()[0]
@@ -710,7 +695,6 @@ def get_summary(client_id: str):
     active_tables = raw.fetchone()[0]
 
     conn.close()
-    conn2.close()
     return {
         "total_orders": total_orders,
         "total_revenue": total_revenue,
@@ -720,9 +704,6 @@ def get_summary(client_id: str):
 
 def get_analytics(client_id: str):
     """Rich analytics for owner dashboard."""
-    import json as _json
-    from datetime import date, timedelta
-
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
@@ -795,7 +776,7 @@ def get_analytics(client_id: str):
     item_revenue = {}
     for row in all_orders_items:
         try:
-            items = _json.loads(row[0])
+            items = json.loads(row[0])
             for it in items:
                 name = it.get("name", "")
                 qty = it.get("qty", 0)
@@ -892,8 +873,6 @@ if __name__ == "__main__":
 
 def get_all_restaurants_info():
     """Saare restaurants ki basic info + staff count + today orders"""
-    import os, json
-    from datetime import date
     data_dir = "data"
     restaurants = []
     if not os.path.exists(data_dir):
@@ -909,7 +888,7 @@ def get_all_restaurants_info():
             with open(f"{data_dir}/{fname}", encoding="utf-8") as f:
                 rdata = json.load(f)
             rinfo = rdata.get("restaurant", {})
-        except:
+        except Exception:
             rinfo = {}
         raw.execute(
             "SELECT COUNT(*) FROM staff WHERE restaurant_id=%s", (client_id,)
@@ -947,14 +926,13 @@ def get_all_restaurants_info():
 
 def get_overall_stats():
     """Poore platform ki stats"""
-    from datetime import date
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
     total_restaurants = len([
-        f for f in __import__('os').listdir("data")
+        f for f in os.listdir("data")
         if f.endswith(".json")
-    ]) if __import__('os').path.exists("data") else 0
+    ]) if os.path.exists("data") else 0
     raw.execute("SELECT COUNT(*) FROM staff WHERE is_active=1")
     total_staff = raw.fetchone()[0]
     raw.execute(
@@ -985,40 +963,47 @@ def get_overall_stats():
 
 def get_top_dishes_overall(limit=10, period='alltime'):
     """Saare restaurants ke top dishes — period: alltime | today | week | month"""
-    import json as _json
-    from datetime import date, timedelta
     conn = get_db()
     raw = conn._conn.cursor()
-
     today = date.today().isoformat()
+
     if period == 'today':
-        date_filter = f"AND DATE(created_at::timestamp) = '{today}'"
+        raw.execute(
+            "SELECT items FROM orders WHERE status != 'cancelled' AND DATE(created_at::timestamp) = %s",
+            (today,)
+        )
     elif period == 'week':
         week_start = (date.today() - timedelta(days=6)).isoformat()
-        date_filter = f"AND DATE(created_at::timestamp) >= '{week_start}'"
+        raw.execute(
+            "SELECT items FROM orders WHERE status != 'cancelled' AND DATE(created_at::timestamp) >= %s",
+            (week_start,)
+        )
     elif period == 'month':
         month_start = (date.today() - timedelta(days=29)).isoformat()
-        date_filter = f"AND DATE(created_at::timestamp) >= '{month_start}'"
+        raw.execute(
+            "SELECT items FROM orders WHERE status != 'cancelled' AND DATE(created_at::timestamp) >= %s",
+            (month_start,)
+        )
     else:
-        date_filter = ""
+        raw.execute(
+            "SELECT items FROM orders WHERE status != 'cancelled'"
+        )
 
-    raw.execute(
-        f"SELECT items FROM orders WHERE status != 'cancelled' {date_filter}"
-    )
     rows = raw.fetchall()
     conn.close()
+
     item_counts = {}
     item_revenue = {}
     for row in rows:
         try:
-            items = _json.loads(row[0])
+            items = json.loads(row[0])
             for it in items:
                 name = it.get("name", "")
                 qty = it.get("qty", 0)
                 price = it.get("price", 0)
                 item_counts[name] = item_counts.get(name, 0) + qty
                 item_revenue[name] = item_revenue.get(name, 0) + qty * price
-        except:
+        except Exception:
             pass
     top = sorted(
         [{"name": k, "qty": v, "revenue": item_revenue.get(k, 0)} for k, v in item_counts.items()],
@@ -1028,7 +1013,6 @@ def get_top_dishes_overall(limit=10, period='alltime'):
 
 def save_restaurant_json(client_id: str, data: dict):
     """Restaurant JSON save karo"""
-    import json
     with open(f"data/{client_id}.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -1042,5 +1026,5 @@ def delete_restaurant_full(client_id: str):
     conn.commit()
     conn.close()
     json_path = f"data/{client_id}.json"
-    if __import__('os').path.exists(json_path):
-        __import__('os').remove(json_path)
+    if os.path.exists(json_path):
+        os.remove(json_path)
