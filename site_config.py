@@ -25,6 +25,6 @@ SITE_CONFIG = {
     "support_email": "zentable.in@gmail.com",
     "website":       "https://zentable.in",
     "whatsapp":      "919587493062",
-    "instagram":     "",   # baad mein URL daalna
+    "instagram":     "https://www.instagram.com/zentable.in",
     "twitter":       "",     # X handle
 }
