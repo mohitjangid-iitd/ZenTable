@@ -3,6 +3,9 @@ import os
 import hashlib
 import hmac
 import time
+import base64
+import bcrypt
+import copy
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Cookie, Response
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
@@ -12,7 +15,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from site_config import SITE_CONFIG
 from database import (
-    init_db, seed_tables, get_table_status,
+    get_db, init_db, seed_tables, get_table_status,
     place_order, get_orders, update_order_status,
     generate_bill, get_bill, mark_bill_paid, get_summary,
     activate_table, close_table, close_all_tables, activate_all_tables, get_all_tables,
@@ -26,9 +29,13 @@ from database import (
 )
 from auth import login_staff, login_admin, decode_token, get_redirect_url
 
+# ════════════════════════════════
+# CONFIG & CONSTANTS
+# ════════════════════════════════
+
 ALLOWED_EXTENSIONS   = {".glb", ".mind", ".png", ".jpg", ".jpeg", ".webp"}
 PROTECTED_EXTENSIONS = {".glb", ".mind"}
-GLB_SECRET = os.environ.get("GLB_SECRET", "glb-secret-change-in-production")
+GLB_SECRET = os.environ["GLB_SECRET"]
 GLB_TOKEN_EXPIRY = 600  # 10 minutes
 
 def create_glb_token(client_id: str, filepath: str) -> str:
@@ -36,14 +43,12 @@ def create_glb_token(client_id: str, filepath: str) -> str:
     expires = int(time.time()) + GLB_TOKEN_EXPIRY
     msg = f"{client_id}:{filepath}:{expires}"
     sig = hmac.new(GLB_SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()[:16]
-    import base64
     payload = base64.urlsafe_b64encode(f"{msg}:{sig}".encode()).decode()
     return payload
 
 def verify_glb_token(token: str):
     """Token verify karo — valid hone pe (client_id, filepath) return karo"""
     try:
-        import base64
         decoded = base64.urlsafe_b64decode(token.encode()).decode()
         parts = decoded.rsplit(":", 1)
         if len(parts) != 2:
@@ -93,8 +98,6 @@ def require_auth(token: Optional[str], allowed_roles: list, client_id: str = Non
     user = get_current_user(token)
     if not user:
         login_url = "/admin/login" if allowed_roles == ["admin"] else "/login"
-        # HTTPException ki jagah RedirectResponse raise karo
-        from fastapi.responses import RedirectResponse
         raise HTTPException(
             status_code=302,
             headers={
@@ -433,7 +436,6 @@ async def api_admin_update_password(staff_id: int, body: UpdatePasswordRequest,
 @app.patch("/api/admin/staff/{staff_id}/toggle")
 async def api_admin_toggle_staff(staff_id: int, auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
-    from database import get_db
     conn = get_db()
     row = conn.execute("SELECT is_active FROM staff WHERE id=?", (staff_id,)).fetchone()
     conn.close()
@@ -464,9 +466,7 @@ async def api_admin_change_own_password(body: UpdatePasswordRequest,
                                          auth_token: Optional[str] = Cookie(None)):
     user = require_auth(auth_token, ["admin"])
     if not body.new_password:
-        raise HTTPException(status_code=400, detail="Password required")
-    from database import get_db
-    import bcrypt
+        raise HTTPException(status_code=400, detail="Password required") 
     password_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
     conn.execute("UPDATE admins SET password_hash=? WHERE id=?",
@@ -644,7 +644,6 @@ async def api_update_password(staff_id: int, body: UpdatePasswordRequest,
 async def api_toggle_staff(staff_id: int, auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["owner", "admin"])
     # Active/inactive toggle — frontend se current state bhejo
-    from database import get_db
     conn = get_db()
     row = conn.execute("SELECT is_active FROM staff WHERE id=?", (staff_id,)).fetchone()
     conn.close()
@@ -670,7 +669,6 @@ async def get_menu_api(client_id: str, request: Request):
     if not data:
         raise HTTPException(status_code=404, detail="Data not found")
     # GLB items ke liye signed URLs inject karo
-    import copy
     safe_data = copy.deepcopy(data)
     for item in safe_data.get("items", []):
         model = item.get("model")
@@ -766,11 +764,15 @@ async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest
     return {"order_id": order_id, "message": "Order placed successfully"}
 
 @app.get("/api/orders/{client_id}")
-async def api_get_orders(client_id: str, status: str = None, table_no: int = None):
+async def api_get_orders(client_id: str, status: str = None, table_no: int = None,
+                         auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["waiter", "counter", "owner", "admin"], client_id)
     return get_orders(client_id, status=status, table_no=table_no)
 
 @app.patch("/api/order/{order_id}/status")
-async def api_update_order_status(order_id: int, body: UpdateStatusRequest):
+async def api_update_order_status(order_id: int, body: UpdateStatusRequest,
+                                   auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["kitchen", "waiter", "counter", "owner", "admin"])
     valid = {"pending", "preparing", "ready", "done", "cancelled"}
     if body.status not in valid:
         raise HTTPException(status_code=400, detail=f"Invalid status. Use: {valid}")
@@ -785,11 +787,9 @@ async def api_update_ready_items(order_id: int, body: ReadyItemsRequest):
 @app.patch("/api/order/{order_id}/items")
 async def api_edit_order_items(order_id: int, body: EditOrderItemsRequest,
                                 request: Request):
-    import json
     auth_token = request.cookies.get("auth_token")
     require_auth(auth_token, ["waiter", "owner", "admin"])
-
-    conn = __import__('database').get_db()
+    conn = get_db()
     order = conn.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
     if not order:
         conn.close()

@@ -2,6 +2,7 @@
 auth.py — JWT authentication logic
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -9,7 +10,7 @@ from fastapi import HTTPException, Cookie
 from database import verify_staff, verify_admin
 
 # ── Secret key — production mein env variable se lena ──
-SECRET_KEY = "change-this-in-production-use-env-variable"
+SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM  = "HS256"
 
 # ── Token expiry by role ──
@@ -82,17 +83,3 @@ def get_redirect_url(role: str, restaurant_id: str = None) -> str:
     if restaurant_id:
         path = path.replace("{restaurant_id}", restaurant_id)
     return path
-
-def require_role(token: str, allowed_roles: list) -> dict:
-    """
-    Token verify karo aur role check karo.
-    Invalid ya unauthorized hone pe HTTPException raise karo.
-    """
-    if not token:
-        raise HTTPException(status_code=401, detail="Login required")
-    payload = decode_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if payload.get("role") not in allowed_roles:
-        raise HTTPException(status_code=403, detail="Access denied")
-    return payload
