@@ -35,7 +35,7 @@ from auth import login_staff, login_admin, decode_token, get_redirect_url
 
 ALLOWED_EXTENSIONS   = {".glb", ".mind", ".png", ".jpg", ".jpeg", ".webp"}
 PROTECTED_EXTENSIONS = {".glb", ".mind"}
-GLB_SECRET = os.environ.get("GLB_SECRET", "glb-secret-change-in-production")
+GLB_SECRET = os.environ["GLB_SECRET"]
 GLB_TOKEN_EXPIRY = 600  # 10 minutes
 
 def create_glb_token(client_id: str, filepath: str) -> str:
