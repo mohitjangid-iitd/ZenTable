@@ -21,6 +21,7 @@ Thumbs.db
 # Dev-only files — excluded from deployment
 Notes.txt
 clean_db.py
+create_first_admin.py
 manage_restaurant.py
 data/orders.db
 data/*.db-wal
