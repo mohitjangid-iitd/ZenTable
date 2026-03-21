@@ -755,11 +755,6 @@ async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest
     table = get_table_status(client_id, table_no)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active")
-
-    # ← new: verify the customer came via a valid QR code
-    if not body.table_token or not verify_table_token(body.table_token, client_id, table_no):
-        raise HTTPException(status_code=403, detail="Invalid or expired table token")
-
     items = [i.dict() for i in body.items]
     order_id = place_order(
         client_id, table_no, items, body.total,
