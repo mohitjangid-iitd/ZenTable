@@ -1,5 +1,7 @@
 # ZenTable — Smart Dining, Reimagined
 
+🌐 **Live at [zentable.in](https://zentable.in)**
+
 A **multi-tenant restaurant management platform** with AR menus, real-time order management, staff workflows, and a full analytics dashboard. Built for restaurants that want a modern, end-to-end digital dining experience.
 
 ---
