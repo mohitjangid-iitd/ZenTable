@@ -1,279 +1,94 @@
-# ✨ Feature Improvements - Before vs After
+# ZenTable — Platform Overview & Roadmap
 
-## 📊 Comparison Table
+## What We Built
 
-| Feature | Before ❌ | After ✅ | Impact |
-|---------|----------|----------|---------|
-| **Landing Page** | None - direct to AR | Restaurant home page with hero, about, menu preview | Better brand presence, SEO |
-| **Navigation Flow** | One-way (QR → AR only) | Two-way (AR ↔ Home) | Improved user experience |
-| **Loading Experience** | Blank screen | Animated loading screen with progress | Professional feel |
-| **AR Controls** | Auto-rotate only | Manual rotation + auto-rotate toggle | User control |
-| **Sharing** | None | Screenshot + Share buttons | Social media marketing |
-| **Branding** | Generic | Full theme customization (colors, fonts, logo) | Unique identity per restaurant |
-| **Contact Info** | Not displayed | Phone, email, address, social media | Better customer reach |
-| **Featured Dishes** | Only in AR | Also on home page with photos | Marketing opportunity |
-| **Mobile UX** | Basic | Optimized with smooth animations | Better engagement |
-| **Monetization** | Single setup | Recurring through customization | Sustainable business |
+ZenTable started as a simple AR menu viewer. It is now a full restaurant management SaaS platform — multi-tenant, multi-role, with real-time order management, billing, analytics, and an augmented reality menu experience.
 
 ---
 
-## 🎯 New Features Added
+## Current Platform (Live at zentable.in)
 
-### 1. Restaurant Home Page
-**What it does:** Professional landing page for each restaurant
+### Customer Experience
+| Feature | Details |
+|---|---|
+| AR Menu | Scan QR code, view dishes as 3D models in augmented reality |
+| Digital Menu | Mobile-optimized menu with categories, veg/non-veg filters, size variants |
+| Restaurant Home Page | Branded landing page with hero, featured dishes, contact info |
+| No App Required | Works entirely in the browser |
+| Screenshot & Share | Capture and share AR experiences on social media |
 
-**Benefits:**
-- ✅ SEO-friendly (can rank on Google)
-- ✅ Shareable on social media
-- ✅ Works without AR support
-- ✅ Showcases restaurant brand
+### Staff Workflows
+| Role | Capabilities |
+|---|---|
+| Owner | Analytics dashboard, QR generator, staff management, full order history |
+| Waiter | Table management, order placement, order lifecycle, billing, payments |
+| Kitchen | Live order queue, mark individual items as ready |
+| Counter | Table activate/deactivate, payment collection |
 
-**Components:**
-- Hero section with banner & logo
-- About section with description
-- Featured dishes preview
-- Contact information
-- Social media links
-- CTA to AR experience
+### Platform Admin (ZenTable)
+| Feature | Details |
+|---|---|
+| Admin Panel | Manage all onboarded restaurants from one dashboard |
+| Restaurant management | Create, configure, delete restaurants |
+| Staff management | Create and manage staff accounts per restaurant |
+| Platform analytics | Revenue, orders, top dishes across all restaurants |
 
----
-
-### 2. Enhanced AR Experience
-
-**Loading Animation:**
-```
-Before: [Blank screen] → AR
-After:  [Beautiful loader] → AR
-```
-
-**Rotation Controls:**
-```
-Before: Only auto-rotate
-After:  Auto-rotate + Manual left/right buttons
-```
-
-**Actions:**
-```
-Before: View only
-After:  View + Screenshot + Share
-```
+### Technical Foundation
+| Component | Details |
+|---|---|
+| Backend | Python — FastAPI |
+| Database | SQLite → PostgreSQL (migration ready) |
+| Auth | bcrypt + session-based, role-scoped |
+| Multi-tenant | client_id isolation across all DB tables |
+| AR | MindAR + Three.js — no native app required |
+| Config | JSON-based per restaurant (menu, theme, branding) |
+| Multi-branch ready | DB schema already supports branch_id — upgrade path clear |
 
 ---
 
-### 3. Theme Customization System
+## Roadmap
 
-**Customizable Elements:**
-- Primary color (CTAs, accents)
-- Secondary color (dark elements)
-- Accent color (highlights)
-- Typography (2 fonts)
-- Logo & banner images
+### Phase 1 — Completed
+- [x] Restaurant home page with full theme customization
+- [x] AR menu with 3D models, manual rotation, screenshot/share
+- [x] Multi-role staff system (owner, waiter, kitchen, counter)
+- [x] Real-time order management and lifecycle tracking
+- [x] Billing and payment collection
+- [x] Owner analytics dashboard
+- [x] Multi-tenant platform with ZenTable admin panel
+- [x] Multi-branch DB schema (upgrade path ready)
+- [x] Customer-facing order placement (QR → order directly)
+- [x] Push notifications for staff (partial)
 
-**Example Themes:**
+### Phase 2 — Next
+- [ ] Delivery app integration — Swiggy, Zomato, direct delivery
+- [ ] Multi-branch activation (owner manages multiple locations)
+- [ ] Manager role (branch-level staff and analytics access)
+- [ ] Customer reviews and ratings
+- [ ] Gallery section per restaurant
 
-**Luxury Restaurant:**
-```json
-{
-  "primary_color": "#D4AF37",    // Gold
-  "secondary_color": "#1a1a1a",  // Black
-  "font_primary": "Playfair Display",
-  "font_secondary": "Poppins"
-}
-```
+### Phase 3
+- [ ] Staff management — attendance tracking, salary management
+- [ ] Inventory management — stock tracking, low-stock alerts
+- [ ] Table booking / reservations
+- [ ] Multi-language support
+- [ ] Franchise management system
 
-**Casual Cafe:**
-```json
-{
-  "primary_color": "#FF6B6B",    // Coral
-  "secondary_color": "#2C3E50",  // Dark blue
-  "font_primary": "Merriweather",
-  "font_secondary": "Open Sans"
-}
-```
-
----
-
-## 📱 Improved User Journey
-
-### Old Flow:
-```
-QR Code → AR Menu → [Dead End]
-```
-
-### New Flow:
-```
-        ┌─────────────┐
-QR Code │             │
-   ↓    │             │
-AR Menu ←─────────────→ Home Page
-   │    │             │    │
-   │    └─────────────┘    │
-   ↓                       ↓
-Share/Screenshot      Explore/Contact
-```
-
----
-
-## 🎨 UI/UX Enhancements
-
-### AR Menu Page
-
-**Before:**
-- Basic carousel
-- No loading feedback
-- Limited interaction
-- No sharing options
-
-**After:**
-- ✨ Glassmorphism design
-- 🔄 Loading animations
-- 🎮 Manual rotation controls
-- 📸 Screenshot capture
-- 🔗 Share functionality
-- 🏠 Home button
-
-### Home Page (New!)
-
-**Features:**
-- 🖼️ Full-screen hero with parallax
-- 📝 About section with cards
-- 🍽️ Featured dishes grid
-- 📞 Contact section
-- 🎨 Fully themed
-- 📱 Fully responsive
-
----
-
-## 💼 Business Impact
-
-### For Restaurant Owners:
-
-**Before:**
-- AR-only solution
-- Generic appearance
-- One-time setup
-
-**After:**
-- Full web presence
-- Custom branding
-- Recurring revenue potential
-
-### Revenue Streams:
-
-1. **Basic Setup** (₹15,000)
-   - Standard template
-   - Basic customization
-   - 5-10 AR models
-
-2. **Premium Theme** (₹25,000)
-   - Custom design
-   - Unique animations
-   - Unlimited models
-
-3. **Monthly Maintenance** (₹3,000/month)
-   - Menu updates
-   - Seasonal themes
-   - Support
-
----
-
-## 🚀 Technical Improvements
-
-### Code Organization
-
-**Before:**
-```
-- Single HTML file
-- Hardcoded values
-- No separation of concerns
-```
-
-**After:**
-```
-- Separate templates (home, AR)
-- JSON-based configuration
-- Modular structure
-- Easy to scale
-```
-
-### Performance
-
-**Loading:**
-- Optimized asset loading
-- Progressive enhancement
-- Lazy loading for images
-
-**Animations:**
-- CSS transitions (GPU accelerated)
-- Smooth 60fps animations
-- No jank on mobile
-
----
-
-## 📈 Metrics to Track
-
-### Engagement:
-- AR sessions per restaurant
-- Screenshot shares
-- Time spent on home page
-- Click-through rate (Home → AR)
-
-### Business:
-- Number of restaurants onboarded
-- Monthly recurring revenue
-- Customer retention rate
-- Referrals from existing clients
-
----
-
-## 🎯 Next Steps Roadmap
-
-### Phase 1 (Current) ✅
-- Home page
-- Enhanced AR
-- Theme system
-- Screenshot/Share
-
-### Phase 2 (3 months)
-- [ ] Admin dashboard
-- [ ] Analytics
-- [ ] Customer reviews
-- [ ] Gallery section
-
-### Phase 3 (6 months)
-- [ ] Order integration
-- [ ] Table booking
-- [ ] Multi-language
-- [ ] Push notifications
-
-### Phase 4 (12 months)
+### Phase 4
 - [ ] White-label solution
-- [ ] Franchise system
-- [ ] API for partners
-- [ ] Mobile app
+- [ ] Mobile app (staff-facing)
 
 ---
 
-## 💡 Key Differentiators
+## Key Differentiators
 
-### vs. Traditional Menu:
-- ✅ 3D visualization
-- ✅ Interactive experience
-- ✅ Shareable content
-- ✅ No physical handling
-
-### vs. PDF Menu:
-- ✅ Always up-to-date
-- ✅ Visual appeal
-- ✅ Engagement metrics
-- ✅ Brand building
-
-### vs. Other AR Solutions:
-- ✅ Full web presence
-- ✅ Theme customization
-- ✅ No app required
-- ✅ Budget-friendly
+| vs. | ZenTable advantage |
+|---|---|
+| Traditional menu | 3D visualization, always up-to-date, no printing cost |
+| PDF menu | Interactive, shareable, brand building, engagement metrics |
+| Other AR solutions | Full staff workflow included, no native app, budget-friendly |
+| Generic POS systems | AR experience built-in, JSON-based easy onboarding |
 
 ---
 
-**The platform now offers a complete digital presence solution, not just an AR menu!**
+*Platform live at [zentable.in](https://zentable.in)*
