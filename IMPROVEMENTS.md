@@ -57,26 +57,25 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 - [x] Owner analytics dashboard
 - [x] Multi-tenant platform with ZenTable admin panel
 - [x] Multi-branch DB schema (upgrade path ready)
+- [x] Customer-facing order placement (QR → order directly)
+- [x] Push notifications for staff (partial)
 
-### Phase 2 — Next (3 months)
+### Phase 2 — Next
+- [ ] Delivery app integration — Swiggy, Zomato, direct delivery
 - [ ] Multi-branch activation (owner manages multiple locations)
 - [ ] Manager role (branch-level staff and analytics access)
 - [ ] Customer reviews and ratings
 - [ ] Gallery section per restaurant
 
-### Phase 3 — 6 months
-- [x] Customer-facing order placement (QR → order directly)
-- [x] Push notifications for staff (partial)
-- [ ] Table booking / reservations
-- [ ] Multi-language support
-
-### Phase 4 — 12 months
-- [ ] Franchise management system
+### Phase 3
 - [ ] Staff management — attendance tracking, salary management
 - [ ] Inventory management — stock tracking, low-stock alerts
-- [ ] Delivery app integration — Swiggy, Zomato, direct delivery
+- [ ] Table booking / reservations
+- [ ] Multi-language support
+- [ ] Franchise management system
+
+### Phase 4
 - [ ] White-label solution
-- [ ] Partner API
 - [ ] Mobile app (staff-facing)
 
 ---
