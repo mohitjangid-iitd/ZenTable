@@ -1,209 +1,187 @@
-# 🚀 Quick Setup Guide
+# ZenTable — Setup Guide
 
-## Step-by-Step Implementation
+## Prerequisites
 
-### 1️⃣ File Structure Setup (5 mins)
+- Python 3.8+
+- PostgreSQL (running locally or remote)
+- Git
 
-```bash
-# Create directories
-mkdir -p templates
-mkdir -p data
-mkdir -p static/assets/clint_one
-mkdir -p static/assets/clint_two
+---
 
-# Move files
-mv main.py ./
-mv requirements.txt ./
-mv home.html templates/
-mv ar_menu.html templates/
-mv clint_one.json data/
-mv clint_two.json data/
-```
-
-### 2️⃣ Install Dependencies (2 mins)
+## 1. Clone & Install
 
 ```bash
+git clone <your-repo-url>
+cd zentable
+
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Add Your Assets (15 mins)
+---
 
-For each restaurant (`clint_one`, `clint_two`), add:
+## 2. Environment Variables
+
+Create a `.env` file in the project root:
 
 ```
-static/assets/clint_one/
-├── logo.png          # Restaurant logo (transparent PNG, 500x500px)
-├── banner.jpg        # Hero banner (1920x1080px)
-├── targets.mind      # AR target file (from MindAR compiler)
-├── butter_chicken.jpg
-├── dal_makhani.jpg
-├── paneer_tikka.jpg
-└── *.glb            # 3D models (casio.glb, Donut.glb, perk.glb)
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+SECRET_KEY=your-secret-key-here
+GLB_SECRET=your-glb-secret-here
 ```
 
-### 4️⃣ Configure Restaurant Data (10 mins)
+Generate secure keys:
 
-Edit `data/clint_one.json`:
-- Update restaurant name, description, contact info
-- Set theme colors and fonts
-- Add featured dishes with image paths
-- Configure AR menu items
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
 
-### 5️⃣ Create AR Targets (10 mins)
+Run this twice — once for `SECRET_KEY`, once for `GLB_SECRET`.
 
-1. Go to: https://hiukim.github.io/mind-ar-js-doc/tools/compile
-2. Upload your target image (restaurant logo or custom marker)
+---
+
+## 3. Database Setup
+
+```bash
+python database.py
+```
+
+This creates all tables. Safe to run multiple times — uses `CREATE TABLE IF NOT EXISTS`.
+
+---
+
+## 4. Create First Admin
+
+```bash
+python create_first_admin.py
+```
+
+This creates the ZenTable admin account used to access `/admin`.
+
+---
+
+## 5. Run
+
+```bash
+python main.py
+```
+
+| URL | Description |
+|---|---|
+| `http://localhost:8000/` | ZenTable landing page |
+| `http://localhost:8000/admin` | Admin panel |
+| `http://localhost:8000/{client_id}` | Restaurant home page |
+| `http://localhost:8000/{client_id}/menu` | Digital menu |
+| `http://localhost:8000/{client_id}/ar-menu` | AR menu |
+| `http://localhost:8000/{client_id}/login` | Staff login |
+
+---
+
+## 6. Onboard a Restaurant
+
+### 6a. Create config file
+
+Create `data/{client_id}.json` — copy `data/clint_one.json` as reference and update:
+
+- `restaurant` — name, address, timings, contact, social
+- `theme` — colors, fonts
+- `items` — menu items with images, prices, AR models
+- `subscription.features` — which features are enabled
+
+### 6b. Add assets
+
+```
+static/assets/{client_id}/
+├── logo.png              # Transparent PNG, 500x500px recommended
+├── banner.png            # Hero banner, 1920x1080px recommended
+├── targets.mind          # AR target file
+└── *.jpg                 # Dish images
+```
+
+```
+private/assets/{client_id}/
+└── *.glb                 # 3D models for AR
+```
+
+### 6c. Seed tables
+
+```python
+from database import seed_tables
+seed_tables("{client_id}", num_tables=10)
+```
+
+### 6d. Create staff accounts
+
+Use the admin panel at `/admin` to create owner, waiter, kitchen, and counter accounts for the restaurant.
+
+---
+
+## 7. AR Setup
+
+### Create AR target
+
+1. Go to [MindAR Compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile)
+2. Upload restaurant logo or a high-contrast custom marker (1024×1024px recommended)
 3. Download `targets.mind`
 4. Place in `static/assets/{client_id}/targets.mind`
 
-### 6️⃣ Get 3D Models (20 mins)
+### 3D models
 
-**Option A: Use Free Models**
-- Sketchfab: https://sketchfab.com/feed
-- Search for "food", download as `.glb`
+- Format: `.glb` (compressed GLTF)
+- Size: under 5MB per model recommended
+- Free sources: [Sketchfab](https://sketchfab.com), [CGTrader](https://cgtrader.com)
+- Place in `private/assets/{client_id}/`
+- Reference in JSON: `"model": "{client_id}/dish.glb"`
 
-**Option B: Use Placeholder**
-- Copy existing models from your current setup
-- Update paths in JSON config
+**Note:** AR requires HTTPS in production. Camera API does not work on plain HTTP.
 
-### 7️⃣ Test Locally (5 mins)
+---
 
-```bash
-# Start server
-python main.py
+## 8. Test on Phone (Local)
 
-# Access in browser:
-# Home: http://localhost:8000/clint_one
-# AR:   http://localhost:8000/clint_one/ar-menu
-```
-
-### 8️⃣ Test on Phone (10 mins)
-
-**For local testing:**
 ```bash
 # Find your local IP
-ipconfig getifaddr en0  # Mac
-ipconfig               # Windows
+ipconfig          # Windows
+ifconfig          # Mac/Linux
 
-# Access from phone on same WiFi:
-http://YOUR_IP:8000/clint_one/ar-menu
+# Access from phone on same WiFi
+http://YOUR_IP:8000/{client_id}/ar-menu
 ```
 
-**Note:** AR requires HTTPS in production!
+---
+
+## 9. Production Deployment
+
+### Checklist
+
+- [ ] HTTPS enabled (required for AR/camera)
+- [ ] `DATABASE_URL` set to production PostgreSQL
+- [ ] `SECRET_KEY` and `GLB_SECRET` set to strong random values
+- [ ] `.env` not committed to Git
+- [ ] `create_first_admin.py` run once on server
+- [ ] All assets uploaded
+- [ ] Tested on Android and iOS
+
+### Run command
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8080
+```
+
+### Recommended hosting
+
+- DigitalOcean App Platform
+- Railway
+- Render
+- AWS EC2 / Google Cloud Run
 
 ---
 
-## 📱 Testing Checklist
+## Troubleshooting
 
-- [ ] Home page loads with correct branding
-- [ ] All images display properly
-- [ ] Theme colors match restaurant brand
-- [ ] Contact info is accurate
-- [ ] AR menu page loads
-- [ ] Camera permission works
-- [ ] QR/Marker detection works
-- [ ] 3D models load and display
-- [ ] Carousel scrolls smoothly
-- [ ] Rotation controls work
-- [ ] Screenshot button works
-- [ ] Share button works
-- [ ] "View Menu" button navigates correctly
-
----
-
-## 🎨 Quick Customization
-
-### Change Colors Only:
-Edit `data/clint_one.json` → `theme` section
-
-### Change Content Only:
-Edit `data/clint_one.json` → `restaurant` section
-
-### Change Both:
-Edit entire JSON + replace images in `static/assets/`
-
----
-
-## 🐛 Common Issues & Fixes
-
-### Issue: Models not loading
-**Fix:** Check file paths in JSON match actual files
-
-### Issue: AR camera not starting
-**Fix:** Must use HTTPS in production (camera API requirement)
-
-### Issue: Target not detecting
-**Fix:** 
-- Use high-contrast target image
-- Ensure good lighting
-- Print QR/marker at decent size (10cm+)
-
-### Issue: Styling broken
-**Fix:** Check if Google Fonts are loading (internet required)
-
----
-
-## 🚀 Deploy to Production
-
-### Using DigitalOcean App Platform:
-
-1. Push code to GitHub
-2. Connect repository to App Platform
-3. Set Python version: 3.11
-4. Run command: `uvicorn main:app --host 0.0.0.0 --port 8080`
-5. Add custom domain
-6. **Enable HTTPS** (automatic with custom domain)
-
-### Using Heroku:
-
-1. Install Heroku CLI
-2. ```bash
-   heroku create your-app-name
-   git push heroku main
-   ```
-3. App will have HTTPS by default
-
----
-
-## 💰 Client Onboarding Process
-
-1. **Initial Meeting**
-   - Gather: logo, photos, menu, branding guidelines
-   - Discuss: theme preferences, featured dishes
-
-2. **Setup (1-2 days)**
-   - Create JSON config
-   - Process images
-   - Find/create 3D models
-   - Generate AR targets
-
-3. **Review & Revisions**
-   - Client reviews staging site
-   - Make requested changes
-
-4. **Launch**
-   - Deploy to production
-   - Generate QR codes
-   - Provide marketing materials
-
-5. **Ongoing**
-   - Monthly updates (optional)
-   - New dish additions
-   - Seasonal themes
-
----
-
-## 📊 Pricing Suggestion
-
-- **Setup Fee:** ₹15,000 - ₹25,000
-  - Includes: Initial setup, custom theme, 10 AR models
-  
-- **Monthly:** ₹2,000 - ₹5,000
-  - Updates, hosting, support
-  
-- **Premium Customization:** ₹10,000+
-  - Fully custom design, animations, effects
-
----
-
-**Need help? Create an issue or contact support!**
+| Issue | Fix |
+|---|---|
+| AR camera not starting | HTTPS required — does not work on plain HTTP |
+| 3D models not loading | Check file paths in JSON match actual filenames |
+| AR target not detecting | Use high-contrast image, good lighting, marker size 10cm+ |
+| Fonts not loading | Google Fonts require internet connection |
+| DB connection error | Check `DATABASE_URL` in `.env`, verify PostgreSQL is running |
