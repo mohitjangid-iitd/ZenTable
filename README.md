@@ -110,6 +110,15 @@ python create_first_admin.py
 python main.py
 ```
 
+### Environment Variables
+
+Create a `.env` file in the project root:
+```
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+SECRET_KEY=your-secret-key-here
+GLB_SECRET=your-glb-secret-here
+```
+
 ### Access
 
 | URL | Description |
@@ -268,7 +277,11 @@ Full list in `requirements.txt`.
 
 ## License
 
-MIT License — free to use for commercial projects.
+Proprietary — All rights reserved.
+
+This codebase is the intellectual property of ZenTable.
+No part of this software may be copied, modified, distributed,
+or used without explicit written permission from the authors.
 
 ---
 
