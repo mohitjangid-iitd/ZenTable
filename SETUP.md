@@ -62,17 +62,27 @@ This creates the ZenTable admin account used to access `/admin`.
 ## 5. Run
 
 ```bash
-python main.py
+uvicorn main:app --reload
 ```
+
+### Pages
 
 | URL | Description |
 |---|---|
 | `http://localhost:8000/` | ZenTable landing page |
+| `http://localhost:8000/admin/login` | Admin login |
 | `http://localhost:8000/admin` | Admin panel |
+| `http://localhost:8000/login` | Staff login |
 | `http://localhost:8000/{client_id}` | Restaurant home page |
-| `http://localhost:8000/{client_id}/menu` | Digital menu |
-| `http://localhost:8000/{client_id}/ar-menu` | AR menu |
-| `http://localhost:8000/{client_id}/login` | Staff login |
+| `http://localhost:8000/{client_id}/menu` | Digital menu (no table) |
+| `http://localhost:8000/{client_id}/ar-menu` | AR menu (no table) |
+| `http://localhost:8000/{client_id}/table/{table_no}` | Table landing page |
+| `http://localhost:8000/{client_id}/table/{table_no}/menu` | Menu for specific table |
+| `http://localhost:8000/{client_id}/table/{table_no}/ar-menu` | AR menu for specific table |
+| `http://localhost:8000/{client_id}/staff/owner` | Owner dashboard |
+| `http://localhost:8000/{client_id}/staff/waiter` | Waiter interface |
+| `http://localhost:8000/{client_id}/staff/kitchen` | Kitchen display |
+| `http://localhost:8000/{client_id}/staff/counter` | Counter interface |
 
 ---
 
