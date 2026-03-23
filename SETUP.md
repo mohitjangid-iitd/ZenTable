@@ -112,14 +112,7 @@ private/assets/{client_id}/
 └── *.glb                 # 3D models for AR
 ```
 
-### 6c. Seed tables
-
-```python
-from database import seed_tables
-seed_tables("{client_id}", num_tables=10)
-```
-
-### 6d. Create staff accounts
+### 6c. Create staff accounts
 
 Use the admin panel at `/admin` to create owner, waiter, kitchen, and counter accounts for the restaurant.
 
