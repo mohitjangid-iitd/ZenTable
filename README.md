@@ -74,13 +74,13 @@ zentable/
 │   ├── js/                      # Per-role JS files
 │   └── assets/
 │       ├── zentable/            # Platform branding assets
-│       ├── clint_one/           # Restaurant 1 images + AR assets
-│       └── clint_two/           # Restaurant 2 images + AR assets
+│       ├── clint_one/           # Restaurant 1 images + targets.mind
+│       └── clint_two/           # Restaurant 2 images + targets.mind
 │
 └── private/
     └── assets/
-        ├── clint_one/           # Restaurant 1 — .glb models + targets.mind
-        └── clint_two/           # Restaurant 2 — .glb models + targets.mind
+        ├── clint_one/           # Restaurant 1 — .glb models
+        └── clint_two/           # Restaurant 2 — .glb models
 ```
 
 ---
