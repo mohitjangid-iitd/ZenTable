@@ -9,8 +9,130 @@ let currentEditItemIndex = -1;
 let currentPasswordStaffId = null;
 
 // ════════════════════════════════
-// INIT
+// FILE UPLOAD HELPERS
 // ════════════════════════════════
+
+function triggerUpload(inputId) {
+    document.getElementById(inputId).click();
+}
+
+// Restaurant files (logo, banner, mind) — client_id pata hai
+async function handleUpload(input, hiddenId, boxId, previewId, hintId, iconId, progressId, barId, fileType) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const clientId = currentEditClientId;
+    if (!clientId) { toast('Restaurant ID nahi mila', 'error'); return; }
+
+    const box = document.getElementById(boxId);
+    const hint = document.getElementById(hintId);
+    const icon = document.getElementById(iconId);
+    const progressWrap = document.getElementById(progressId);
+    const bar = document.getElementById(barId);
+
+    // UI — uploading state
+    box.classList.remove('upload-success', 'upload-error');
+    icon.textContent = '⏳';
+    hint.textContent = 'Uploading...';
+    progressWrap.style.display = 'block';
+    bar.style.width = '0%';
+
+    // Fake progress animation
+    let prog = 0;
+    const ticker = setInterval(() => {
+        prog = Math.min(prog + Math.random() * 18, 85);
+        bar.style.width = prog + '%';
+    }, 120);
+
+    try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', fileType);
+
+        const res = await fetch(`/api/admin/upload/${clientId}`, { method: 'POST', body: fd });
+        clearInterval(ticker);
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Upload failed');
+        }
+
+        const data = await res.json();
+        bar.style.width = '100%';
+
+        // Fill hidden input with returned path
+        document.getElementById(hiddenId).value = data.path;
+
+        // Show preview for images
+        if (previewId && fileType === 'image') {
+            const preview = document.getElementById(previewId);
+            preview.src = data.path;
+            preview.style.display = 'block';
+            icon.style.display = 'none';
+        }
+
+        // Update hint with filename
+        const shortName = file.name.length > 28 ? '...' + file.name.slice(-22) : file.name;
+        hint.textContent = '✓ ' + shortName;
+        box.classList.add('upload-success');
+        toast(file.name + ' upload ho gaya!', 'success');
+
+        setTimeout(() => { progressWrap.style.display = 'none'; }, 800);
+    } catch (e) {
+        clearInterval(ticker);
+        bar.style.width = '100%';
+        bar.style.background = 'var(--red)';
+        icon.textContent = '❌';
+        hint.textContent = e.message || 'Upload fail hua';
+        box.classList.add('upload-error');
+        toast(e.message || 'Upload fail hua', 'error');
+        setTimeout(() => {
+            progressWrap.style.display = 'none';
+            bar.style.background = 'var(--primary)';
+        }, 1500);
+    }
+
+    // Reset file input so same file can be re-uploaded
+    input.value = '';
+}
+
+// Dish files — client_id currentEditClientId se milta hai
+async function handleDishUpload(input, hiddenId, boxId, previewId, hintId, iconId, progressId, barId, fileType) {
+    return handleUpload(input, hiddenId, boxId, previewId, hintId, iconId, progressId, barId, fileType);
+}
+
+// Drag-and-drop support for upload boxes
+function initUploadDragDrop(boxId, inputId) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('drag-over'); });
+    box.addEventListener('dragleave', () => box.classList.remove('drag-over'));
+    box.addEventListener('drop', e => {
+        e.preventDefault();
+        box.classList.remove('drag-over');
+        const input = document.getElementById(inputId);
+        if (e.dataTransfer.files.length) {
+            // Manually assign files and trigger change
+            const dt = new DataTransfer();
+            dt.items.add(e.dataTransfer.files[0]);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
+// Reset upload box to default state
+function resetUploadBox(boxId, iconEmoji, hintText, previewId, iconId, hintId) {
+    const box = document.getElementById(boxId);
+    if (box) box.classList.remove('upload-success', 'upload-error');
+    if (previewId) { const p = document.getElementById(previewId); if (p) { p.src=''; p.style.display='none'; } }
+    if (iconId) { const ic = document.getElementById(iconId); if (ic) { ic.textContent = iconEmoji; ic.style.display=''; } }
+    if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = hintText; }
+    const prog = box?.querySelector?.('.upload-progress');
+    if (prog) prog.style.display = 'none';
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     loadOverview();
 });
@@ -230,8 +352,40 @@ async function openEditRestaurant(client_id) {
     document.getElementById('ei-phone').value    = r.phone || '';
     document.getElementById('ei-email').value    = r.email || '';
     document.getElementById('ei-address').value  = r.address || '';
-    document.getElementById('ei-logo').value     = r.logo || '';
-    document.getElementById('ei-banner').value   = r.banner || '';
+    document.getElementById('ei-logo').value    = r.logo || '';
+    document.getElementById('ei-banner').value  = r.banner || '';
+
+    // Logo upload box — agar pehle se path hai toh preview dikhao
+    resetUploadBox('ei-logo-box','🖼️','Click karo ya drag karo','ei-logo-preview','ei-logo-icon','ei-logo-hint');
+    if (r.logo) {
+        const prev = document.getElementById('ei-logo-preview');
+        prev.src = r.logo; prev.style.display = 'block';
+        document.getElementById('ei-logo-icon').style.display = 'none';
+        document.getElementById('ei-logo-hint').textContent = '✓ ' + r.logo.split('/').pop();
+        document.getElementById('ei-logo-box').classList.add('upload-success');
+    }
+    // Banner upload box
+    resetUploadBox('ei-banner-box','🌄','Click karo ya drag karo','ei-banner-preview','ei-banner-icon','ei-banner-hint');
+    if (r.banner) {
+        const prev = document.getElementById('ei-banner-preview');
+        prev.src = r.banner; prev.style.display = 'block';
+        document.getElementById('ei-banner-icon').style.display = 'none';
+        document.getElementById('ei-banner-hint').textContent = '✓ ' + r.banner.split('/').pop();
+        document.getElementById('ei-banner-box').classList.add('upload-success');
+    }
+    // Mind file upload box
+    const mindPath = currentEditData.targets || '';
+    document.getElementById('ei-mind').value = mindPath;
+    resetUploadBox('ei-mind-box','🧠','targets.mind file upload karo',null,'ei-mind-icon','ei-mind-hint');
+    if (mindPath) {
+        document.getElementById('ei-mind-hint').textContent = '✓ ' + mindPath.split('/').pop();
+        document.getElementById('ei-mind-box').classList.add('upload-success');
+    }
+
+    // Drag-drop init (safe to call multiple times)
+    initUploadDragDrop('ei-logo-box','ei-logo-file');
+    initUploadDragDrop('ei-banner-box','ei-banner-file');
+    initUploadDragDrop('ei-mind-box','ei-mind-file');
     document.getElementById('ei-lunch').value    = r.timings?.lunch || '';
     document.getElementById('ei-dinner').value   = r.timings?.dinner || '';
     document.getElementById('ei-closed').value   = r.timings?.closed || '';
@@ -284,6 +438,10 @@ async function saveRestaurant() {
     r.address      = document.getElementById('ei-address').value.trim();
     r.logo         = document.getElementById('ei-logo').value.trim();
     r.banner       = document.getElementById('ei-banner').value.trim();
+
+    // targets.mind path save karo
+    const mindVal = document.getElementById('ei-mind').value.trim();
+    if (mindVal) currentEditData.targets = mindVal;
     r.timings = {
         lunch:  document.getElementById('ei-lunch').value.trim(),
         dinner: document.getElementById('ei-dinner').value.trim(),
@@ -389,6 +547,13 @@ function openAddItem() {
     document.getElementById('di-sizes-list').innerHTML = '';
     document.getElementById('di-price-single').style.display = '';
     document.getElementById('di-price-multi').style.display = 'none';
+    // Reset upload boxes
+    document.getElementById('di-image').value = '';
+    document.getElementById('di-model').value = '';
+    resetUploadBox('di-image-box','🍽️','Dish ki photo upload karo (.jpg, .png, .webp)','di-image-preview','di-image-icon','di-image-hint');
+    resetUploadBox('di-model-box','📦','GLB model file upload karo',null,'di-model-icon','di-model-hint');
+    initUploadDragDrop('di-image-box','di-image-file');
+    initUploadDragDrop('di-model-box','di-model-file');
     openModal('modal-dish');
 }
 
@@ -403,6 +568,24 @@ function openEditItem(index) {
     document.getElementById('di-ingredients').value = item.ingredients || '';
     document.getElementById('di-image').value       = item.image || '';
     document.getElementById('di-model').value       = item.model || '';
+
+    // Image upload box populate
+    resetUploadBox('di-image-box','🍽️','Dish ki photo upload karo (.jpg, .png, .webp)','di-image-preview','di-image-icon','di-image-hint');
+    if (item.image) {
+        const prev = document.getElementById('di-image-preview');
+        prev.src = item.image; prev.style.display = 'block';
+        document.getElementById('di-image-icon').style.display = 'none';
+        document.getElementById('di-image-hint').textContent = '✓ ' + item.image.split('/').pop();
+        document.getElementById('di-image-box').classList.add('upload-success');
+    }
+    // Model upload box populate
+    resetUploadBox('di-model-box','📦','GLB model file upload karo',null,'di-model-icon','di-model-hint');
+    if (item.model) {
+        document.getElementById('di-model-hint').textContent = '✓ ' + item.model.split('/').pop();
+        document.getElementById('di-model-box').classList.add('upload-success');
+    }
+    initUploadDragDrop('di-image-box','di-image-file');
+    initUploadDragDrop('di-model-box','di-model-file');
     document.getElementById('di-position').value    = item.position || '0 0 0';
     document.getElementById('di-scale').value       = item.scale || '2 2 2';
     document.getElementById('di-rotation').value    = item.rotation || '0 0 0';

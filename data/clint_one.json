@@ -30,6 +30,7 @@
     "font_primary": "Playfair Display",
     "font_secondary": "Poppins"
   },
+  "targets": "/static/assets/clint_one/targets.mind",
   "items": [
     {
       "name": "Butter Chicken",

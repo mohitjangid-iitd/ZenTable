@@ -7,7 +7,7 @@ import base64
 import bcrypt
 import copy
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException, Cookie, Response
+from fastapi import FastAPI, Request, HTTPException, Cookie, Response, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -37,6 +37,29 @@ ALLOWED_EXTENSIONS   = {".glb", ".mind", ".png", ".jpg", ".jpeg", ".webp"}
 PROTECTED_EXTENSIONS = {".glb", ".mind"}
 GLB_SECRET = os.environ["GLB_SECRET"]
 GLB_TOKEN_EXPIRY = 600  # 10 minutes
+
+# ── Upload config ──
+UPLOAD_RULES = {
+    "image": {
+        "extensions": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
+        "max_mb": 10,
+        "folder": "static/assets",      # static/assets/{client_id}/
+        "url_prefix": "/static/assets", # public URL
+    },
+    "mind": {
+        "extensions": {".mind"},
+        "max_mb": 50,
+        "folder": "static/assets",
+        "url_prefix": "/static/assets",
+        "fixed_name": "targets.mind",   # hamesha isi naam se save hoga
+    },
+    "model": {
+        "extensions": {".glb", ".gltf"},
+        "max_mb": 100,
+        "folder": "private/assets",     # private/assets/{client_id}/
+        "url_prefix": None,             # JSON mein sirf "{client_id}/file.glb" store hota hai
+    },
+}
 
 def create_glb_token(client_id: str, filepath: str) -> str:
     """GLB file ke liye signed token banao — 10 min expiry"""
@@ -401,12 +424,79 @@ async def api_create_restaurant(body: CreateRestaurantRequest,
     seed_tables(client_id, body.num_tables)
     return {"message": f"Restaurant {client_id} created", "client_id": client_id}
 
-@app.delete("/api/admin/restaurant/{client_id}")
+# ════════════════════════════════
+# UPLOAD API
+# ════════════════════════════════
+
+@app.post("/api/admin/upload/{client_id}")
+async def api_upload_asset(
+    client_id: str,
+    file: UploadFile = File(...),
+    type: str = Form(...),           # "image" | "model" | "mind"
+    auth_token: Optional[str] = Cookie(None),
+):
+    require_auth(auth_token, ["admin"])
+
+    # ── Restaurant exist karta hai? ──
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    # ── file type valid hai? ──
+    if type not in UPLOAD_RULES:
+        raise HTTPException(status_code=400, detail=f"type must be: {', '.join(UPLOAD_RULES)}")
+
+    rule = UPLOAD_RULES[type]
+
+    # ── Extension check ──
+    original_name = file.filename or "upload"
+    ext = os.path.splitext(original_name)[1].lower()
+    if ext not in rule["extensions"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{ext}' allowed nahi. Allowed: {', '.join(rule['extensions'])}"
+        )
+
+    # ── File size check ──
+    contents = await file.read()
+    max_bytes = rule["max_mb"] * 1024 * 1024
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File bahut badi hai. Max {rule['max_mb']}MB allowed."
+        )
+
+    # ── Filename sanitize (path traversal se bachao) ──
+    safe_name = rule.get("fixed_name") or os.path.basename(original_name).replace(" ", "_")
+
+    # ── Folder banao ──
+    folder = os.path.join(rule["folder"], client_id)
+    os.makedirs(folder, exist_ok=True)
+
+    # ── File save karo (overwrite) ──
+    save_path = os.path.join(folder, safe_name)
+    with open(save_path, "wb") as f:
+        f.write(contents)
+
+    # ── URL/path return karo (JSON mein store hone wala value) ──
+    if rule["url_prefix"]:
+        path = f"{rule['url_prefix']}/{client_id}/{safe_name}"
+    else:
+        # model: sirf "client_id/filename" — /glb/{token} route isse use karta hai
+        path = f"{client_id}/{safe_name}"
+
+    return JSONResponse({"path": path, "filename": safe_name})
 async def api_delete_restaurant(client_id: str, auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
     if not get_client_data(client_id):
         raise HTTPException(status_code=404, detail="Restaurant not found")
     delete_restaurant_full(client_id)
+
+    # Asset folders bhi delete karo (static + private)
+    import shutil
+    for assets_dir in [f"static/assets/{client_id}", f"private/assets/{client_id}"]:
+        if os.path.exists(assets_dir):
+            shutil.rmtree(assets_dir, ignore_errors=True)
+
     return {"message": f"Restaurant {client_id} deleted"}
 
 @app.get("/api/admin/staff/{client_id}")

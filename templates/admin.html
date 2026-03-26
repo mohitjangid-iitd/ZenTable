@@ -227,6 +227,22 @@
                         <label>Description</label>
                         <textarea id="nr-desc" placeholder="Restaurant ke baare mein..."></textarea>
                     </div>
+                    <div class="form-group">
+                        <label>Logo <span style="color:var(--muted);font-size:0.6rem;">(create ke baad upload hoga)</span></label>
+                        <div class="upload-box" id="nr-logo-box" style="opacity:0.4;pointer-events:none;">
+                            <div class="upload-icon">🖼️</div>
+                            <div class="upload-hint">Restaurant create karne ke baad upload kar sakte ho</div>
+                        </div>
+                        <input type="hidden" id="nr-logo">
+                    </div>
+                    <div class="form-group">
+                        <label>Banner <span style="color:var(--muted);font-size:0.6rem;">(create ke baad upload hoga)</span></label>
+                        <div class="upload-box" id="nr-banner-box" style="opacity:0.4;pointer-events:none;">
+                            <div class="upload-icon">🌄</div>
+                            <div class="upload-hint">Restaurant create karne ke baad upload kar sakte ho</div>
+                        </div>
+                        <input type="hidden" id="nr-banner">
+                    </div>
                 </div>
                 <div class="form-section">Timings</div>
                 <div class="form-grid">
@@ -319,12 +335,45 @@
                             <input type="text" id="ei-address">
                         </div>
                         <div class="form-group">
-                            <label>Logo Path</label>
-                            <input type="text" id="ei-logo">
+                            <label>Logo</label>
+                            <div class="upload-box" id="ei-logo-box" onclick="triggerUpload('ei-logo-file')">
+                                <img id="ei-logo-preview" src="" alt="" style="display:none;width:56px;height:56px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+                                <div class="upload-icon" id="ei-logo-icon">🖼️</div>
+                                <div class="upload-hint" id="ei-logo-hint">Click karo ya drag karo</div>
+                                <div class="upload-progress" id="ei-logo-progress" style="display:none;">
+                                    <div class="upload-progress-bar" id="ei-logo-bar"></div>
+                                </div>
+                            </div>
+                            <input type="file" id="ei-logo-file" accept="image/*" style="display:none" onchange="handleUpload(this,'ei-logo','ei-logo-box','ei-logo-preview','ei-logo-hint','ei-logo-icon','ei-logo-progress','ei-logo-bar','image')">
+                            <input type="hidden" id="ei-logo">
                         </div>
                         <div class="form-group">
-                            <label>Banner Path</label>
-                            <input type="text" id="ei-banner">
+                            <label>Banner</label>
+                            <div class="upload-box" id="ei-banner-box" onclick="triggerUpload('ei-banner-file')">
+                                <img id="ei-banner-preview" src="" alt="" style="display:none;width:100%;height:50px;object-fit:cover;border-radius:6px;margin-bottom:6px;">
+                                <div class="upload-icon" id="ei-banner-icon">🌄</div>
+                                <div class="upload-hint" id="ei-banner-hint">Click karo ya drag karo</div>
+                                <div class="upload-progress" id="ei-banner-progress" style="display:none;">
+                                    <div class="upload-progress-bar" id="ei-banner-bar"></div>
+                                </div>
+                            </div>
+                            <input type="file" id="ei-banner-file" accept="image/*" style="display:none" onchange="handleUpload(this,'ei-banner','ei-banner-box','ei-banner-preview','ei-banner-hint','ei-banner-icon','ei-banner-progress','ei-banner-bar','image')">
+                            <input type="hidden" id="ei-banner">
+                        </div>
+                    </div>
+                    <div class="form-section">AR Target File</div>
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label>targets.mind File</label>
+                            <div class="upload-box upload-box-wide" id="ei-mind-box" onclick="triggerUpload('ei-mind-file')">
+                                <div class="upload-icon" id="ei-mind-icon">🧠</div>
+                                <div class="upload-hint" id="ei-mind-hint">targets.mind file upload karo</div>
+                                <div class="upload-progress" id="ei-mind-progress" style="display:none;">
+                                    <div class="upload-progress-bar" id="ei-mind-bar"></div>
+                                </div>
+                            </div>
+                            <input type="file" id="ei-mind-file" accept=".mind" style="display:none" onchange="handleUpload(this,'ei-mind','ei-mind-box',null,'ei-mind-hint','ei-mind-icon','ei-mind-progress','ei-mind-bar','mind')">
+                            <input type="hidden" id="ei-mind">
                         </div>
                     </div>
                     <div class="form-section">Timings</div>
@@ -562,12 +611,29 @@
                         <input type="text" id="di-ingredients" placeholder="Chicken, Tomatoes, Butter...">
                     </div>
                     <div class="form-group full">
-                        <label>Image Path</label>
-                        <input type="text" id="di-image" placeholder="/static/assets/clint_one/butter_chicken.jpg">
+                        <label>Food Image</label>
+                        <div class="upload-box upload-box-wide" id="di-image-box" onclick="triggerUpload('di-image-file')">
+                            <img id="di-image-preview" src="" alt="" style="display:none;width:80px;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+                            <div class="upload-icon" id="di-image-icon">🍽️</div>
+                            <div class="upload-hint" id="di-image-hint">Dish ki photo upload karo (.jpg, .png, .webp)</div>
+                            <div class="upload-progress" id="di-image-progress" style="display:none;">
+                                <div class="upload-progress-bar" id="di-image-bar"></div>
+                            </div>
+                        </div>
+                        <input type="file" id="di-image-file" accept="image/*" style="display:none" onchange="handleDishUpload(this,'di-image','di-image-box','di-image-preview','di-image-hint','di-image-icon','di-image-progress','di-image-bar','image')">
+                        <input type="hidden" id="di-image">
                     </div>
                     <div class="form-group full">
-                        <label>3D Model Path</label>
-                        <input type="text" id="di-model" placeholder="clint_one/model.glb">
+                        <label>3D Model (.glb)</label>
+                        <div class="upload-box upload-box-wide" id="di-model-box" onclick="triggerUpload('di-model-file')">
+                            <div class="upload-icon" id="di-model-icon">📦</div>
+                            <div class="upload-hint" id="di-model-hint">GLB model file upload karo</div>
+                            <div class="upload-progress" id="di-model-progress" style="display:none;">
+                                <div class="upload-progress-bar" id="di-model-bar"></div>
+                            </div>
+                        </div>
+                        <input type="file" id="di-model-file" accept=".glb,.gltf" style="display:none" onchange="handleDishUpload(this,'di-model','di-model-box',null,'di-model-hint','di-model-icon','di-model-progress','di-model-bar','model')">
+                        <input type="hidden" id="di-model">
                     </div>
                     <div class="form-group">
                         <label>Position</label>

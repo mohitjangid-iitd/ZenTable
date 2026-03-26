@@ -21,7 +21,7 @@
       "twitter": "https://twitter.com/bombaychaat"
     }
   },
-
+  "targets": "/static/assets/clint_two/targets.mind",
   "theme": {
     "primary_color": "#FF9933",
     "secondary_color": "#1c1c1c",
