@@ -951,3 +951,18 @@ async function downloadAllQRs(clientId) {
     link.click();
     URL.revokeObjectURL(link.href);
 }
+
+function togglePass(inputId, btnId) {
+    const inp = document.getElementById(inputId);
+    const open = document.getElementById(btnId + "-open");
+    const closed = document.getElementById(btnId + "-closed");
+    if (inp.type === "password") {
+        inp.type = "text";
+        open.style.display = "none";
+        closed.style.display = "block";
+    } else {
+        inp.type = "password";
+        open.style.display = "block";
+        closed.style.display = "none";
+    }
+}

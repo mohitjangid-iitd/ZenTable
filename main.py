@@ -437,7 +437,7 @@ async def api_admin_update_password(staff_id: int, body: UpdatePasswordRequest,
 async def api_admin_toggle_staff(staff_id: int, auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
     conn = get_db()
-    row = conn.execute("SELECT is_active FROM staff WHERE id=?", (staff_id,)).fetchone()
+    row = conn.execute("SELECT is_active FROM staff WHERE id=%s", (staff_id,)).fetchone()
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -469,8 +469,8 @@ async def api_admin_change_own_password(body: UpdatePasswordRequest,
         raise HTTPException(status_code=400, detail="Password required") 
     password_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
-    conn.execute("UPDATE admins SET password_hash=? WHERE id=?",
-                 (password_hash, user["admin_id"]))
+    conn.execute("UPDATE admins SET password_hash=%s WHERE id=%s",
+        (password_hash, user["admin_id"]))
     conn.commit()
     conn.close()
     return {"message": "Password updated"}
@@ -645,7 +645,7 @@ async def api_toggle_staff(staff_id: int, auth_token: Optional[str] = Cookie(Non
     require_auth(auth_token, ["owner", "admin"])
     # Active/inactive toggle — frontend se current state bhejo
     conn = get_db()
-    row = conn.execute("SELECT is_active FROM staff WHERE id=?", (staff_id,)).fetchone()
+    row = conn.execute("SELECT is_active FROM staff WHERE id=", (staff_id,)).fetchone()
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -790,7 +790,7 @@ async def api_edit_order_items(order_id: int, body: EditOrderItemsRequest,
     auth_token = request.cookies.get("auth_token")
     require_auth(auth_token, ["waiter", "owner", "admin"])
     conn = get_db()
-    order = conn.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
+    order = conn.execute("SELECT * FROM orders WHERE id=", (order_id,)).fetchone()
     if not order:
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")
@@ -838,14 +838,14 @@ async def api_edit_order_items(order_id: int, body: EditOrderItemsRequest,
             new_ready_list.append({"name": name, "qty": ready_qty})
 
     if not new_items:
-        conn.execute("UPDATE orders SET status='cancelled' WHERE id=?", (order_id,))
+        conn.execute("UPDATE orders SET status='cancelled' WHERE id=", (order_id,))
         conn.commit()
         conn.close()
         return {"message": "Order cancelled — no items left"}
 
     new_total = sum(i["qty"] * i["price"] for i in new_items)
     conn.execute(
-        "UPDATE orders SET items=?, total=?, ready_items=? WHERE id=?",
+        "UPDATE orders SET items=%s, total=%s, ready_items=%s WHERE id=%s",
         (json.dumps(new_items), new_total, json.dumps(new_ready_list), order_id)
     )
     conn.commit()
