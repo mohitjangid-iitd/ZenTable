@@ -436,6 +436,7 @@ async def api_create_restaurant(body: CreateRestaurantRequest,
     }
     os.makedirs("data", exist_ok=True)
     os.makedirs(f"static/assets/{client_id}", exist_ok=True)
+    os.makedirs(f"private/assets/{client_id}", exist_ok=True)
     save_restaurant_json(client_id, data)
     seed_tables(client_id, body.num_tables)
     return {"message": f"Restaurant {client_id} created", "client_id": client_id}
@@ -501,6 +502,48 @@ async def api_upload_asset(
         path = f"{client_id}/{safe_name}"
 
     return JSONResponse({"path": path, "filename": safe_name})
+
+@app.get("/api/admin/restaurant/{client_id}/assets-zip")
+async def api_download_assets_zip(
+    client_id: str,
+    folder: str,  # "static" ya "private"
+    auth_token: Optional[str] = Cookie(None)
+):
+    """Assets ka zip banao aur download karo"""
+    require_auth(auth_token, ["admin"])
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    import shutil, tempfile, zipfile
+
+    if folder == "static":
+        assets_dir = f"static/assets/{client_id}"
+        zip_name   = f"{client_id}_assets.zip"
+    elif folder == "private":
+        assets_dir = f"private/assets/{client_id}"
+        zip_name   = f"{client_id}_models.zip"
+    else:
+        raise HTTPException(status_code=400, detail="folder must be 'static' or 'private'")
+
+    if not os.path.exists(assets_dir) or not os.listdir(assets_dir):
+        raise HTTPException(status_code=404, detail="No assets found")
+
+    # Temp zip file banao
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    with zipfile.ZipFile(tmp.name, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(assets_dir):
+            for file in files:
+                filepath = os.path.join(root, file)
+                arcname  = os.path.relpath(filepath, assets_dir)
+                zf.write(filepath, arcname)
+    tmp.close()
+
+    return FileResponse(
+        tmp.name,
+        media_type="application/zip",
+        filename=zip_name,
+        background=None
+    )
 
 @app.delete("/api/admin/restaurant/{client_id}")
 async def api_delete_restaurant(client_id: str, auth_token: Optional[str] = Cookie(None)):
