@@ -1,4 +1,76 @@
 // ════════════════════════════════
+// CUSTOM CONFIRM MODAL
+// ════════════════════════════════
+
+/**
+ * Browser ke ugly confirm() ki jagah custom styled modal.
+ * Usage: const ok = await customConfirm({ title, message, okText, cancelText, danger })
+ */
+function customConfirm({ title = 'Confirm', message = '', okText = 'OK', cancelText = 'Cancel', danger = false } = {}) {
+    return new Promise(resolve => {
+        // Agar pehle se modal hai toh hata do
+        const existing = document.getElementById('_custom-confirm');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = '_custom-confirm';
+        overlay.style.cssText = `
+            position:fixed;inset:0;z-index:99999;
+            background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);
+            display:flex;align-items:center;justify-content:center;
+            animation:_cfIn .15s ease;
+        `;
+
+        // Inline keyframe
+        if (!document.getElementById('_cf-style')) {
+            const s = document.createElement('style');
+            s.id = '_cf-style';
+            s.textContent = `
+                @keyframes _cfIn  { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
+                @keyframes _cfOut { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(.95); } }
+            `;
+            document.head.appendChild(s);
+        }
+
+        overlay.innerHTML = `
+            <div style="
+                background:var(--surface,#1e1e2e);
+                border:1px solid var(--border,rgba(255,255,255,0.1));
+                border-radius:14px;padding:28px 32px;
+                max-width:420px;width:90%;
+                box-shadow:0 24px 60px rgba(0,0,0,0.5);
+            ">
+                <div style="font-size:1rem;font-weight:600;color:var(--text,#e0e0e0);margin-bottom:12px;">${title}</div>
+                <div style="font-size:0.88rem;color:var(--muted,#999);line-height:1.6;white-space:pre-line;">${message}</div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;">
+                    <button id="_cf-cancel" style="
+                        padding:9px 20px;border-radius:8px;border:1px solid var(--border,rgba(255,255,255,0.12));
+                        background:transparent;color:var(--text,#e0e0e0);
+                        font-size:0.85rem;cursor:pointer;
+                    ">${cancelText}</button>
+                    <button id="_cf-ok" style="
+                        padding:9px 20px;border-radius:8px;border:none;
+                        background:${danger ? 'var(--red,#ef5350)' : 'var(--primary,#6C63FF)'};
+                        color:#fff;font-size:0.85rem;cursor:pointer;font-weight:500;
+                    ">${okText}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const close = (val) => {
+            overlay.style.animation = '_cfOut .12s ease forwards';
+            setTimeout(() => { overlay.remove(); resolve(val); }, 120);
+        };
+
+        overlay.querySelector('#_cf-ok').onclick     = () => close(true);
+        overlay.querySelector('#_cf-cancel').onclick = () => close(false);
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+    });
+}
+
+// ════════════════════════════════
 // STATE
 // ════════════════════════════════
 let allRestaurants = [];
@@ -259,15 +331,26 @@ function renderRestGrid() {
         return;
     }
     grid.innerHTML = allRestaurants.map(r => `
-        <div class="rest-card">
+        <div class="rest-card ${r.active === false ? 'rest-card-inactive' : ''}">
             <div class="rest-card-top">
                 <div>
-                    <div class="rest-name">${r.name}</div>
+                    <div class="rest-name" style="display:flex;align-items:center;gap:8px;">
+                        ${r.name}
+                        ${r.active === false
+                            ? `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(239,83,80,0.12);color:#ef9a9a;border:1px solid rgba(239,83,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">INACTIVE</span>`
+                            : `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(76,175,80,0.10);color:#81c784;border:1px solid rgba(76,175,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">ACTIVE</span>`
+                        }
+                    </div>
                     <div class="rest-id">${r.client_id}</div>
                 </div>
                 <div class="rest-actions">
                     <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditRestaurant('${r.client_id}')" title="Edit">✏️</button>
-                    <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}', '${r.name}')" title="Delete">🗑️</button>
+                    <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}',${r.active !== false})"
+                        title="${r.active === false ? 'Activate' : 'Deactivate'}"
+                        style="${r.active === false ? 'color:#81c784;border-color:rgba(76,175,80,0.3)' : 'color:#ef9a9a;border-color:rgba(239,83,80,0.3)'}">
+                        ${r.active === false ? '🟢' : '🔴'}
+                    </button>
+                    <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}') " title="Delete">🗑️</button>
                 </div>
             </div>
             <div class="rest-meta">
@@ -489,8 +572,67 @@ async function saveRestaurant() {
 }
 
 async function deleteRestaurant(client_id, name) {
-    if (!confirm(`'${name}' ko permanently delete karna hai? Ye action undo nahi hoga.`)) return;
-    const res = await fetch(`/api/admin/restaurant/${client_id}`, { method:'DELETE' });
+    // Step 1 — Assets save karna hai?
+    const saveAssets = await customConfirm({
+        title: `🗑️ Delete — ${name}`,
+        message: `Delete karne se pehle:\n\nKya aap assets (images, GLB models) save karna chahte ho?`,
+        okText: '⬇ Haan, Download karo',
+        cancelText: 'Sirf Delete karo',
+        danger: false,
+    });
+
+    if (saveAssets) {
+        toast('Assets download ho rahi hain...', '');
+
+        // Dono zips ek saath download karo
+        const downloads = [
+            { folder: 'static', label: 'Images/Assets' },
+            { folder: 'private', label: 'GLB Models'   },
+        ];
+
+        for (const { folder, label } of downloads) {
+            try {
+                const res = await fetch(`/api/admin/restaurant/${client_id}/assets-zip?folder=${folder}`);
+                if (res.ok) {
+                    const blob = await res.blob();
+                    if (blob.size > 100) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${client_id}_${folder}.zip`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        await new Promise(r => setTimeout(r, 600));
+                    }
+                }
+            } catch(e) {
+                console.warn(`${label} download failed:`, e);
+            }
+        }
+
+        // Confirm karo delete ke liye
+        const confirmDelete = await customConfirm({
+            title: '⚠️ Final Confirmation',
+            message: `Assets download ho gayi.\n\n'${name}' ab permanently delete karna hai?`,
+            okText: 'Haan, Delete karo',
+            cancelText: 'Ruk ja',
+            danger: true,
+        });
+        if (!confirmDelete) return;
+    } else {
+        // Direct delete confirm
+        const confirmDelete = await customConfirm({
+            title: '⚠️ Permanent Delete',
+            message: `'${name}' ko permanently delete karna hai?\n\nYe action undo nahi hoga.`,
+            okText: 'Delete karo',
+            cancelText: 'Cancel',
+            danger: true,
+        });
+        if (!confirmDelete) return;
+    }
+
+    // Delete karo
+    const res = await fetch(`/api/admin/restaurant/${client_id}`, { method: 'DELETE' });
     if (res.ok) {
         toast(`'${name}' delete ho gaya`, 'success');
         allRestaurants = [];
@@ -499,6 +641,29 @@ async function deleteRestaurant(client_id, name) {
         populateStaffRestSelect();
     } else {
         toast('Delete failed', 'error');
+    }
+}
+
+async function toggleRestaurant(client_id, name, currentlyActive) {
+    const action = currentlyActive ? 'Inactive' : 'Active';
+    const ok = await customConfirm({
+        title: `${currentlyActive ? '🔴' : '🟢'} Restaurant ${action} karo`,
+        message: `'${name}' ko ${action} karna hai?`,
+        okText: action + ' karo',
+        cancelText: 'Cancel',
+        danger: currentlyActive,
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/admin/restaurant/${client_id}/toggle`, { method: 'PATCH' });
+    const d = await res.json();
+    if (res.ok) {
+        toast(d.active ? `'${name}' Active kar diya ✅` : `'${name}' Inactive kar diya 🔴`, d.active ? 'success' : '');
+        allRestaurants = [];
+        await loadOverview();
+        renderRestGrid();
+        populateStaffRestSelect();
+    } else {
+        toast('Toggle failed', 'error');
     }
 }
 
@@ -681,8 +846,15 @@ function saveDish() {
     toast('Dish saved (Save Changes dabao to commit)', 'success');
 }
 
-function deleteItem(index) {
-    if (!confirm('Ye dish delete karna hai?')) return;
+async function deleteItem(index) {
+    const ok = await customConfirm({
+        title: '🍽️ Dish Delete',
+        message: 'Ye dish delete karna hai?',
+        okText: 'Delete karo',
+        cancelText: 'Cancel',
+        danger: true,
+    });
+    if (!ok) return;
     currentEditData.items.splice(index, 1);
     renderItemsList();
     toast('Dish removed (Save Changes dabao to commit)');
@@ -788,7 +960,14 @@ async function toggleStaff(staff_id) {
 }
 
 async function deleteStaff(staff_id, name) {
-    if (!confirm(`'${name}' ko delete karna hai?`)) return;
+    const ok = await customConfirm({
+        title: '👤 Staff Delete',
+        message: `'${name}' ko delete karna hai?`,
+        okText: 'Delete karo',
+        cancelText: 'Cancel',
+        danger: true,
+    });
+    if (!ok) return;
     const res = await fetch(`/api/admin/staff/${staff_id}`, { method:'DELETE' });
     if (res.ok) { toast(`'${name}' deleted`); loadStaff(); }
     else { toast('Delete failed', 'error'); }

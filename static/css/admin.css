@@ -137,6 +137,8 @@
             transition:border-color 0.2s;
         }
         .rest-card:hover { border-color:rgba(108,99,255,0.4); }
+.rest-card-inactive { opacity:0.55; border-color:rgba(239,83,80,0.2) !important; }
+.rest-card-inactive:hover { opacity:0.8; border-color:rgba(239,83,80,0.4) !important; }
         .rest-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
         .rest-name { font-family:var(--font-d); font-size:1rem; font-weight:600; color:white; }
         .rest-id { font-family:var(--font-m); font-size:0.65rem; color:var(--primary); margin-top:2px; }
