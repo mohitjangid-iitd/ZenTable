@@ -121,6 +121,7 @@
       "ordering",
       "analytics",
       "ar_menu"
-    ]
+    ],
+    "active": false
   }
 }

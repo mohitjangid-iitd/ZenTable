@@ -259,15 +259,26 @@ function renderRestGrid() {
         return;
     }
     grid.innerHTML = allRestaurants.map(r => `
-        <div class="rest-card">
+        <div class="rest-card ${r.active === false ? 'rest-card-inactive' : ''}">
             <div class="rest-card-top">
                 <div>
-                    <div class="rest-name">${r.name}</div>
+                    <div class="rest-name" style="display:flex;align-items:center;gap:8px;">
+                        ${r.name}
+                        ${r.active === false
+                            ? `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(239,83,80,0.12);color:#ef9a9a;border:1px solid rgba(239,83,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">INACTIVE</span>`
+                            : `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(76,175,80,0.10);color:#81c784;border:1px solid rgba(76,175,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">ACTIVE</span>`
+                        }
+                    </div>
                     <div class="rest-id">${r.client_id}</div>
                 </div>
                 <div class="rest-actions">
                     <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditRestaurant('${r.client_id}')" title="Edit">✏️</button>
-                    <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}', '${r.name}')" title="Delete">🗑️</button>
+                    <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}',${r.active !== false})"
+                        title="${r.active === false ? 'Activate' : 'Deactivate'}"
+                        style="${r.active === false ? 'color:#81c784;border-color:rgba(76,175,80,0.3)' : 'color:#ef9a9a;border-color:rgba(239,83,80,0.3)'}">
+                        ${r.active === false ? '🟢' : '🔴'}
+                    </button>
+                    <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}') " title="Delete">🗑️</button>
                 </div>
             </div>
             <div class="rest-meta">
@@ -499,6 +510,22 @@ async function deleteRestaurant(client_id, name) {
         populateStaffRestSelect();
     } else {
         toast('Delete failed', 'error');
+    }
+}
+
+async function toggleRestaurant(client_id, name, currentlyActive) {
+    const action = currentlyActive ? 'Inactive' : 'Active';
+    if (!confirm(`'${name}' ko ${action} karna hai?`)) return;
+    const res = await fetch(`/api/admin/restaurant/${client_id}/toggle`, { method: 'PATCH' });
+    const d = await res.json();
+    if (res.ok) {
+        toast(d.active ? `'${name}' Active kar diya ✅` : `'${name}' Inactive kar diya 🔴`, d.active ? 'success' : '');
+        allRestaurants = [];
+        await loadOverview();
+        renderRestGrid();
+        populateStaffRestSelect();
+    } else {
+        toast('Toggle failed', 'error');
     }
 }
 

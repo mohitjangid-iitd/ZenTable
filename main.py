@@ -111,6 +111,12 @@ def require_feature(data: dict, feature: str):
     if not has_feature(data, feature):
         raise HTTPException(status_code=403, detail=f"Feature '{feature}' not available")
 
+def is_restaurant_active(data: dict) -> bool:
+    return data.get("subscription", {}).get("active", True)
+
+def closed_response(request, data, client_id):
+    return RedirectResponse(url=SITE_CONFIG["instagram"], status_code=302)
+
 def get_current_user(token: Optional[str]) -> Optional[dict]:
     """Cookie se token padho aur decode karo"""
     if not token:
@@ -304,7 +310,13 @@ async def api_login(body: LoginRequest, response: Response):
     Admin: username + password (restaurant_id = None)
     """
     if body.restaurant_id:
-        # Staff login
+        # Staff login — pehle restaurant active hai ya nahi check karo
+        rdata = get_client_data(body.restaurant_id)
+        if rdata and not rdata.get("subscription", {}).get("active", True):
+            raise HTTPException(
+                status_code=403,
+                detail="Subscription expired. Please contact your administrator."
+            )
         token, user = login_staff(body.restaurant_id, body.username, body.password)
         if not token:
             raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -359,9 +371,13 @@ async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(N
 @app.get("/api/admin/overview")
 async def api_admin_overview(period: str = "alltime", auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
+    restaurants = get_all_restaurants_info()
+    for r in restaurants:
+        rdata = get_client_data(r["client_id"]) or {}
+        r["active"] = rdata.get("subscription", {}).get("active", True)
     return {
         "stats": get_overall_stats(),
-        "restaurants": get_all_restaurants_info(),
+        "restaurants": restaurants,
         "top_dishes": get_top_dishes_overall(10, period),
     }
 
@@ -485,6 +501,8 @@ async def api_upload_asset(
         path = f"{client_id}/{safe_name}"
 
     return JSONResponse({"path": path, "filename": safe_name})
+
+@app.delete("/api/admin/restaurant/{client_id}")
 async def api_delete_restaurant(client_id: str, auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
     if not get_client_data(client_id):
@@ -498,6 +516,20 @@ async def api_delete_restaurant(client_id: str, auth_token: Optional[str] = Cook
             shutil.rmtree(assets_dir, ignore_errors=True)
 
     return {"message": f"Restaurant {client_id} deleted"}
+
+@app.patch("/api/admin/restaurant/{client_id}/toggle")
+async def api_toggle_restaurant(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    data = get_client_data(client_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    current = data.get("subscription", {}).get("active", True)
+    new_state = not current
+    if "subscription" not in data:
+        data["subscription"] = {"features": ["basic"]}
+    data["subscription"]["active"] = new_state
+    save_restaurant_json(client_id, data)
+    return {"active": new_state}
 
 @app.get("/api/admin/staff/{client_id}")
 async def api_admin_get_staff(client_id: str, auth_token: Optional[str] = Cookie(None)):
@@ -574,6 +606,8 @@ async def restaurant_home(request: Request, client_id: str):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    if not is_restaurant_active(data):
+        return closed_response(request, data, client_id)
     return templates.TemplateResponse("home.html", {
         "request": request, "client_id": client_id, "data": data, "table_no": None,
         "features": data.get("subscription", {}).get("features", ["basic"])
@@ -584,6 +618,8 @@ async def menu(request: Request, client_id: str):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    if not is_restaurant_active(data):
+        return closed_response(request, data, client_id)
     return templates.TemplateResponse("menu.html", {
         "request": request, "client_id": client_id, "data": data, "table_no": None,
         "features": data.get("subscription", {}).get("features", ["basic"])
@@ -594,6 +630,8 @@ async def table_menu(request: Request, client_id: str, table_no: int):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    if not is_restaurant_active(data):
+        return closed_response(request, data, client_id)
     table = get_table_status(client_id, table_no)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active. Please ask staff.")
@@ -607,6 +645,8 @@ async def ar_menu(request: Request, client_id: str):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    if not is_restaurant_active(data):
+        return closed_response(request, data, client_id)
     features = data.get("subscription", {}).get("features", [])
     if "ar_menu" not in features:
         return RedirectResponse(url=f"/{client_id}/menu")
@@ -619,6 +659,8 @@ async def table_home(request: Request, client_id: str, table_no: int):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    if not is_restaurant_active(data):
+        return closed_response(request, data, client_id)
     table = get_table_status(client_id, table_no)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active. Please ask staff.")
@@ -631,6 +673,8 @@ async def table_ar_menu(request: Request, client_id: str, table_no: int):
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    if not is_restaurant_active(data):
+        return closed_response(request, data, client_id)
     features = data.get("subscription", {}).get("features", [])
     if "ar_menu" not in features:
         return RedirectResponse(url=f"/{client_id}/table/{table_no}/menu")
