@@ -2,10 +2,11 @@ import json
 import os
 import hashlib
 import hmac
-import time
 import base64
 import bcrypt
 import copy
+from datetime import datetime, timezone, timedelta
+from starlette.background import BackgroundTask
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Cookie, Response, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
@@ -25,9 +26,11 @@ from database import (
     toggle_staff_active, delete_staff,
     get_all_restaurants_info, get_overall_stats, get_top_dishes_overall,
     save_restaurant_json, delete_restaurant_full,
-    create_admin
+    create_admin, export_full_db_zip
 )
 from auth import login_staff, login_admin, decode_token, get_redirect_url
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 # ════════════════════════════════
 # CONFIG & CONSTANTS
@@ -63,7 +66,7 @@ UPLOAD_RULES = {
 
 def create_glb_token(client_id: str, filepath: str) -> str:
     """GLB file ke liye signed token banao — 10 min expiry"""
-    expires = int(time.time()) + GLB_TOKEN_EXPIRY
+    expires = int(datetime.now(timezone.utc).timestamp()) + GLB_TOKEN_EXPIRY
     msg = f"{client_id}:{filepath}:{expires}"
     sig = hmac.new(GLB_SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()[:16]
     payload = base64.urlsafe_b64encode(f"{msg}:{sig}".encode()).decode()
@@ -84,7 +87,7 @@ def verify_glb_token(token: str):
         if len(msg_parts) != 3:
             return None
         client_id, filepath, expires_str = msg_parts
-        if int(time.time()) > int(expires_str):
+        if int(datetime.now(timezone.utc).timestamp()) > int(expires_str):
             return None
         return client_id, filepath
     except:
@@ -640,6 +643,18 @@ async def api_admin_change_own_password(body: UpdatePasswordRequest,
     conn.close()
     return {"message": "Password updated"}
 
+@app.get("/api/admin/export/db-zip")
+async def api_export_db_zip(auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    zip_path = export_full_db_zip()
+    filename = f"zentable_db_{datetime.now(IST).strftime('%d-%m-%Y_%H-%M')}_IST.zip"
+    return FileResponse(
+        zip_path,
+        media_type="application/zip",
+        filename=filename,
+        background=BackgroundTask(os.remove, zip_path)
+    )
+
 # ════════════════════════════════
 # PUBLIC PAGE ROUTES
 # ════════════════════════════════
@@ -822,7 +837,7 @@ async def api_toggle_staff(staff_id: int, auth_token: Optional[str] = Cookie(Non
     require_auth(auth_token, ["owner", "admin"])
     # Active/inactive toggle — frontend se current state bhejo
     conn = get_db()
-    row = conn.execute("SELECT is_active FROM staff WHERE id=", (staff_id,)).fetchone()
+    row = conn.execute("SELECT is_active FROM staff WHERE id=%s", (staff_id,)).fetchone()
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -967,7 +982,7 @@ async def api_edit_order_items(order_id: int, body: EditOrderItemsRequest,
     auth_token = request.cookies.get("auth_token")
     require_auth(auth_token, ["waiter", "owner", "admin"])
     conn = get_db()
-    order = conn.execute("SELECT * FROM orders WHERE id=", (order_id,)).fetchone()
+    order = conn.execute("SELECT * FROM orders WHERE id=%s", (order_id,)).fetchone()
     if not order:
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")

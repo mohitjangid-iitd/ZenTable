@@ -17,6 +17,7 @@ import bcrypt
 import psycopg2
 import psycopg2.pool
 import psycopg2.extras
+import csv, io, zipfile, tempfile
 from datetime import datetime, date, timedelta
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -1028,3 +1029,33 @@ def delete_restaurant_full(client_id: str):
     json_path = f"data/{client_id}.json"
     if os.path.exists(json_path):
         os.remove(json_path)
+
+def export_full_db_zip() -> str:
+    conn = get_db()
+    raw = conn._conn.cursor()
+
+    # Saari tables DB se khud dhundho — kuch hardcode nahi
+    raw.execute("""
+        SELECT tablename FROM pg_tables
+        WHERE schemaname = 'public'
+        ORDER BY tablename
+    """)
+    table_names = [r[0] for r in raw.fetchall()]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp.close()
+
+    with zipfile.ZipFile(tmp.name, "w", zipfile.ZIP_DEFLATED) as zf:
+        for table_name in table_names:
+            raw.execute(f"SELECT * FROM {table_name} ORDER BY id")
+            rows = raw.fetchall()
+            col_names = [desc[0] for desc in raw.description]
+
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            writer.writerow(col_names)
+            writer.writerows(rows)
+            zf.writestr(f"{table_name}.csv", buf.getvalue())
+
+    conn.close()
+    return tmp.name
