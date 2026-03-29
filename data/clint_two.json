@@ -31,7 +31,6 @@
     "font_primary": "Poppins",
     "font_secondary": "Roboto"
   },
-
   "items": [
     {
       "name": "Russian Salad",
@@ -306,8 +305,13 @@
       "rotate_speed": 10000
     }
   ],
-
   "subscription": {
-    "features": ["basic", "ordering", "analytics", "ar_menu"]
+    "features": [
+      "basic",
+      "ordering",
+      "analytics",
+      "ar_menu"
+    ],
+    "active": true
   }
 }
