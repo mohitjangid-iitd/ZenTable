@@ -35,6 +35,13 @@
     <div id="carousel-wrapper"></div>
 </div>
 
+<!-- AR Loader -->
+<div id="ar-loader">
+    <canvas id="loader-canvas" width="220" height="180"></canvas>
+    <div id="loader-text">Zen<span>Table</span></div>
+    <div id="loader-sub">LOADING EXPERIENCE</div>
+</div>
+
 <a-scene style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;"
     mindar-image="imageTargetSrc: /static/assets/{{ client_id }}/targets.mind; autoStart: true; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
     color-space="sRGB" renderer="colorManagement:true, physicallyCorrectLights:true" vr-mode-ui="enabled:false"
