@@ -303,6 +303,35 @@
       "rotation": "0 0 0",
       "auto_rotate": false,
       "rotate_speed": 10000
+    },
+    {
+      "name": "Margarita pizza",
+      "sizes": [
+        {
+          "label": "Small",
+          "price": "180"
+        },
+        {
+          "label": "Midium",
+          "price": "300"
+        },
+        {
+          "label": "Large",
+          "price": "420"
+        }
+      ],
+      "category": "Pizza",
+      "description": "Authentic Italian Test in your Plate",
+      "ingredients": "",
+      "image": "/static/assets/clint_two/pizza.jpg",
+      "model": "clint_two/pizza.glb",
+      "position": "0 0 0",
+      "scale": "2 2 2",
+      "rotation": "0 0 0",
+      "rotate_speed": 10000,
+      "veg": true,
+      "auto_rotate": true,
+      "featured": true
     }
   ],
   "subscription": {
@@ -311,7 +340,6 @@
       "ordering",
       "analytics",
       "ar_menu"
-    ],
-    "active": true
+    ]
   }
 }
