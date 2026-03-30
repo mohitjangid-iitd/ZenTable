@@ -42,6 +42,7 @@
         <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
         <button class="tab-btn" onclick="switchTab('restaurants', this)">Restaurants</button>
         <button class="tab-btn" onclick="switchTab('staff', this)">Staff</button>
+        <button class="tab-btn" onclick="switchTab('trash', this); loadTrash()">🗑️ Trash</button>
         <button class="tab-btn" onclick="window.open('https://hiukim.github.io/mind-ar-js-doc/tools/compile', '_blank')"
             style="margin-left:auto; background:var(--primary); color:#fff; border:none; padding:8px 15px; border-radius:6px;">
             🧠 Target Compiler
@@ -134,6 +135,39 @@
             </div>
             <div class="rest-grid" id="rest-grid">
                 <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- ══ TRASH TAB ══ -->
+        <div class="tab-pane" id="tab-trash">
+            <div class="section-head" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div class="section-title" style="margin:0;">🗑️ Trash</div>
+                    <span id="trash-count-badge" style="font-size:0.72rem;background:rgba(255,99,99,0.15);color:#ff6b6b;border:1px solid rgba(255,99,99,0.3);padding:2px 10px;border-radius:20px;"></span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <div style="display:flex;gap:6px;">
+                        <button class="filter-pill active" id="trash-filter-all" onclick="setTrashFilter('all',this)">All</button>
+                        <button class="filter-pill" id="trash-filter-image" onclick="setTrashFilter('image',this)">🖼️ Images</button>
+                        <button class="filter-pill" id="trash-filter-model" onclick="setTrashFilter('model',this)">📦 3D Models</button>
+                    </div>
+                    <select id="trash-rest-filter" onchange="applyTrashFilter()"
+                        style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;">
+                        <option value="">All Restaurants</option>
+                    </select>
+                    <button onclick="loadTrash()"
+                        style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer;">
+                        ↻ Refresh
+                    </button>
+                    <button id="trash-empty-btn" onclick="emptyTrash()"
+                        style="background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:#ff4757;font-size:0.78rem;padding:6px 14px;border-radius:8px;cursor:pointer;display:none;">
+                        🗑️ Empty Trash
+                    </button>
+                </div>
+            </div>
+            <div id="trash-stats" style="margin-bottom:14px;padding:10px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;font-size:0.78rem;color:var(--muted);display:none;flex-wrap:wrap;gap:20px;"></div>
+            <div id="trash-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;">
+                <div style="color:var(--muted);font-size:0.85rem;padding:24px;">Tab open hone par load hoga...</div>
             </div>
         </div>
 
@@ -813,9 +847,330 @@
         </div>
     </div>
 
+    <!-- Trash Preview Modal -->
+    <div class="modal-overlay" id="modal-trash-preview">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-head">
+                <div class="modal-title" id="tp-title">File Preview</div>
+                <button class="modal-close" onclick="closeModal('modal-trash-preview')">✕</button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
+                <!-- Image preview -->
+                <div id="tp-img-wrap" style="display:none;text-align:center;">
+                    <img id="tp-img" src="" alt="" style="max-width:100%;max-height:280px;border-radius:10px;object-fit:contain;background:rgba(0,0,0,0.2);">
+                </div>
+                <!-- 3D model placeholder -->
+                <div id="tp-model-wrap" style="display:none;text-align:center;padding:32px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:10px;">
+                    <div style="font-size:2.5rem;margin-bottom:8px;">📦</div>
+                    <div style="font-size:0.82rem;color:var(--muted);">3D model preview available nahi hai</div>
+                    <div style="font-size:0.75rem;color:rgba(255,255,255,0.25);margin-top:4px;" id="tp-model-name"></div>
+                </div>
+                <!-- Meta info -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="tp-meta"></div>
+            </div>
+            <div class="modal-foot" id="tp-actions"></div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="/static/js/admin.js?v={{ static_v('js/admin.js') }}"></script>
+    <script>
+    // ════════════════════════════════
+    // OLD_PATH PATCH
+    // Upload hone se pehle purani file ka path FormData mein inject karo
+    // admin.js ke handleUpload / handleDishUpload fetch call ko intercept karta hai
+    // ════════════════════════════════
+    const _origFetch = window.fetch;
+    window.fetch = async function(url, options) {
+        // Sirf upload API calls patch karo
+        if (typeof url === 'string' && url.includes('/api/admin/upload/') && options?.body instanceof FormData) {
+            const fd       = options.body;
+            const fileType = fd.get('type');
+
+            // old_path already set hai to skip karo
+            if (!fd.get('old_path') && fileType && fileType !== 'mind') {
+                let oldPath = null;
+
+                if (fileType === 'model') {
+                    // Dish modal ka current model path
+                    const hiddenModel = document.getElementById('di-model');
+                    if (hiddenModel && hiddenModel.value && hiddenModel.value.toLowerCase() !== 'none') {
+                        oldPath = hiddenModel.value;  // e.g. "clint_two/pizza.glb"
+                    }
+                } else if (fileType === 'image') {
+                    // Dish image ya restaurant logo/banner — current hidden input value
+                    // di-image, ei-logo, ei-banner — jo bhi focused modal mein active hai
+                    for (const id of ['di-image','ei-logo','ei-banner']) {
+                        const el = document.getElementById(id);
+                        if (el && el.value && el.value.includes(url.split('/api/admin/upload/')[1])) {
+                            oldPath = el.value;
+                            break;
+                        }
+                    }
+                }
+
+                if (oldPath) {
+                    fd.append('old_path', oldPath);
+                }
+            }
+        }
+        return _origFetch.apply(this, arguments);
+    };
+
+    // ════════════════════════════════
+    // TRASH — State
+    // ════════════════════════════════
+    let _trashAll     = [];   // raw data from API
+    let _trashFilter  = 'all'; // 'all' | 'image' | 'model'
+
+    // ════════════════════════════════
+    // TRASH — Load
+    // ════════════════════════════════
+    async function loadTrash() {
+        const grid = document.getElementById('trash-grid');
+        grid.innerHTML = '<div class="loading">Loading...</div>';
+
+        try {
+            const res  = await fetch('/api/admin/trash');
+            _trashAll  = await res.json();
+        } catch(e) {
+            grid.innerHTML = '<div style="color:#ff4757;padding:20px;">Load failed</div>';
+            return;
+        }
+
+        // Populate restaurant filter dropdown
+        const restSel = document.getElementById('trash-rest-filter');
+        const prevVal = restSel.value;
+        const rests   = [...new Set(_trashAll.map(e => e.client_id))].sort();
+        restSel.innerHTML = '<option value="">All Restaurants</option>' +
+            rests.map(r => `<option value="${r}"${r===prevVal?' selected':''}>${r}</option>`).join('');
+
+        applyTrashFilter();
+    }
+
+    // ════════════════════════════════
+    // TRASH — Filter & Render
+    // ════════════════════════════════
+    function setTrashFilter(type, btn) {
+        _trashFilter = type;
+        document.querySelectorAll('#trash-filter-all,#trash-filter-image,#trash-filter-model')
+            .forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyTrashFilter();
+    }
+
+    function applyTrashFilter() {
+        const restFilter = document.getElementById('trash-rest-filter').value;
+        let items = _trashAll;
+
+        if (_trashFilter !== 'all')
+            items = items.filter(e => e.file_type === _trashFilter);
+        if (restFilter)
+            items = items.filter(e => e.client_id === restFilter);
+
+        renderTrash(items);
+    }
+
+    function renderTrash(items) {
+        const grid  = document.getElementById('trash-grid');
+        const badge = document.getElementById('trash-count-badge');
+        const stats = document.getElementById('trash-stats');
+        const emptyBtn = document.getElementById('trash-empty-btn');
+
+        badge.textContent = `${_trashAll.length} file${_trashAll.length !== 1 ? 's' : ''}`;
+
+        // Stats bar
+        const totalKB = _trashAll.reduce((s,e) => s + (e.size_kb||0), 0);
+        const imgs    = _trashAll.filter(e => e.file_type==='image').length;
+        const models  = _trashAll.filter(e => e.file_type==='model').length;
+        stats.style.display = _trashAll.length ? 'flex' : 'none';
+        stats.innerHTML = `
+            <span>📁 <b style="color:white">${_trashAll.length}</b> files</span>
+            <span>💾 <b style="color:white">${totalKB >= 1024 ? (totalKB/1024).toFixed(1)+' MB' : totalKB.toFixed(0)+' KB'}</b></span>
+            <span>🖼️ <b style="color:white">${imgs}</b> images</span>
+            <span>📦 <b style="color:white">${models}</b> 3D models</span>
+            <span style="margin-left:auto;color:rgba(255,255,255,0.25);font-size:0.7rem;">Auto-delete: 30 days after upload</span>
+        `;
+
+        emptyBtn.style.display = _trashAll.length ? 'inline-block' : 'none';
+
+        if (!items.length) {
+            grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--muted);">
+                <div style="font-size:2.5rem;margin-bottom:8px;">🎉</div>
+                <div style="font-size:0.9rem;">Trash empty hai</div>
+            </div>`;
+            return;
+        }
+
+        grid.innerHTML = items.map(entry => trashCardHTML(entry)).join('');
+    }
+
+    function trashCardHTML(e) {
+        const isImage  = e.file_type === 'image';
+        const daysLeft = e.days_left;
+        let badgeCls   = 'trash-days-ok';
+        if (daysLeft <= 7)  badgeCls = 'trash-days-crit';
+        else if (daysLeft <= 14) badgeCls = 'trash-days-warn';
+
+        const thumb = isImage
+            ? `<img class="trash-thumb" src="/static/assets/${e.client_id}/../../../${e.original_path}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="${e.original_name}">
+               <div class="trash-thumb-placeholder" style="display:none;">🖼️</div>`
+            : `<div class="trash-thumb-placeholder">📦</div>`;
+
+        const sizeStr = e.size_kb >= 1024
+            ? `${(e.size_kb/1024).toFixed(1)} MB`
+            : `${e.size_kb} KB`;
+
+        const deletedDate = e.deleted_at ? e.deleted_at.split(' ')[0] : '—';
+
+        return `<div class="trash-card">
+            <div onclick="openTrashPreview(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="cursor:pointer;">
+                ${thumb}
+                <div class="trash-info">
+                    <div class="trash-name" title="${e.original_name}">${e.original_name}</div>
+                    <div class="trash-meta-row">📁 ${e.client_id}</div>
+                    <div class="trash-meta-row">🗓️ Deleted: ${deletedDate} &nbsp;·&nbsp; ${sizeStr}</div>
+                    <span class="trash-days-badge ${badgeCls}">
+                        ${daysLeft === 0 ? 'Expires today' : `${daysLeft} days left`}
+                    </span>
+                </div>
+            </div>
+            <div class="trash-actions">
+                <button class="trash-btn restore" onclick="restoreTrashFile('${e.trash_name}')">↩ Restore</button>
+                <button class="trash-btn" onclick="downloadTrashFile('${e.trash_name}','${e.original_name}','${e.client_id}')">⬇ Download</button>
+                <button class="trash-btn danger" onclick="deleteTrashFile('${e.trash_name}')">✕ Delete</button>
+            </div>
+        </div>`;
+    }
+
+    // ════════════════════════════════
+    // TRASH — Preview Modal
+    // ════════════════════════════════
+    function openTrashPreview(e) {
+        const isImage = e.file_type === 'image';
+
+        document.getElementById('tp-title').textContent = e.original_name;
+        document.getElementById('tp-img-wrap').style.display   = isImage ? 'block' : 'none';
+        document.getElementById('tp-model-wrap').style.display = isImage ? 'none'  : 'block';
+
+        if (isImage) {
+            // Try serving from trash path (not publicly accessible — show placeholder)
+            const img = document.getElementById('tp-img');
+            img.src = '';
+            img.onerror = null;
+            // Images in trash are in private/trash — not directly servable
+            // Show a note instead
+            document.getElementById('tp-img-wrap').innerHTML = `
+                <div style="padding:32px;background:rgba(0,0,0,0.2);border-radius:10px;text-align:center;">
+                    <div style="font-size:2rem;margin-bottom:8px;">🖼️</div>
+                    <div style="font-size:0.8rem;color:var(--muted);">Image preview — file is in private trash storage</div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.2);margin-top:6px;">${e.original_name}</div>
+                </div>`;
+        } else {
+            document.getElementById('tp-model-name').textContent = e.original_name;
+        }
+
+        const sizeStr = e.size_kb >= 1024
+            ? `${(e.size_kb/1024).toFixed(1)} MB`
+            : `${e.size_kb} KB`;
+
+        document.getElementById('tp-meta').innerHTML = `
+            <div class="mini-stat">
+                <div class="mini-stat-label">Restaurant</div>
+                <div class="mini-stat-val" style="font-size:1rem;">${e.client_id}</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">File Type</div>
+                <div class="mini-stat-val" style="font-size:1rem;">${e.file_type === 'image' ? '🖼️ Image' : '📦 3D Model'}</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">Size</div>
+                <div class="mini-stat-val" style="font-size:1rem;">${sizeStr}</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">Days Left</div>
+                <div class="mini-stat-val" style="font-size:1rem;color:${e.days_left<=7?'#ff4757':e.days_left<=14?'#ffb347':'#43e97b'}">${e.days_left}d</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">Deleted At</div>
+                <div class="mini-stat-val" style="font-size:0.85rem;">${e.deleted_at || '—'}</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-label">Auto Delete</div>
+                <div class="mini-stat-val" style="font-size:0.85rem;">${e.auto_delete_at || '—'}</div>
+            </div>
+        `;
+
+        document.getElementById('tp-actions').innerHTML = `
+            <button class="btn btn-ghost" onclick="closeModal('modal-trash-preview')">Close</button>
+            <button class="btn btn-ghost" onclick="downloadTrashFile('${e.trash_name}','${e.original_name}','${e.client_id}');closeModal('modal-trash-preview')">⬇ Download</button>
+            <button class="btn btn-ghost" style="color:#43e97b;border-color:rgba(67,233,123,0.3);" onclick="restoreTrashFile('${e.trash_name}');closeModal('modal-trash-preview')">↩ Restore</button>
+            <button class="btn btn-primary" style="background:#ff4757;border-color:#ff4757;" onclick="deleteTrashFile('${e.trash_name}');closeModal('modal-trash-preview')">✕ Delete</button>
+        `;
+
+        document.getElementById('modal-trash-preview').classList.add('active');
+    }
+
+    // ════════════════════════════════
+    // TRASH — Actions
+    // ════════════════════════════════
+    async function restoreTrashFile(trashName) {
+        if (!confirm('Is file ko original location pe restore karo?')) return;
+        try {
+            const res = await fetch(`/api/admin/trash/${encodeURIComponent(trashName)}/restore`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed');
+            showToast(data.message || 'Restored!', 'success');
+            loadTrash();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function deleteTrashFile(trashName) {
+        if (!confirm('Permanently delete? Ye action undo nahi hoga.')) return;
+        try {
+            const res = await fetch(`/api/admin/trash/${encodeURIComponent(trashName)}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed');
+            showToast('Permanently deleted', 'success');
+            loadTrash();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function downloadTrashFile(trashName, originalName, clientId) {
+        // Download via blob — trash files are not publicly served
+        try {
+            const res = await fetch(`/api/admin/trash/${encodeURIComponent(trashName)}/download`);
+            if (!res.ok) { showToast('Download failed — file may not be accessible', 'error'); return; }
+            const blob = await res.blob();
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = originalName;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch(e) { showToast('Download failed', 'error'); }
+    }
+
+    async function emptyTrash() {
+        const restFilter = document.getElementById('trash-rest-filter').value;
+        const msg = restFilter
+            ? `'${restFilter}' ki saari trash permanently delete karein?`
+            : 'Saari trash permanently delete karein? Ye action undo nahi hoga.';
+        if (!confirm(msg)) return;
+
+        const url = restFilter
+            ? `/api/admin/trash?client_id=${encodeURIComponent(restFilter)}`
+            : '/api/admin/trash';
+        try {
+            const res  = await fetch(url, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed');
+            showToast(data.message, 'success');
+            loadTrash();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+    </script>
     <style>
         .rest-row {
             cursor: pointer;
@@ -869,6 +1224,85 @@
         .mini-stat-sub.down {
             color: #e57373;
         }
+
+        /* ── Trash Cards ── */
+        .trash-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.15s;
+        }
+        .trash-card:hover { border-color: rgba(108,99,255,0.4); }
+
+        .trash-thumb {
+            width: 100%;
+            height: 130px;
+            object-fit: cover;
+            background: rgba(0,0,0,0.25);
+            display: block;
+        }
+        .trash-thumb-placeholder {
+            width: 100%;
+            height: 130px;
+            background: rgba(255,255,255,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.4rem;
+        }
+        .trash-info {
+            padding: 10px 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .trash-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trash-meta-row {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .trash-days-badge {
+            display: inline-block;
+            font-size: 0.68rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .trash-days-ok   { background: rgba(67,233,123,0.12); color: #43e97b; border: 1px solid rgba(67,233,123,0.25); }
+        .trash-days-warn { background: rgba(255,179,71,0.12); color: #ffb347; border: 1px solid rgba(255,179,71,0.25); }
+        .trash-days-crit { background: rgba(255,71,87,0.12);  color: #ff4757; border: 1px solid rgba(255,71,87,0.25); }
+        .trash-actions {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+        }
+        .trash-btn {
+            flex: 1;
+            padding: 5px 0;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .trash-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+        .trash-btn.danger:hover { background: rgba(255,71,87,0.15); color: #ff4757; border-color: rgba(255,71,87,0.4); }
+        .trash-btn.restore:hover { background: rgba(67,233,123,0.12); color: #43e97b; border-color: rgba(67,233,123,0.3); }
     </style>
 
 <div style="text-align:center;padding:10px;font-size:0.72rem;color:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;gap:6px;">

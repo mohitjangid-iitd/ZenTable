@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import hashlib
 import hmac
 import base64
@@ -63,6 +64,139 @@ UPLOAD_RULES = {
         "url_prefix": None,             # JSON mein sirf "{client_id}/file.glb" store hota hai
     },
 }
+
+# ── Trash config ──
+TRASH_DIR        = "private/trash"
+TRASH_META_FILE  = "private/trash/trash_meta.json"
+TRASH_EXPIRY_DAYS = 30
+
+# ════════════════════════════════
+# TRASH HELPERS
+# ════════════════════════════════
+
+def _load_trash_meta() -> list:
+    """trash_meta.json padho — nahi hai to empty list"""
+    if not os.path.exists(TRASH_META_FILE):
+        return []
+    try:
+        with open(TRASH_META_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def _save_trash_meta(meta: list):
+    """trash_meta.json save karo"""
+    os.makedirs(TRASH_DIR, exist_ok=True)
+    with open(TRASH_META_FILE, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+
+def move_to_trash(client_id: str, save_path: str, file_type: str):
+    """
+    Existing file ko trash mein move karo before overwrite.
+    save_path  — jahan file abhi hai  (e.g. static/assets/clint_one/logo.png)
+    file_type  — "image" | "model" | "mind"
+    """
+    if not os.path.exists(save_path):
+        return  # kuch nahi hai overwrite karne ke liye
+
+    now        = datetime.now(IST)
+    ts         = int(now.timestamp())
+    orig_name  = os.path.basename(save_path)
+    trash_name = f"{ts}_{client_id}_{orig_name}"
+
+    trash_client_dir = os.path.join(TRASH_DIR, client_id)
+    os.makedirs(trash_client_dir, exist_ok=True)
+
+    dest = os.path.join(trash_client_dir, trash_name)
+    shutil.move(save_path, dest)
+
+    size_kb = round(os.path.getsize(dest) / 1024, 1)
+    deleted_at     = now.strftime("%Y-%m-%d %H:%M:%S")
+    auto_delete_at = (now + timedelta(days=TRASH_EXPIRY_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+
+    meta = _load_trash_meta()
+    meta.append({
+        "client_id":      client_id,
+        "original_name":  orig_name,
+        "original_path":  save_path,       # restore ke liye
+        "trash_name":     trash_name,
+        "file_type":      file_type,
+        "size_kb":        size_kb,
+        "deleted_at":     deleted_at,
+        "auto_delete_at": auto_delete_at,
+    })
+    _save_trash_meta(meta)
+
+def purge_expired_trash():
+    """
+    30 din se purani trash files delete karo.
+    Lifespan mein call hota hai — server restart pe chalta hai.
+    """
+    meta    = _load_trash_meta()
+    now     = datetime.now(IST)
+    kept    = []
+    deleted = 0
+
+    for entry in meta:
+        try:
+            expiry = datetime.strptime(entry["auto_delete_at"], "%Y-%m-%d %H:%M:%S")
+            expiry = expiry.replace(tzinfo=IST)
+        except Exception:
+            kept.append(entry)
+            continue
+
+        if now > expiry:
+            # File disk se delete karo
+            trash_path = os.path.join(TRASH_DIR, entry["client_id"], entry["trash_name"])
+            if os.path.exists(trash_path):
+                os.remove(trash_path)
+            deleted += 1
+        else:
+            kept.append(entry)
+
+    if deleted:
+        _save_trash_meta(kept)
+        print(f"🗑️  Trash purge: {deleted} expired file(s) deleted")
+
+def restore_from_trash(trash_name: str) -> bool:
+    """
+    Trash file ko uski original location pe wapas rakho.
+    Return True on success, False if not found.
+    """
+    meta = _load_trash_meta()
+    entry = next((e for e in meta if e["trash_name"] == trash_name), None)
+    if not entry:
+        return False
+
+    trash_path    = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
+    original_path = entry["original_path"]
+
+    if not os.path.exists(trash_path):
+        return False
+
+    os.makedirs(os.path.dirname(original_path), exist_ok=True)
+    shutil.move(trash_path, original_path)
+
+    # Meta se entry hatao
+    updated = [e for e in meta if e["trash_name"] != trash_name]
+    _save_trash_meta(updated)
+    return True
+
+def delete_from_trash(trash_name: str) -> bool:
+    """Trash se permanently delete karo."""
+    meta  = _load_trash_meta()
+    entry = next((e for e in meta if e["trash_name"] == trash_name), None)
+    if not entry:
+        return False
+
+    trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
+    if os.path.exists(trash_path):
+        os.remove(trash_path)
+
+    updated = [e for e in meta if e["trash_name"] != trash_name]
+    _save_trash_meta(updated)
+    return True
+
 
 def create_glb_token(client_id: str, filepath: str) -> str:
     """GLB file ke liye signed token banao — 10 min expiry"""
@@ -152,6 +286,7 @@ def require_auth(token: Optional[str], allowed_roles: list, client_id: str = Non
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    purge_expired_trash()   # Server start pe expired trash files clean karo
     for filename in os.listdir("data"):
         if filename.endswith(".json"):
             client_id = filename.replace(".json", "")
@@ -453,6 +588,7 @@ async def api_upload_asset(
     client_id: str,
     file: UploadFile = File(...),
     type: str = Form(...),           # "image" | "model" | "mind"
+    old_path: Optional[str] = Form(None),  # purani file ka path — frontend se bhejo, trash ho jayegi
     auth_token: Optional[str] = Cookie(None),
 ):
     require_auth(auth_token, ["admin"])
@@ -491,6 +627,24 @@ async def api_upload_asset(
     # ── Folder banao ──
     folder = os.path.join(rule["folder"], client_id)
     os.makedirs(folder, exist_ok=True)
+
+    # ── Purani file trash mein move karo (agar exist karti hai) ──
+    # mind files (targets.mind) trash mein nahi jayengi — seedha overwrite
+    save_path = os.path.join(folder, safe_name)
+    if type != "mind":
+        # 1. Same naam ki file ho to trash karo (direct overwrite case)
+        move_to_trash(client_id, save_path, type)
+
+        # 2. Frontend ne old_path bheja ho (alag naam wali purani file) to usse bhi trash karo
+        #    Model case: "clint_two/pizza.glb" → private/assets/clint_two/pizza.glb
+        #    Image case: "/static/assets/clint_two/old_logo.png" → static/assets/clint_two/old_logo.png
+        if old_path and old_path.strip().lower() not in ("", "none"):
+            old_path = old_path.strip().lstrip("/")  # leading slash hata do
+            old_full = os.path.join("private/assets", old_path) if type == "model" \
+                       else old_path  # image path already has static/assets/... prefix
+            # Sirf tabhi trash karo agar yeh save_path se alag file hai
+            if os.path.abspath(old_full) != os.path.abspath(save_path):
+                move_to_trash(client_id, old_full, type)
 
     # ── File save karo (overwrite) ──
     save_path = os.path.join(folder, safe_name)
@@ -654,6 +808,97 @@ async def api_export_db_zip(auth_token: Optional[str] = Cookie(None)):
         filename=filename,
         background=BackgroundTask(os.remove, zip_path)
     )
+
+# ════════════════════════════════
+# TRASH API
+# ════════════════════════════════
+
+@app.get("/api/admin/trash")
+async def api_get_trash(client_id: str = None, auth_token: Optional[str] = Cookie(None)):
+    """
+    Saari trash files list karo.
+    client_id query param dene pe usi restaurant ki files filter hongi.
+    Har entry mein 'days_left' bhi hoga.
+    """
+    require_auth(auth_token, ["admin"])
+    meta = _load_trash_meta()
+    now  = datetime.now(IST)
+
+    result = []
+    for entry in meta:
+        if client_id and entry["client_id"] != client_id:
+            continue
+        try:
+            expiry   = datetime.strptime(entry["auto_delete_at"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=IST)
+            days_left = max(0, (expiry - now).days)
+        except Exception:
+            days_left = None
+        result.append({**entry, "days_left": days_left})
+
+    # Naye pehle
+    result.sort(key=lambda x: x["deleted_at"], reverse=True)
+    return result
+
+@app.post("/api/admin/trash/{trash_name}/restore")
+async def api_restore_trash(trash_name: str, auth_token: Optional[str] = Cookie(None)):
+    """Trash file ko uski original location pe wapas rakho."""
+    require_auth(auth_token, ["admin"])
+    ok = restore_from_trash(trash_name)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Trash entry nahi mila ya file missing hai")
+    return {"message": f"'{trash_name}' restore ho gayi"}
+
+@app.delete("/api/admin/trash/{trash_name}")
+async def api_delete_trash(trash_name: str, auth_token: Optional[str] = Cookie(None)):
+    """Trash file permanently delete karo."""
+    require_auth(auth_token, ["admin"])
+    ok = delete_from_trash(trash_name)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Trash entry nahi mila")
+    return {"message": f"'{trash_name}' permanently delete ho gayi"}
+
+@app.get("/api/admin/trash/{trash_name}/download")
+async def api_download_trash(trash_name: str, auth_token: Optional[str] = Cookie(None)):
+    """Trash file download karo — direct file serve"""
+    require_auth(auth_token, ["admin"])
+    meta  = _load_trash_meta()
+    entry = next((e for e in meta if e["trash_name"] == trash_name), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Trash entry nahi mila")
+    trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
+    if not os.path.exists(trash_path):
+        raise HTTPException(status_code=404, detail="File disk pe nahi mili")
+    return FileResponse(
+        trash_path,
+        filename=entry["original_name"],
+        media_type="application/octet-stream"
+    )
+
+@app.delete("/api/admin/trash")
+async def api_empty_trash(client_id: str = None, auth_token: Optional[str] = Cookie(None)):
+    """
+    Saari trash empty karo.
+    client_id dene pe sirf usi restaurant ki trash saaf hogi.
+    """
+    require_auth(auth_token, ["admin"])
+    meta    = _load_trash_meta()
+    removed = 0
+
+    for entry in meta:
+        if client_id and entry["client_id"] != client_id:
+            continue
+        trash_path = os.path.join(TRASH_DIR, entry["client_id"], entry["trash_name"])
+        if os.path.exists(trash_path):
+            os.remove(trash_path)
+        removed += 1
+
+    if client_id:
+        updated = [e for e in meta if e["client_id"] != client_id]
+    else:
+        updated = []
+
+    _save_trash_meta(updated)
+    return {"message": f"{removed} file(s) permanently delete ki gayi"}
 
 # ════════════════════════════════
 # PUBLIC PAGE ROUTES
@@ -1030,7 +1275,7 @@ async def api_edit_order_items(order_id: int, body: EditOrderItemsRequest,
             new_ready_list.append({"name": name, "qty": ready_qty})
 
     if not new_items:
-        conn.execute("UPDATE orders SET status='cancelled' WHERE id=", (order_id,))
+        conn.execute("UPDATE orders SET status='cancelled' WHERE id=%s", (order_id,))
         conn.commit()
         conn.close()
         return {"message": "Order cancelled — no items left"}
