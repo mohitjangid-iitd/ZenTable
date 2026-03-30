@@ -1037,7 +1037,6 @@
                 </div>
             </div>
             <div class="trash-actions">
-                <button class="trash-btn restore" onclick="restoreTrashFile('${e.trash_name}')">↩ Restore</button>
                 <button class="trash-btn" onclick="downloadTrashFile('${e.trash_name}','${e.original_name}','${e.client_id}')">⬇ Download</button>
                 <button class="trash-btn danger" onclick="deleteTrashFile('${e.trash_name}')">✕ Delete</button>
             </div>
@@ -1105,7 +1104,6 @@
         document.getElementById('tp-actions').innerHTML = `
             <button class="btn btn-ghost" onclick="closeModal('modal-trash-preview')">Close</button>
             <button class="btn btn-ghost" onclick="downloadTrashFile('${e.trash_name}','${e.original_name}','${e.client_id}');closeModal('modal-trash-preview')">⬇ Download</button>
-            <button class="btn btn-ghost" style="color:#43e97b;border-color:rgba(67,233,123,0.3);" onclick="restoreTrashFile('${e.trash_name}');closeModal('modal-trash-preview')">↩ Restore</button>
             <button class="btn btn-primary" style="background:#ff4757;border-color:#ff4757;" onclick="deleteTrashFile('${e.trash_name}');closeModal('modal-trash-preview')">✕ Delete</button>
         `;
 
@@ -1115,16 +1113,6 @@
     // ════════════════════════════════
     // TRASH — Actions
     // ════════════════════════════════
-    async function restoreTrashFile(trashName) {
-        if (!confirm('Is file ko original location pe restore karo?')) return;
-        try {
-            const res = await fetch(`/api/admin/trash/${encodeURIComponent(trashName)}/restore`, { method: 'POST' });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Failed');
-            showToast(data.message || 'Restored!', 'success');
-            loadTrash();
-        } catch(e) { showToast(e.message, 'error'); }
-    }
 
     async function deleteTrashFile(trashName) {
         if (!confirm('Permanently delete? Ye action undo nahi hoga.')) return;
@@ -1302,7 +1290,6 @@
         }
         .trash-btn:hover { background: rgba(255,255,255,0.06); color: white; }
         .trash-btn.danger:hover { background: rgba(255,71,87,0.15); color: #ff4757; border-color: rgba(255,71,87,0.4); }
-        .trash-btn.restore:hover { background: rgba(67,233,123,0.12); color: #43e97b; border-color: rgba(67,233,123,0.3); }
     </style>
 
 <div style="text-align:center;padding:10px;font-size:0.72rem;color:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;gap:6px;">
