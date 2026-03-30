@@ -32,7 +32,7 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 | Layer | Technology |
 |---|---|
 | Backend | Python — FastAPI |
-| Database | SQLite (`data/orders.db`) |
+| Database | PostgreSQL |
 | Static data | JSON files (`data/{client_id}.json`) |
 | Frontend | HTML, CSS, Vanilla JS |
 | AR | MindAR + Three.js |
@@ -54,7 +54,6 @@ zentable/
 ├── requirements.txt
 │
 ├── data/
-│   ├── orders.db                # SQLite database
 │   ├── clint_one.json           # Restaurant 1 config (menu + theme + info)
 │   └── clint_two.json           # Restaurant 2 config
 │
