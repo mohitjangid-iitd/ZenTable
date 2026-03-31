@@ -388,6 +388,14 @@ def ping():
     return {"status": "ok"}
 
 # ════════════════════════════════
+# Google Search Console ownership verification route
+# ════════════════════════════════
+
+@app.get("/OwnershipVerificationFile")
+def verify():
+    return FileResponse("Public_HTML/google67ff8e4e4bb9c2ef.html")
+
+# ════════════════════════════════
 # Landing Page
 # ════════════════════════════════
 
