@@ -395,6 +395,33 @@ def ping():
 def verify():
     return FileResponse("Public_HTML/google67ff8e4e4bb9c2ef.html")
 
+@app.get("/sitemap.xml")
+async def sitemap(request: Request):
+    base_url = str(request.base_url).rstrip("/")
+    urls = [f"{base_url}/"]
+    
+    try:
+        restaurants = get_all_restaurants_info()
+        for r in restaurants:
+            rdata = get_client_data(r["client_id"])
+            if not rdata or not rdata.get("subscription", {}).get("active", True):
+                continue
+            cid = r["client_id"]
+            urls.append(f"{base_url}/{cid}")
+            urls.append(f"{base_url}/{cid}/menu")
+            if "ar_menu" in rdata.get("subscription", {}).get("features", []):
+                urls.append(f"{base_url}/{cid}/ar-menu")
+    except Exception as e:
+        print(f"Sitemap error: {e}")
+    
+    xml = '<?xml version="1.0" encoding="UTF-8"?>'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    for url in urls:
+        xml += f"<url><loc>{url}</loc></url>"
+    xml += "</urlset>"
+    
+    return Response(content=xml, media_type="application/xml")
+
 # ════════════════════════════════
 # Landing Page
 # ════════════════════════════════
