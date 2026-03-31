@@ -278,6 +278,7 @@ select {
     font-size: 0.84rem;
     outline: none;
     cursor: pointer;
+    appearance: none;
     -webkit-appearance: none;
 }
 select option {
