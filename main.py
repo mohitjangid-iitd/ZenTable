@@ -391,7 +391,7 @@ def ping():
 # Google Search Console ownership verification route
 # ════════════════════════════════
 
-@app.get("/OwnershipVerificationFile")
+@app.get("/google67ff8e4e4bb9c2ef.html")
 def verify():
     return FileResponse("Public_HTML/google67ff8e4e4bb9c2ef.html")
 
