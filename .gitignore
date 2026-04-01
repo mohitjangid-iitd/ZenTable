@@ -26,3 +26,7 @@ manage_restaurant.py
 data/orders.db
 data/*.db-wal
 data/*.db-shm
+
+# local assets
+static/assets/
+private/
