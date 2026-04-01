@@ -3,8 +3,8 @@
     "name": "Bombay Chaat Corner",
     "num_tables": 7,
     "tagline": "Taste the Streets of India",
-    "logo": "/static/assets/clint_two/bc_ka_logo.png",
-    "banner": "/static/assets/clint_two/banner_of_bc.png",
+    "logo": "https://assets.zentable.in/clint_two/bc_ka_logo.png",
+    "banner": "https://assets.zentable.in/clint_two/banner_of_bc.png",
     "description": "Relish the vibrant flavors of Indian street food with a modern presentation. From chaats to beverages, every item is crafted for taste and freshness.",
     "cuisine_type": "Street Food & Beverages",
     "phone": "+91 91234 56789",
@@ -21,7 +21,7 @@
       "twitter": "https://twitter.com/bombaychaat"
     }
   },
-  "targets": "/static/assets/clint_two/targets.mind",
+  "targets": "https://assets.zentable.in/clint_two/targets.mind",
   "theme": {
     "primary_color": "#FF9933",
     "secondary_color": "#1c1c1c",
@@ -35,7 +35,7 @@
     {
       "name": "Russian Salad",
       "description": "Creamy salad with vegetables and mayonnaise dressing",
-      "image": "/static/assets/clint_two/russian_salad.webp",
+      "image": "https://assets.zentable.in/clint_two/russian_salad.webp",
       "price": "INR 120",
       "veg": true,
       "featured": false,
@@ -51,7 +51,7 @@
     {
       "name": "Caesar Salad",
       "description": "Classic salad with lettuce, chicken and dressing",
-      "image": "/static/assets/clint_two/caesar_salad.webp",
+      "image": "https://assets.zentable.in/clint_two/caesar_salad.webp",
       "price": "INR 220",
       "veg": false,
       "featured": false,
@@ -67,7 +67,7 @@
     {
       "name": "Chole Bhature",
       "description": "Spicy chickpea curry served with fluffy fried bread",
-      "image": "/static/assets/clint_two/chole_bhature.webp",
+      "image": "https://assets.zentable.in/clint_two/chole_bhature.webp",
       "price": "INR 180",
       "veg": true,
       "featured": true,
@@ -83,7 +83,7 @@
     {
       "name": "Cold Coffee",
       "description": "Chilled coffee blended with ice and milk",
-      "image": "/static/assets/clint_two/cold_coffee.webp",
+      "image": "https://assets.zentable.in/clint_two/cold_coffee.webp",
       "price": "INR 120",
       "veg": true,
       "featured": true,
@@ -99,7 +99,7 @@
     {
       "name": "Dahi Puri",
       "description": "Crispy puris filled with curd and chutneys",
-      "image": "/static/assets/clint_two/dahi_puri.webp",
+      "image": "https://assets.zentable.in/clint_two/dahi_puri.webp",
       "price": "INR 120",
       "veg": true,
       "featured": true,
@@ -115,7 +115,7 @@
     {
       "name": "Fresh Lime Soda",
       "description": "Refreshing lime soda drink",
-      "image": "/static/assets/clint_two/fresh-lime-soda.webp",
+      "image": "https://assets.zentable.in/clint_two/fresh-lime-soda.webp",
       "price": "INR 90",
       "veg": true,
       "featured": false,
@@ -131,7 +131,7 @@
     {
       "name": "Iced Tea",
       "description": "Cool refreshing iced tea with lemon",
-      "image": "/static/assets/clint_two/iced_tea.webp",
+      "image": "https://assets.zentable.in/clint_two/iced_tea.webp",
       "price": "INR 100",
       "veg": true,
       "featured": false,
@@ -147,7 +147,7 @@
     {
       "name": "Green Salad",
       "description": "Healthy mix of fresh vegetables",
-      "image": "/static/assets/clint_two/greem_salad.webp",
+      "image": "https://assets.zentable.in/clint_two/greem_salad.webp",
       "price": "INR 100",
       "veg": true,
       "featured": false,
@@ -163,7 +163,7 @@
     {
       "name": "Chocolate Milkshake",
       "description": "Rich chocolate shake topped with cream",
-      "image": "/static/assets/clint_two/chocolate_milkshake.webp",
+      "image": "https://assets.zentable.in/clint_two/chocolate_milkshake.webp",
       "price": "INR 160",
       "veg": true,
       "featured": true,
@@ -179,7 +179,7 @@
     {
       "name": "Blue Lagoon",
       "description": "Refreshing blue mocktail with citrus flavors",
-      "image": "/static/assets/clint_two/blue_lagoon.jpeg",
+      "image": "https://assets.zentable.in/clint_two/blue_lagoon.jpeg",
       "price": "INR 140",
       "veg": true,
       "featured": false,
@@ -195,7 +195,7 @@
     {
       "name": "Kachumber Salad",
       "description": "Fresh Indian salad with chopped vegetables",
-      "image": "/static/assets/clint_two/kachumber_salad.webp",
+      "image": "https://assets.zentable.in/clint_two/kachumber_salad.webp",
       "price": "INR 90",
       "veg": true,
       "featured": false,
@@ -211,7 +211,7 @@
     {
       "name": "Oreo Milkshake",
       "description": "Creamy shake blended with Oreo biscuits",
-      "image": "/static/assets/clint_two/oreo_milkshake.webp",
+      "image": "https://assets.zentable.in/clint_two/oreo_milkshake.webp",
       "price": "INR 160",
       "veg": true,
       "featured": true,
@@ -227,7 +227,7 @@
     {
       "name": "Paneer Pakoda",
       "description": "Deep fried paneer fritters",
-      "image": "/static/assets/clint_two/paneer_pakoda.webp",
+      "image": "https://assets.zentable.in/clint_two/paneer_pakoda.webp",
       "price": "INR 180",
       "veg": true,
       "featured": false,
@@ -243,7 +243,7 @@
     {
       "name": "Raj Kachori",
       "description": "Stuffed crispy kachori with chutneys",
-      "image": "/static/assets/clint_two/raj_kachori.webp",
+      "image": "https://assets.zentable.in/clint_two/raj_kachori.webp",
       "price": "INR 150",
       "veg": true,
       "featured": true,
@@ -259,7 +259,7 @@
     {
       "name": "Strawberry Milkshake",
       "description": "Sweet strawberry flavored milkshake",
-      "image": "/static/assets/clint_two/strawberry_milkshake.webp",
+      "image": "https://assets.zentable.in/clint_two/strawberry_milkshake.webp",
       "price": "INR 150",
       "veg": true,
       "featured": false,
@@ -275,7 +275,7 @@
     {
       "name": "Vanilla Shake",
       "description": "Classic vanilla flavored milkshake",
-      "image": "/static/assets/clint_two/vanilla_shake.webp",
+      "image": "https://assets.zentable.in/clint_two/vanilla_shake.webp",
       "price": "INR 140",
       "veg": true,
       "featured": false,
@@ -291,7 +291,7 @@
     {
       "name": "Tomato Soup",
       "description": "Warm and tangy tomato soup",
-      "image": "/static/assets/clint_two/tomato_soup.webp",
+      "image": "https://assets.zentable.in/clint_two/tomato_soup.webp",
       "price": "INR 110",
       "veg": true,
       "featured": false,
@@ -323,7 +323,7 @@
       "category": "Pizza",
       "description": "Authentic Italian Test in your Plate",
       "ingredients": "",
-      "image": "/static/assets/clint_two/pizza.jpg",
+      "image": "https://assets.zentable.in/clint_two/pizza.jpg",
       "model": "clint_two/pija.glb",
       "position": "0 0 0",
       "scale": "2 2 2",

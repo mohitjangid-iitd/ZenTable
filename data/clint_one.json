@@ -3,8 +3,8 @@
     "name": "The Golden Spoon",
     "num_tables": 9,
     "tagline": "Where Tradition Meets Innovation",
-    "logo": "/static/assets/clint_one/logo.png",
-    "banner": "/static/assets/clint_one/banner.png",
+    "logo": "https://assets.zentable.in/clint_one/logo.png",
+    "banner": "https://assets.zentable.in/clint_one/banner.png",
     "description": "Experience authentic Indian cuisine with a modern twist. Our chefs blend traditional recipes with contemporary techniques to create unforgettable dining experiences.",
     "cuisine_type": "North Indian & Mughlai",
     "phone": "+91 98765 43210",
@@ -30,12 +30,12 @@
     "font_primary": "Playfair Display",
     "font_secondary": "Poppins"
   },
-  "targets": "/static/assets/clint_one/targets.mind",
+  "targets": "https://assets.zentable.in/clint_one/targets.mind",
   "items": [
     {
       "name": "Butter Chicken",
       "description": "Tender chicken in rich tomato-butter gravy, slow cooked with aromatic spices",
-      "image": "/static/assets/clint_one/butter_chicken.jpg",
+      "image": "https://assets.zentable.in/clint_one/butter_chicken.jpg",
       "price": "INR 450",
       "veg": false,
       "featured": true,
@@ -51,7 +51,7 @@
     {
       "name": "Paneer Tikka",
       "description": "Grilled cottage cheese marinated in yogurt and aromatic spices, served with mint chutney",
-      "image": "/static/assets/clint_one/paneer_tikka.jpg",
+      "image": "https://assets.zentable.in/clint_one/paneer_tikka.jpg",
       "price": "INR 380",
       "veg": true,
       "featured": true,
@@ -67,7 +67,7 @@
     {
       "name": "Dal Makhani",
       "description": "Slow-cooked black lentils simmered overnight with butter and cream",
-      "image": "/static/assets/clint_one/dal_makhani.jpg",
+      "image": "https://assets.zentable.in/clint_one/dal_makhani.jpg",
       "sizes": [
         {
           "label": "Half",
@@ -92,7 +92,7 @@
     {
       "name": "Mojito",
       "description": "Refreshing mint and lime drink mixed with soda and crushed ice",
-      "image": "/static/assets/clint_one/mojito.jpg",
+      "image": "https://assets.zentable.in/clint_one/mojito.jpg",
       "sizes": [
         {
           "label": "Regular",

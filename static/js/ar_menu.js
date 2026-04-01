@@ -161,6 +161,9 @@ async function loadMenu() {
 
             document.querySelectorAll(".dish-btn")
                 .forEach((b, i) => b.classList.toggle("active", i === index));
+
+            // Preload next model for smoother UX
+            preloadNextModel(arItems, index);
         };
 
         carousel.appendChild(btn);
@@ -168,6 +171,29 @@ async function loadMenu() {
     });
 }
 loadMenu();
+
+// ======================
+// PRELOAD NEXT MODEL
+// ======================
+function preloadNextModel(items, currentIndex) {
+    if (!items || items.length <= 1) return;
+
+    const nextIndex = (currentIndex + 1) % items.length;
+    const nextItem = items[nextIndex];
+    if (!nextItem?.model_url) return;
+
+    // Remove old preloader if exists
+    const old = document.getElementById('preload-entity');
+    if (old) old.parentNode.removeChild(old);
+
+    // Create invisible entity to preload GLB into browser cache
+    const preloader = document.createElement('a-entity');
+    preloader.setAttribute('id', 'preload-entity');
+    preloader.setAttribute('gltf-model', nextItem.model_url);
+    preloader.setAttribute('visible', 'false');
+    preloader.setAttribute('position', '9999 9999 9999'); // completely off-screen
+    sceneEl.appendChild(preloader);
+}
 
 // ======================
 // RESTRICTED TOUCH ROTATION (Y-AXIS ONLY)

@@ -1159,6 +1159,95 @@
         } catch(e) { showToast(e.message, 'error'); }
     }
     </script>
+
+    <!-- GLB AUDIT MODAL -->
+    <div class="modal-overlay" id="modal-glb-audit">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-head">
+                <div class="modal-title" id="glb-audit-title">📦 GLB Audit Report</div>
+                <button class="modal-close" onclick="closeModal('modal-glb-audit')">&#x2715;</button>
+            </div>
+            <div class="modal-body" id="glb-audit-body"></div>
+            <div class="modal-foot">
+                <button class="btn btn-primary" onclick="closeModal('modal-glb-audit')">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function showGlbAudit(audit, message, filename) {
+        if (!audit) return;
+        const title = document.getElementById('glb-audit-title');
+        const body  = document.getElementById('glb-audit-body');
+        if (!title || !body) return;
+        title.textContent = '\ud83d\udce6 ' + (filename || 'GLB') + ' \u2014 Audit Report';
+        const isOk       = audit.benchmark_ok;
+        const scoreColor = isOk ? '#43e97b' : '#ffb347';
+        const scoreIcon  = isOk ? '\u2705' : '\u26a0\ufe0f';
+        const scoreText  = isOk ? 'All benchmarks met!' : 'Needs attention';
+        const reductionBadge = audit.size_reduction_pct > 0
+            ? '<span style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(67,233,123,0.15);color:#43e97b;border:1px solid rgba(67,233,123,0.3);">-' + audit.size_reduction_pct + '% size</span>'
+            : '';
+        const warningsHtml = (audit.warnings && audit.warnings.length)
+            ? '<div style="margin-top:14px;"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Warnings</div>'
+              + audit.warnings.map(function(w){return '<div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.2);margin-bottom:6px;">\u26a0\ufe0f <span style="font-size:0.8rem;color:#ffb347;">' + w + '</span></div>';}).join('')
+              + '</div>'
+            : '';
+        const recsHtml = (audit.recommendations && audit.recommendations.length)
+            ? '<div style="margin-top:14px;"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Recommendations</div>'
+              + audit.recommendations.map(function(r){return '<div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);margin-bottom:6px;">💡 <span style="font-size:0.8rem;color:rgba(255,255,255,0.75);">' + r + '</span></div>';}).join('')
+              + '</div>'
+            : '';
+        const msgHtml = message
+            ? '<div style="padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);margin-bottom:16px;font-size:0.78rem;color:var(--muted);">' + message + '</div>'
+            : '';
+        body.innerHTML = msgHtml
+            + '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);margin-bottom:16px;">'
+            + '<span style="font-size:1.5rem;">' + scoreIcon + '</span>'
+            + '<div><div style="font-size:0.9rem;font-weight:600;color:' + scoreColor + ';">' + scoreText + '</div>'
+            + '<div style="font-size:0.72rem;color:var(--muted);">Mobile AR benchmark check</div></div>'
+            + '<div style="margin-left:auto;">' + reductionBadge + '</div></div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">'
+            + '<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">'
+            + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;">File Size</div>'
+            + '<div style="font-size:1.1rem;font-weight:700;color:' + (audit.optimized_size_mb <= 3 ? '#43e97b' : '#ff6b6b') + ';">' + audit.optimized_size_mb + ' MB</div>'
+            + '<div style="font-size:0.68rem;color:var(--muted);">was ' + audit.original_size_mb + ' MB &middot; target &lt;3MB</div></div>'
+            + '<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">'
+            + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;">Est. Load Time</div>'
+            + '<div style="font-size:1.1rem;font-weight:700;color:' + (audit.estimated_load_time_sec <= 2 ? '#43e97b' : '#ffb347') + ';">' + audit.estimated_load_time_sec + 's</div>'
+            + '<div style="font-size:0.68rem;color:var(--muted);">4G pe estimate &middot; target &lt;2s</div></div>'
+            + '<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">'
+            + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;">Poly Count</div>'
+            + '<div style="font-size:1.1rem;font-weight:700;color:' + (audit.poly_count <= 20000 && audit.poly_count > 0 ? '#43e97b' : '#ffb347') + ';"> ' + (audit.poly_count > 0 ? audit.poly_count.toLocaleString() : '&mdash;') + '</div>'
+            + '<div style="font-size:0.68rem;color:var(--muted);">target: 5k&ndash;20k</div></div>'
+            + '<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">'
+            + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;">Textures</div>'
+            + '<div style="font-size:1.1rem;font-weight:700;color:white;">' + audit.texture_count + '</div>'
+            + '<div style="font-size:0.68rem;color:var(--muted);">' + (audit.texture_optimized ? '\u2705 WebP' : '&mdash;') + (audit.draco_applied ? ' &middot; \u2705 Draco' : '') + '</div></div>'
+            + '</div>'
+            + warningsHtml + recsHtml;
+        openModal('modal-glb-audit');
+    }
+    (function() {
+        var _orig = window.fetch;
+        window.fetch = async function(url, options) {
+            var response = await _orig.apply(this, arguments);
+            if (typeof url === 'string' && url.includes('/api/admin/upload/')
+                && options && options.body instanceof FormData
+                && options.body.get('type') === 'model') {
+                response.clone().json().then(function(data) {
+                    if (data.audit) {
+                        var hint = document.getElementById('di-model-hint');
+                        var filename = (hint && hint.textContent) ? hint.textContent.replace('\u2713 ', '') : 'model.glb';
+                        showGlbAudit(data.audit, data.optimization_message, filename);
+                    }
+                }).catch(function(){});
+            }
+            return response;
+        };
+    })();
+    </script>
+
     <style>
         .rest-row {
             cursor: pointer;
