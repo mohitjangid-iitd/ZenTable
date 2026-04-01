@@ -6,6 +6,7 @@ import hmac
 import base64
 import bcrypt
 import copy
+import tempfile
 from datetime import datetime, timezone, timedelta
 from starlette.background import BackgroundTask
 from contextlib import asynccontextmanager
@@ -30,8 +31,82 @@ from database import (
     create_admin, export_full_db_zip
 )
 from auth import login_staff, login_admin, decode_token, get_redirect_url
+from glb_optimizer import optimize_and_audit
 
 IST = timezone(timedelta(hours=5, minutes=30))
+
+# ════════════════════════════════
+# R2 SETUP
+# ════════════════════════════════
+
+USE_R2 = os.environ.get("USE_R2", "false").lower() == "true"
+
+if USE_R2:
+    import boto3
+    from botocore.config import Config as BotocoreConfig
+    _r2_client = boto3.client(
+        "s3",
+        endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+        aws_access_key_id=os.environ["R2_ACCESS_KEY"],
+        aws_secret_access_key=os.environ["R2_SECRET_KEY"],
+        config=BotocoreConfig(signature_version="s3v4"),
+        region_name="auto",
+    )
+    R2_BUCKET     = os.environ["R2_BUCKET"]
+    R2_PUBLIC_URL = os.environ["R2_PUBLIC_URL"].rstrip("/")
+else:
+    _r2_client    = None
+    R2_BUCKET     = None
+    R2_PUBLIC_URL = None
+
+def _content_type(filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    return {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".png": "image/png",  ".webp": "image/webp",
+        ".gif": "image/gif",  ".glb":  "model/gltf-binary",
+        ".gltf": "model/gltf+json", ".mind": "application/octet-stream",
+    }.get(ext, "application/octet-stream")
+
+def r2_upload(contents: bytes, key: str, filename: str):
+    """R2 pe file upload karo"""
+    _r2_client.put_object(
+        Bucket=R2_BUCKET,
+        Key=key,
+        Body=contents,
+        ContentType=_content_type(filename),
+    )
+
+def r2_delete(key: str):
+    """R2 se file delete karo"""
+    try:
+        _r2_client.delete_object(Bucket=R2_BUCKET, Key=key)
+    except Exception:
+        pass
+
+def r2_copy(src_key: str, dst_key: str) -> bool:
+    """R2 mein file copy karo (trash ke liye)"""
+    try:
+        _r2_client.copy_object(
+            Bucket=R2_BUCKET,
+            CopySource={"Bucket": R2_BUCKET, "Key": src_key},
+            Key=dst_key,
+        )
+        return True
+    except Exception:
+        return False
+
+def r2_presign(key: str, expires: int = 600) -> str:
+    """GLB ke liye R2 presigned URL — 10 min expiry"""
+    return _r2_client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": R2_BUCKET, "Key": key},
+        ExpiresIn=expires,
+    )
+
+def r2_public_url(key: str) -> str:
+    """Images/mind ke liye R2 public URL"""
+    return f"{R2_PUBLIC_URL}/{key}"
 
 # ════════════════════════════════
 # CONFIG & CONSTANTS
@@ -93,45 +168,64 @@ def _save_trash_meta(meta: list):
 def move_to_trash(client_id: str, save_path: str, file_type: str):
     """
     Existing file ko trash mein move karo before overwrite.
-    save_path  — jahan file abhi hai  (e.g. static/assets/clint_one/logo.png)
+    save_path  — local path (e.g. static/assets/clint_one/logo.png)
+                 ya R2 key (e.g. clint_one/logo.png) — USE_R2 ke hisaab se
     file_type  — "image" | "model" | "mind"
     """
-    if not os.path.exists(save_path):
-        return  # kuch nahi hai overwrite karne ke liye
-
     now        = datetime.now(IST)
     ts         = int(now.timestamp())
     orig_name  = os.path.basename(save_path)
     trash_name = f"{ts}_{client_id}_{orig_name}"
-
-    trash_client_dir = os.path.join(TRASH_DIR, client_id)
-    os.makedirs(trash_client_dir, exist_ok=True)
-
-    dest = os.path.join(trash_client_dir, trash_name)
-    shutil.move(save_path, dest)
-
-    size_kb = round(os.path.getsize(dest) / 1024, 1)
     deleted_at     = now.strftime("%Y-%m-%d %H:%M:%S")
     auto_delete_at = (now + timedelta(days=TRASH_EXPIRY_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+
+    if USE_R2:
+        # R2 key derive karo save_path se
+        # image: "static/assets/clint_one/logo.png" → "clint_one/logo.png"
+        # model: "private/assets/clint_one/burger.glb" → "clint_one/burger.glb"
+        # old_path (model): "clint_one/burger.glb" → already correct
+        src_key = save_path
+        for prefix in ("static/assets/", "private/assets/"):
+            if save_path.startswith(prefix):
+                src_key = save_path[len(prefix):]
+                break
+
+        trash_key = f"trash/{client_id}/{trash_name}"
+
+        # R2 pe copy karo, phir original delete karo
+        copied = r2_copy(src_key, trash_key)
+        if not copied:
+            return  # file R2 pe thi hi nahi
+
+        r2_delete(src_key)
+        size_kb = 0  # R2 se size fetch karna expensive hai, skip
+
+    else:
+        if not os.path.exists(save_path):
+            return
+
+        trash_client_dir = os.path.join(TRASH_DIR, client_id)
+        os.makedirs(trash_client_dir, exist_ok=True)
+        dest = os.path.join(trash_client_dir, trash_name)
+        shutil.move(save_path, dest)
+        size_kb = round(os.path.getsize(dest) / 1024, 1)
 
     meta = _load_trash_meta()
     meta.append({
         "client_id":      client_id,
         "original_name":  orig_name,
-        "original_path":  save_path,       # restore ke liye
+        "original_path":  save_path,
         "trash_name":     trash_name,
         "file_type":      file_type,
         "size_kb":        size_kb,
         "deleted_at":     deleted_at,
         "auto_delete_at": auto_delete_at,
+        "storage":        "r2" if USE_R2 else "local",
     })
     _save_trash_meta(meta)
 
 def purge_expired_trash():
-    """
-    30 din se purani trash files delete karo.
-    Lifespan mein call hota hai — server restart pe chalta hai.
-    """
+    """30 din se purani trash files delete karo. Lifespan mein call hota hai."""
     meta    = _load_trash_meta()
     now     = datetime.now(IST)
     kept    = []
@@ -146,10 +240,12 @@ def purge_expired_trash():
             continue
 
         if now > expiry:
-            # File disk se delete karo
-            trash_path = os.path.join(TRASH_DIR, entry["client_id"], entry["trash_name"])
-            if os.path.exists(trash_path):
-                os.remove(trash_path)
+            if entry.get("storage") == "r2" or USE_R2:
+                r2_delete(f"trash/{entry['client_id']}/{entry['trash_name']}")
+            else:
+                trash_path = os.path.join(TRASH_DIR, entry["client_id"], entry["trash_name"])
+                if os.path.exists(trash_path):
+                    os.remove(trash_path)
             deleted += 1
         else:
             kept.append(entry)
@@ -189,9 +285,12 @@ def delete_from_trash(trash_name: str) -> bool:
     if not entry:
         return False
 
-    trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
-    if os.path.exists(trash_path):
-        os.remove(trash_path)
+    if entry.get("storage") == "r2" or USE_R2:
+        r2_delete(f"trash/{entry['client_id']}/{trash_name}")
+    else:
+        trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
+        if os.path.exists(trash_path):
+            os.remove(trash_path)
 
     updated = [e for e in meta if e["trash_name"] != trash_name]
     _save_trash_meta(updated)
@@ -444,13 +543,17 @@ async def serve_asset(request: Request, client_id: str, filename: str):
     if ".." in client_id or ".." in filename or "/" in filename:
         raise HTTPException(status_code=403, detail="Forbidden")
     ext = os.path.splitext(filename)[1].lower()
-    # GLB/mind ab is route se serve nahi honge — /glb/{token} se serve honge
     if ext in PROTECTED_EXTENSIONS:
         raise HTTPException(status_code=403, detail="Use signed URL")
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=403, detail="File type not allowed")
     if not get_client_data(client_id):
         raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    if USE_R2:
+        # R2 public URL pe redirect karo
+        return RedirectResponse(url=r2_public_url(f"{client_id}/{filename}"), status_code=302)
+
     file_path = f"static/assets/{client_id}/{filename}"
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Asset not found")
@@ -608,8 +711,14 @@ async def api_create_restaurant(body: CreateRestaurantRequest,
         "items": []
     }
     os.makedirs("data", exist_ok=True)
-    os.makedirs(f"static/assets/{client_id}", exist_ok=True)
-    os.makedirs(f"private/assets/{client_id}", exist_ok=True)
+    if not USE_R2:
+        os.makedirs(f"static/assets/{client_id}", exist_ok=True)
+        os.makedirs(f"private/assets/{client_id}", exist_ok=True)
+
+    # Default logo/banner paths
+    if USE_R2:
+        data["restaurant"]["logo"]   = r2_public_url(f"{client_id}/logo.png")
+        data["restaurant"]["banner"] = r2_public_url(f"{client_id}/banner.png")
     save_restaurant_json(client_id, data)
     seed_tables(client_id, body.num_tables)
     return {"message": f"Restaurant {client_id} created", "client_id": client_id}
@@ -659,41 +768,79 @@ async def api_upload_asset(
     # ── Filename sanitize (path traversal se bachao) ──
     safe_name = rule.get("fixed_name") or os.path.basename(original_name).replace(" ", "_")
 
-    # ── Folder banao ──
+    # ── Folder banao (local only) ──
     folder = os.path.join(rule["folder"], client_id)
-    os.makedirs(folder, exist_ok=True)
+    if not USE_R2:
+        os.makedirs(folder, exist_ok=True)
 
-    # ── Purani file trash mein move karo (agar exist karti hai) ──
-    # mind files (targets.mind) trash mein nahi jayengi — seedha overwrite
+    # ── Purani file trash mein move karo ──
+    # mind files trash mein nahi jayengi — seedha overwrite
     save_path = os.path.join(folder, safe_name)
+
+    # R2 key — images: "clint_one/logo.png", models: "clint_one/burger.glb"
+    r2_key = f"{client_id}/{safe_name}"
+
     if type != "mind":
-        # 1. Same naam ki file ho to trash karo (direct overwrite case)
-        move_to_trash(client_id, save_path, type)
+        trash_target = r2_key if USE_R2 else save_path
+        move_to_trash(client_id, trash_target, type)
 
-        # 2. Frontend ne old_path bheja ho (alag naam wali purani file) to usse bhi trash karo
-        #    Model case: "clint_two/pizza.glb" → private/assets/clint_two/pizza.glb
-        #    Image case: "/static/assets/clint_two/old_logo.png" → static/assets/clint_two/old_logo.png
         if old_path and old_path.strip().lower() not in ("", "none"):
-            old_path = old_path.strip().lstrip("/")  # leading slash hata do
-            old_full = os.path.join("private/assets", old_path) if type == "model" \
-                       else old_path  # image path already has static/assets/... prefix
-            # Sirf tabhi trash karo agar yeh save_path se alag file hai
-            if os.path.abspath(old_full) != os.path.abspath(save_path):
-                move_to_trash(client_id, old_full, type)
+            old_path = old_path.strip().lstrip("/")
+            if USE_R2:
+                # old_path model: "clint_two/pizza.glb", image: "static/assets/clint_two/logo.png"
+                old_key = old_path
+                for prefix in ("static/assets/", "private/assets/"):
+                    if old_path.startswith(prefix):
+                        old_key = old_path[len(prefix):]
+                        break
+                if old_key != r2_key:
+                    move_to_trash(client_id, old_key, type)
+            else:
+                old_full = os.path.join("private/assets", old_path) if type == "model" \
+                           else old_path
+                if os.path.abspath(old_full) != os.path.abspath(save_path):
+                    move_to_trash(client_id, old_full, type)
 
-    # ── File save karo (overwrite) ──
-    save_path = os.path.join(folder, safe_name)
-    with open(save_path, "wb") as f:
-        f.write(contents)
+    # ── File save karo ──
+    if USE_R2:
+        # R2 pe upload — mind bhi same bucket mein
+        upload_key = f"{client_id}/{safe_name}"
+        r2_upload(contents, upload_key, safe_name)
+    else:
+        with open(save_path, "wb") as f:
+            f.write(contents)
+
+    # ── GLB Optimization (model type ke liye) ──          ← ADD THIS BLOCK
+    audit_data = None
+    if type == "model":
+        try:
+            
+            # Temp file mein optimized version banao
+            with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp:
+                tmp_out = tmp.name
+            
+            success, result = optimize_and_audit(save_path, tmp_out)
+            
+            if success and os.path.exists(tmp_out):
+                shutil.move(tmp_out, save_path)  # Original ko replace karo
+            
+            audit_data = result.get("audit")
+        except Exception as e:
+            pass  # Optimization fail ho toh original file as-is serve hogi
 
     # ── URL/path return karo (JSON mein store hone wala value) ──
-    if rule["url_prefix"]:
-        path = f"{rule['url_prefix']}/{client_id}/{safe_name}"
+    if USE_R2:
+        if type == "model":
+            path = f"{client_id}/{safe_name}"          # R2 key — presign pe use hoga
+        else:
+            path = r2_public_url(f"{client_id}/{safe_name}")  # public URL
     else:
-        # model: sirf "client_id/filename" — /glb/{token} route isse use karta hai
-        path = f"{client_id}/{safe_name}"
+        if rule["url_prefix"]:
+            path = f"{rule['url_prefix']}/{client_id}/{safe_name}"
+        else:
+            path = f"{client_id}/{safe_name}"
 
-    return JSONResponse({"path": path, "filename": safe_name})
+    return JSONResponse({"path": path, "filename": safe_name, "audit": audit_data, "optimization_message": result.get("message", "") if type == "model" and audit_data else ""})
 
 @app.get("/api/admin/restaurant/{client_id}/assets-zip")
 async def api_download_assets_zip(
@@ -894,12 +1041,17 @@ async def api_delete_trash(trash_name: str, auth_token: Optional[str] = Cookie(N
 
 @app.get("/api/admin/trash/{trash_name}/download")
 async def api_download_trash(trash_name: str, auth_token: Optional[str] = Cookie(None)):
-    """Trash file download karo — direct file serve"""
+    """Trash file download karo"""
     require_auth(auth_token, ["admin"])
     meta  = _load_trash_meta()
     entry = next((e for e in meta if e["trash_name"] == trash_name), None)
     if not entry:
         raise HTTPException(status_code=404, detail="Trash entry nahi mila")
+
+    if entry.get("storage") == "r2" or USE_R2:
+        presigned = r2_presign(f"trash/{entry['client_id']}/{trash_name}", expires=300)
+        return RedirectResponse(url=presigned, status_code=302)
+
     trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
     if not os.path.exists(trash_path):
         raise HTTPException(status_code=404, detail="File disk pe nahi mili")
@@ -1158,7 +1310,14 @@ async def serve_glb(token: str):
     if not result:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
     client_id, filepath = result
-    # private/ folder se serve karo
+
+    if USE_R2:
+        # R2 presigned URL pe redirect karo
+        # filepath format: "clint_one/burger.glb"
+        presigned = r2_presign(filepath, expires=GLB_TOKEN_EXPIRY)
+        return RedirectResponse(url=presigned, status_code=302)
+
+    # Local file serve karo
     file_path = f"private/assets/{filepath}"
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Model not found")
