@@ -16,4 +16,7 @@ venv/
 Thumbs.db
 
 # Environment variables
-.envdata/
+.env
+
+# old json files
+data/
