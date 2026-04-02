@@ -31,5 +31,6 @@ data/*.db-shm
 data/
 
 # local assets
-static/assets/
+static/assets/clint_one/
+static/assets/clint_two/
 private/
