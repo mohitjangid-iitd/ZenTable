@@ -27,6 +27,9 @@ data/orders.db
 data/*.db-wal
 data/*.db-shm
 
+# old json files
+data/
+
 # local assets
 static/assets/
 private/
