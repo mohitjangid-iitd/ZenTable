@@ -157,6 +157,16 @@ def init_db():
         )
     """)
 
+    # ── Restaurants config table ──
+    # JSON files ki jagah — menu, theme, restaurant info sab yahan
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS restaurants (
+            client_id   TEXT PRIMARY KEY,
+            config      JSONB NOT NULL,
+            updated_at  TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
     # ── Migrations for older DBs ──
     try:
         cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'customer'")
@@ -874,54 +884,53 @@ if __name__ == "__main__":
 
 def get_all_restaurants_info():
     """Saare restaurants ki basic info + staff count + today orders"""
-    data_dir = "data"
-    restaurants = []
-    if not os.path.exists(data_dir):
-        return []
     conn = get_db()
-    raw = conn._conn.cursor()
+    raw  = conn._conn.cursor()
     today = date.today().isoformat()
-    for fname in sorted(os.listdir(data_dir)):
-        if not fname.endswith(".json"):
-            continue
-        client_id = fname.replace(".json", "")
-        try:
-            with open(f"{data_dir}/{fname}", encoding="utf-8") as f:
-                rdata = json.load(f)
-            rinfo = rdata.get("restaurant", {})
-        except Exception:
-            rinfo = {}
-        raw.execute(
-            "SELECT COUNT(*) FROM staff WHERE restaurant_id=%s", (client_id,)
-        )
+
+    raw.execute("SELECT client_id, config FROM restaurants ORDER BY client_id")
+    rows = raw.fetchall()
+
+    restaurants = []
+    for row in rows:
+        client_id = row[0]
+        rdata     = row[1] if isinstance(row[1], dict) else json.loads(row[1])
+        rinfo     = rdata.get("restaurant", {})
+
+        raw.execute("SELECT COUNT(*) FROM staff WHERE restaurant_id=%s", (client_id,))
         staff_count = raw.fetchone()[0]
+
         raw.execute(
             "SELECT COUNT(*) FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled'",
             (client_id, today)
         )
         today_orders = raw.fetchone()[0]
+
         raw.execute(
             "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
             (client_id, today)
         )
         today_revenue = raw.fetchone()[0]
+
         raw.execute(
             "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid'",
             (client_id,)
         )
         alltime_revenue = raw.fetchone()[0]
+
         restaurants.append({
-            "client_id": client_id,
-            "name": rinfo.get("name", client_id),
-            "cuisine_type": rinfo.get("cuisine_type", ""),
-            "phone": rinfo.get("phone", ""),
-            "num_tables": rinfo.get("num_tables", 0),
-            "staff_count": staff_count,
-            "today_orders": today_orders,
-            "today_revenue": today_revenue,
+            "client_id":      client_id,
+            "name":           rinfo.get("name", client_id),
+            "cuisine_type":   rinfo.get("cuisine_type", ""),
+            "phone":          rinfo.get("phone", ""),
+            "num_tables":     rinfo.get("num_tables", 0),
+            "staff_count":    staff_count,
+            "today_orders":   today_orders,
+            "today_revenue":  today_revenue,
             "alltime_revenue": alltime_revenue,
-            "features": rdata.get("subscription", {}).get("features", ["basic"]),
+            "features":       rdata.get("subscription", {}).get("features", ["basic"]),
         })
+
     conn.close()
     return restaurants
 
@@ -930,10 +939,9 @@ def get_overall_stats():
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
-    total_restaurants = len([
-        f for f in os.listdir("data")
-        if f.endswith(".json")
-    ]) if os.path.exists("data") else 0
+    total_restaurants = raw.execute("SELECT COUNT(*) FROM restaurants") or 0
+    raw.execute("SELECT COUNT(*) FROM restaurants")
+    total_restaurants = raw.fetchone()[0]
     raw.execute("SELECT COUNT(*) FROM staff WHERE is_active=1")
     total_staff = raw.fetchone()[0]
     raw.execute(
@@ -1013,22 +1021,27 @@ def get_top_dishes_overall(limit=10, period='alltime'):
     return top
 
 def save_restaurant_json(client_id: str, data: dict):
-    """Restaurant JSON save karo"""
-    with open(f"data/{client_id}.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    """Restaurant config DB mein save karo (upsert)"""
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO restaurants (client_id, config, updated_at)
+        VALUES (%s, %s::jsonb, NOW())
+        ON CONFLICT (client_id)
+        DO UPDATE SET config = EXCLUDED.config, updated_at = NOW()
+    """, (client_id, json.dumps(data, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
 
 def delete_restaurant_full(client_id: str):
-    """Poora restaurant delete — DB + JSON"""
+    """Poora restaurant delete — DB se sab"""
     conn = get_db()
     conn.execute("DELETE FROM orders WHERE client_id=%s", (client_id,))
     conn.execute("DELETE FROM bills WHERE client_id=%s", (client_id,))
     conn.execute("DELETE FROM tables WHERE client_id=%s", (client_id,))
     conn.execute("DELETE FROM staff WHERE restaurant_id=%s", (client_id,))
+    conn.execute("DELETE FROM restaurants WHERE client_id=%s", (client_id,))
     conn.commit()
     conn.close()
-    json_path = f"data/{client_id}.json"
-    if os.path.exists(json_path):
-        os.remove(json_path)
 
 def export_full_db_zip() -> str:
     conn = get_db()

@@ -331,11 +331,16 @@ def verify_glb_token(token: str):
 # ════════════════════════════════
 
 def get_client_data(client_id: str):
-    file_path = f"data/{client_id}.json"
-    if not os.path.exists(file_path):
+    conn = get_db()
+    cur  = conn.execute(
+        "SELECT config FROM restaurants WHERE client_id=%s", (client_id,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
         return None
-    with open(file_path, "r") as f:
-        return json.load(f)
+    config = row["config"]
+    return config if isinstance(config, dict) else json.loads(config)
 
 def has_feature(data: dict, feature: str) -> bool:
     """Restaurant ke liye feature enabled hai ya nahi"""
@@ -385,19 +390,16 @@ def require_auth(token: Optional[str], allowed_roles: list, client_id: str = Non
 @asynccontextmanager
 async def lifespan(app):
     init_db()
-    purge_expired_trash()   # Server start pe expired trash files clean karo
-    for filename in os.listdir("data"):
-        if filename.endswith(".json"):
-            client_id = filename.replace(".json", "")
-            data = get_client_data(client_id)
-            if data and "num_tables" in data.get("restaurant", {}):
-                seed_tables(client_id, data["restaurant"]["num_tables"])
+    purge_expired_trash()
+    # DB se saare restaurants padho aur tables seed karo
+    for r in get_all_restaurants_info():
+        rdata = get_client_data(r["client_id"])
+        if rdata and "num_tables" in rdata.get("restaurant", {}):
+            seed_tables(r["client_id"], rdata["restaurant"]["num_tables"])
 
     templates.env.globals["static_v"] = lambda path: \
         int(os.path.getmtime(f"static/{path}")) if os.path.exists(f"static/{path}") else 0
-    
     templates.env.globals["site"] = SITE_CONFIG
-    
     yield
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -891,11 +893,21 @@ async def api_delete_restaurant(client_id: str, auth_token: Optional[str] = Cook
         raise HTTPException(status_code=404, detail="Restaurant not found")
     delete_restaurant_full(client_id)
 
-    # Asset folders bhi delete karo (static + private)
-    import shutil
-    for assets_dir in [f"static/assets/{client_id}", f"private/assets/{client_id}"]:
-        if os.path.exists(assets_dir):
-            shutil.rmtree(assets_dir, ignore_errors=True)
+    if USE_R2:
+        # R2 pe client_id/ prefix wali saari files delete karo
+        try:
+            paginator = _r2_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=R2_BUCKET, Prefix=f"{client_id}/"):
+                objects = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
+                if objects:
+                    _r2_client.delete_objects(Bucket=R2_BUCKET, Delete={"Objects": objects})
+        except Exception:
+            pass
+    else:
+        import shutil
+        for assets_dir in [f"static/assets/{client_id}", f"private/assets/{client_id}"]:
+            if os.path.exists(assets_dir):
+                shutil.rmtree(assets_dir, ignore_errors=True)
 
     return {"message": f"Restaurant {client_id} deleted"}
 
