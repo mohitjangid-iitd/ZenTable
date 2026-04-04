@@ -113,7 +113,7 @@ def r2_public_url(key: str) -> str:
 # ════════════════════════════════
 
 ALLOWED_EXTENSIONS   = {".glb", ".mind", ".png", ".jpg", ".jpeg", ".webp"}
-PROTECTED_EXTENSIONS = {".glb", ".mind"}
+PROTECTED_EXTENSIONS = {".glb"}
 GLB_SECRET = os.environ["GLB_SECRET"]
 GLB_TOKEN_EXPIRY = 600  # 10 minutes
 
