@@ -1152,8 +1152,11 @@ async def ar_menu(request: Request, client_id: str):
     features = data.get("subscription", {}).get("features", [])
     if "ar_menu" not in features:
         return RedirectResponse(url=f"/{client_id}/menu")
+    mind_url = r2_public_url(f"{client_id}/targets.mind") if USE_R2 \
+               else f"/static/assets/{client_id}/targets.mind"
     return templates.TemplateResponse("ar_menu.html", {
-        "request": request, "client_id": client_id, "table_no": None
+        "request": request, "client_id": client_id, "table_no": None,
+        "mind_url": mind_url
     })
 
 @app.get("/{client_id}/table/{table_no}", response_class=HTMLResponse)
@@ -1183,8 +1186,11 @@ async def table_ar_menu(request: Request, client_id: str, table_no: int):
     table = get_table_status(client_id, table_no)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active. Please ask staff.")
+    mind_url = r2_public_url(f"{client_id}/targets.mind") if USE_R2 \
+               else f"/static/assets/{client_id}/targets.mind"
     return templates.TemplateResponse("ar_menu.html", {
-        "request": request, "client_id": client_id, "table_no": table_no
+        "request": request, "client_id": client_id, "table_no": table_no,
+        "mind_url": mind_url
     })
 
 # ════════════════════════════════
