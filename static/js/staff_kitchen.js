@@ -105,6 +105,12 @@ function sendNotif(title, body) {
 // ── MAIN LOAD ──
 async function loadWithNotif() {
     const res = await fetch(`/api/orders/${clientId}`);
+    
+    if (res.status === 401 || res.status === 403) {
+        window.location.href = '/login';
+        return;
+    }
+    
     const orders = await res.json();
     // pending, preparing, ready — sirf done hide hoga
     const active = orders.filter(o => ['pending','preparing','ready'].includes(o.status));
