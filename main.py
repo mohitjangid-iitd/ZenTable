@@ -612,6 +612,7 @@ async def api_login(body: LoginRequest, response: Response):
         value=token,
         httponly=True,       # JS se access nahi hoga
         samesite="lax",
+        secure=True,
         max_age=60 * 60 * 24 * 7  # 7 days max (role expiry auth.py mein handle hoti hai)
     )
     return {"redirect": redirect_url, "role": user["role"], "name": user["name"]}
