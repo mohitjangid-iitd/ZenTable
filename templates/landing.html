@@ -33,7 +33,7 @@
 
     <div class="nav-actions">
       <a href="/login" class="nav-login">Login</a>
-      <a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener" class="btn btn-primary btn-nav">Get Started →</a>
+      <a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener" class="btn btn-primary btn-nav hide-mobile">Get Started →</a>
     </div>
 
     <button class="hamburger" id="hamburger" aria-label="Toggle menu">
@@ -496,7 +496,7 @@
               <span style="font-weight:700;color:#1E1E2E;font-size:0.9rem;">🔥 Live Orders</span>
               <span style="font-size:0.7rem;color:#aaa;background:white;padding:5px 12px;border-radius:8px;border:1px solid #eee;">↻ Refresh</span>
             </div>
-            <div style="padding:10px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="padding:10px 16px 16px;" class="rp-kitchen-grid-wrap">
 
               <div class="rp-order-card rp-pending">
                 <div class="rp-order-head"><span class="rp-table">Table 7</span><span class="rp-time">2 min ago</span></div>
@@ -875,7 +875,7 @@
       <div class="footer-col">
         <h5>Contact</h5>
         <ul class="footer-links">
-          <li><a href="mailto:{{ config.support_email }}">{{ config.support_email }}</a></li>
+          <li><a href="/cdn-cgi/l/email-protection#374c4c17545859515e50194442474758454368525a565e5b174a4a">{{ config.support_email }}</a></li>
           <li><a href="https://wa.me/{{ config.whatsapp }}" target="_blank" rel="noopener">WhatsApp</a></li>
           {% if config.instagram %}<li><a href="{{ config.instagram }}" target="_blank" rel="noopener">Instagram</a></li>{% endif %}
         </ul>
@@ -892,7 +892,7 @@
 <!-- ════════════════════════════════════════════
    JS
 ════════════════════════════════════════════ -->
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 (function () {
   'use strict';
 
@@ -924,6 +924,11 @@
     { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
   );
   document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+  document.querySelectorAll('.reveal').forEach(el => {
+  if (el.getBoundingClientRect().top < window.innerHeight) {
+    el.classList.add('visible');
+  }
+  });
 
   /* demo tabs */
   document.querySelectorAll('.dtab').forEach(tab => {
@@ -973,11 +978,11 @@
       const t = document.querySelector(a.getAttribute('href'));
       if (!t) return;
       e.preventDefault();
-      window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
+   t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 
-})();
+})(); // ← IIFE close
 </script>
 </body>
 </html>
