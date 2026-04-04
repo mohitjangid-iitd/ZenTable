@@ -1170,14 +1170,24 @@ async function downloadAllQRs(clientId) {
     const secondary = theme.secondary_color || '#1a1a1a';
 
     // Logo load
+    // Local dev mein R2 URL ko local path se replace karo — R2 requests save hongi
+    function resolveLogoUrl(url) {
+        if (!url) return url;
+        const R2_BASE = 'https://assets.zentable.in/';
+        if (url.startsWith(R2_BASE) && window.location.hostname !== 'zentable.in') {
+            return '/static/assets/' + url.slice(R2_BASE.length);
+        }
+        return url;
+    }
+
     let logoImg = null;
     if (rest.logo) {
         logoImg = await new Promise(res => {
             const img = new Image();
+            img.crossOrigin = 'anonymous';
             img.onload  = () => res(img);
             img.onerror = () => res(null);
-            // Same-origin hai toh crossOrigin nahi chahiye
-            img.src = rest.logo + '?v=' + Date.now();
+            img.src = resolveLogoUrl(rest.logo);
         });
     }
 
@@ -1254,6 +1264,7 @@ async function downloadAllQRs(clientId) {
                 // QR
                 const drawQR = (src) => {
                     const img = new Image();
+                    img.crossOrigin = 'anonymous';  // canvas taint se bachao
                     img.onload = () => {
                         ctx.drawImage(img, pad, y, qrSize, qrSize);
 
@@ -1280,6 +1291,7 @@ async function downloadAllQRs(clientId) {
                         };
 
                         const ztLogo = new Image();
+                        ztLogo.crossOrigin = 'anonymous';  // local static file bhi — browser cache issue se bachao
                         ztLogo.onload = () => {
                             const iw = ztLogo.naturalWidth;
                             const ih = ztLogo.naturalHeight;
