@@ -40,6 +40,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ════════════════════════════════
 
 USE_R2 = os.environ.get("USE_R2", "false").lower() == "true"
+IS_PROD = os.environ.get("RENDER", False)
 
 if USE_R2:
     import boto3
@@ -612,7 +613,7 @@ async def api_login(body: LoginRequest, response: Response):
         value=token,
         httponly=True,       # JS se access nahi hoga
         samesite="lax",
-        secure=True,
+        secure=IS_PROD,
         max_age=60 * 60 * 24 * 7  # 7 days max (role expiry auth.py mein handle hoti hai)
     )
     return {"redirect": redirect_url, "role": user["role"], "name": user["name"]}
@@ -1416,7 +1417,7 @@ async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest
 @app.get("/api/orders/{client_id}")
 async def api_get_orders(client_id: str, status: str = None, table_no: int = None,
                          auth_token: Optional[str] = Cookie(None)):
-    require_auth(auth_token, ["waiter", "counter", "owner", "admin"], client_id)
+    require_auth(auth_token, ["kitchen", "waiter", "counter", "owner", "admin"], client_id)
     return get_orders(client_id, status=status, table_no=table_no)
 
 @app.patch("/api/order/{order_id}/status")
