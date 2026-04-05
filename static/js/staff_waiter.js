@@ -2,14 +2,13 @@
 
 // ── TABS ──
 function switchTab(tab, btn) {
-    ['tables', 'orders', 'place'].forEach(t => {
+    ['tables', 'orders'].forEach(t => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
     });
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     if (tab === 'tables') loadTables();
     if (tab === 'orders') loadOrders();
-    if (tab === 'place') renderMenu();
 }
 
 // ── TABLES ──
@@ -376,34 +375,40 @@ async function openModal(tableNo) {
     if (ds === 'inactive') {
         footer.innerHTML = `<button class="submit-btn" onclick="activateTable(${tableNo})">✅ Activate Table</button>`;
     } else if (ds === 'active') {
-        footer.innerHTML = `<button class="cancel-btn" onclick="closeTable(${tableNo})">Close Table</button>`;
+        footer.innerHTML = `
+            <button class="add-items-btn" onclick="openOrderOverlay(${tableNo})">
+                <i class="fas fa-plus"></i> Add Items
+            </button>
+            <button class="cancel-btn" style="margin-top:8px" onclick="closeTable(${tableNo})">Close Table</button>`;
     } else if (ds === 'occupied' || ds === 'ready') {
-        const readyCount = activeOrders.filter(o => o.status === 'ready').length;
-        if (readyCount > 0) {
-            footer.innerHTML = `<div style="text-align:center;font-size:0.85rem;color:#2e7d32;font-weight:600">
-                ${readyCount} order${readyCount > 1 ? 's' : ''} ready to serve! ✅</div>`;
-        } else {
-            footer.innerHTML = `<div style="text-align:center;font-size:0.82rem;color:#999">Kitchen mein hai... wait karo</div>`;
-        }
+        footer.innerHTML = `
+            <button class="add-items-btn" onclick="openOrderOverlay(${tableNo})">
+                <i class="fas fa-plus"></i> Add More Items
+            </button>`;
     } else if (ds === 'done') {
         const doneTotal = activeOrders.reduce((s, o) => s + o.total, 0);
-        footer.innerHTML = `<button class="submit-btn" onclick="closeModal(); openBillingSheet(${tableNo}, ${doneTotal})">
-            🧾 Generate Bill — ₹${doneTotal}</button>`;
+        footer.innerHTML = `
+            <button class="submit-btn" onclick="closeModal(); openBillingSheet(${tableNo}, ${doneTotal})">
+                🧾 Generate Bill — ₹${doneTotal}</button>
+            <button class="add-items-btn" style="margin-top:8px" onclick="openOrderOverlay(${tableNo})">
+                <i class="fas fa-plus"></i> Add More Items</button>`;
     } else if (ds === 'billed') {
         const unpaid = bills.find(b => b.payment_status === 'unpaid');
-        if (unpaid) {
-            footer.innerHTML = `
-                <div class="form-group" style="margin-bottom:10px">
-                    <label>Payment Mode</label>
-                    <select id="modal-pay-mode" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none">
-                        <option value="cash">💵 Cash</option>
-                        <option value="upi">📱 UPI</option>
-                        <option value="card">💳 Card</option>
-                    </select>
-                </div>
-                <button class="pay-btn" onclick="markPaid(${unpaid.id}, ${tableNo})">
-                    ✅ Mark as Paid — ₹${unpaid.total}</button>`;
-        }
+                    if (unpaid) {
+                footer.innerHTML = `
+                    <div class="form-group" style="margin-bottom:10px">
+                        <label>Payment Mode</label>
+                        <select id="modal-pay-mode" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none">
+                            <option value="cash">💵 Cash</option>
+                            <option value="upi">📱 UPI</option>
+                            <option value="card">💳 Card</option>
+                        </select>
+                    </div>
+                    <button class="pay-btn" onclick="markPaid(${unpaid.id}, ${tableNo})">
+                        ✅ Mark as Paid — ₹${unpaid.total}</button>
+                    <button class="add-items-btn" style="margin-top:8px" onclick="openOrderOverlay(${tableNo})">
+                        <i class="fas fa-plus"></i> Add More Items</button>`;
+            }
     } else if (ds === 'paid') {
         footer.innerHTML = `<button class="submit-btn" onclick="clearTable(${tableNo})">🔄 Clear & New Session</button>`;
     }
@@ -416,7 +421,8 @@ function closeModal() {
 async function activateTable(tableNo) {
     await fetch(`/api/table/${clientId}/${tableNo}/activate`, { method: 'POST' });
     toast(`✅ Table ${tableNo} activated`);
-    closeModal(); loadTables();
+    loadTables();
+    openModal(tableNo); // Modal refresh ho jayega "Add Items" button ke saath
 }
 
 async function closeTable(tableNo) {
@@ -574,95 +580,82 @@ async function payBill(tableNo) {
     }
 }
 
-// ── PLACE ORDER ──
-// waiterCart: { key: { name, label, price, qty } }
-// key = "ItemName" (no size) or "ItemName||SizeLabel" (sized)
-const waiterCart = {};
-let woActiveCat = 'all';
-let woSearchQuery = '';
+// ── ORDER OVERLAY ──
+let overlayTableNo = null;
+let ooActiveCat = 'all';
+let ooSearchQuery = '';
+const overlayCart = {}; // key: {name, label, price, qty, displayName}
 
-function renderMenu() {
-    const wrap = document.getElementById('menu-items-list');
+function openOrderOverlay(tableNo) {
+    overlayTableNo = tableNo;
+    // Reset cart for new overlay open
+    Object.keys(overlayCart).forEach(k => delete overlayCart[k]);
+    ooActiveCat = 'all';
+    ooSearchQuery = '';
 
-    // Build categories
+    document.getElementById('order-overlay-title').textContent = `Table ${tableNo} — Add Items`;
+    ooRenderCats();
+    ooRenderItems();
+    ooUpdateBar();
+
+    // Close modal first, then open overlay
+    closeModal();
+    setTimeout(() => {
+        document.getElementById('order-overlay').classList.add('open');
+    }, 50);
+}
+
+function closeOrderOverlay() {
+    document.getElementById('order-overlay').classList.remove('open');
+    overlayTableNo = null;
+    Object.keys(overlayCart).forEach(k => delete overlayCart[k]);
+    // Reload tables after closing
+    loadTables();
+}
+
+function ooRenderCats() {
     const cats = ['all'];
     menuItems.forEach(item => {
         if (!cats.includes(item.category)) cats.push(item.category);
     });
-
-    wrap.innerHTML = `
-        <!-- Table input -->
-        <div class="wo-table-row">
-            <label>Table No.</label>
-            <input type="number" id="wo-table" placeholder="e.g. 2" min="1">
-        </div>
-
-        <!-- Search -->
-        <div class="wo-search-wrap">
-            <i class="fas fa-search wo-search-icon"></i>
-            <input type="text" id="wo-search" placeholder="Search dishes..." oninput="woOnSearch(this.value)">
-            <button class="wo-search-clear" id="wo-search-clear" onclick="woClearSearch()" style="display:none">✕</button>
-        </div>
-
-        <!-- Category tabs -->
-        <div class="wo-cat-tabs" id="wo-cat-tabs">
-            ${cats.map(c => `
-                <button class="wo-cat-tab ${c === woActiveCat ? 'active' : ''}"
-                    onclick="woSetCat('${c}')">${c === 'all' ? 'All' : c}</button>
-            `).join('')}
-        </div>
-
-        <!-- Items list -->
-        <div id="wo-items-wrap"></div>
-
-        <!-- Spacer for floating bar -->
-        <div style="height:80px"></div>
-    `;
-
-    woRenderItems();
-    woUpdateBar();
+    document.getElementById('oo-cat-tabs').innerHTML = cats.map(c =>
+        `<button class="wo-cat-tab ${c === ooActiveCat ? 'active' : ''}"
+            onclick="ooSetCat('${c}')">${c === 'all' ? 'All' : c}</button>`
+    ).join('');
 }
 
-function woGetKey(name, label) {
+function ooSetCat(cat) {
+    ooActiveCat = cat;
+    document.querySelectorAll('#oo-cat-tabs .wo-cat-tab').forEach(b => {
+        b.classList.toggle('active', b.textContent === (cat === 'all' ? 'All' : cat));
+    });
+    ooRenderItems();
+}
+
+function ooOnSearch(val) {
+    ooSearchQuery = val.trim().toLowerCase();
+    document.getElementById('oo-search-clear').style.display = ooSearchQuery ? 'block' : 'none';
+    ooRenderItems();
+}
+
+function ooClearSearch() {
+    document.getElementById('oo-search').value = '';
+    ooSearchQuery = '';
+    document.getElementById('oo-search-clear').style.display = 'none';
+    ooRenderItems();
+}
+
+function ooGetKey(name, label) {
     return label ? name + '||' + label : name;
 }
 
-function woOnSearch(val) {
-    woSearchQuery = val.trim().toLowerCase();
-    document.getElementById('wo-search-clear').style.display = woSearchQuery ? 'block' : 'none';
-    woRenderItems();
-}
-
-function woClearSearch() {
-    document.getElementById('wo-search').value = '';
-    woSearchQuery = '';
-    document.getElementById('wo-search-clear').style.display = 'none';
-    woRenderItems();
-}
-
-function woSetCat(cat) {
-    woActiveCat = cat;
-    document.querySelectorAll('.wo-cat-tab').forEach(b => {
-        b.classList.toggle('active', b.textContent === (cat === 'all' ? 'All' : cat));
-    });
-    woRenderItems();
-}
-
-function woRenderItems() {
-    const wrap = document.getElementById('wo-items-wrap');
+function ooRenderItems() {
+    const wrap = document.getElementById('oo-items-wrap');
     if (!wrap) return;
 
     let items = menuItems;
-
-    // Category filter
-    if (woActiveCat !== 'all') {
-        items = items.filter(i => i.category === woActiveCat);
-    }
-
-    // Search filter
-    if (woSearchQuery) {
-        items = items.filter(i => i.name.toLowerCase().includes(woSearchQuery));
-    }
+    if (ooActiveCat !== 'all') items = items.filter(i => i.category === ooActiveCat);
+    if (ooSearchQuery) items = items.filter(i => i.name.toLowerCase().includes(ooSearchQuery));
 
     if (!items.length) {
         wrap.innerHTML = `<div class="wo-empty">No items found</div>`;
@@ -672,24 +665,20 @@ function woRenderItems() {
     wrap.innerHTML = items.map(item => {
         const hasSizes = item.sizes && item.sizes.length;
         if (hasSizes) {
-            // Sized item — show each size as a row
             const sizeRows = item.sizes.map(s => {
-                const key = woGetKey(item.name, s.label);
-                const qty = waiterCart[key] ? waiterCart[key].qty : 0;
-                return `
-                <div class="wo-size-row">
+                const key = ooGetKey(item.name, s.label);
+                const qty = overlayCart[key] ? overlayCart[key].qty : 0;
+                return `<div class="wo-size-row">
                     <div class="wo-size-info">
                         <span class="wo-size-lbl">${s.label}</span>
                         <span class="wo-size-price">₹${parsePrice(s.price)}</span>
                     </div>
-                    <div class="wo-qty-ctrl" id="wqc-${CSS.escape(key)}">
-                        ${woCtrlHtml(item.name, s.label, s.price, qty)}
+                    <div class="wo-qty-ctrl" id="oqc-${CSS.escape(key)}">
+                        ${ooCtrlHtml(item.name, s.label, s.price, qty)}
                     </div>
                 </div>`;
             }).join('');
-
-            return `
-            <div class="wo-item-card">
+            return `<div class="wo-item-card">
                 <div class="wo-item-head">
                     <div class="wo-veg-dot ${item.veg ? 'veg' : 'nonveg'}"></div>
                     <div class="wo-item-name">${item.name}</div>
@@ -697,11 +686,9 @@ function woRenderItems() {
                 <div class="wo-sizes-list">${sizeRows}</div>
             </div>`;
         } else {
-            // Single price item
-            const key = woGetKey(item.name, '');
-            const qty = waiterCart[key] ? waiterCart[key].qty : 0;
-            return `
-            <div class="wo-item-card">
+            const key = ooGetKey(item.name, '');
+            const qty = overlayCart[key] ? overlayCart[key].qty : 0;
+            return `<div class="wo-item-card">
                 <div class="wo-item-row">
                     <div class="wo-item-left">
                         <div class="wo-veg-dot ${item.veg ? 'veg' : 'nonveg'}"></div>
@@ -709,8 +696,8 @@ function woRenderItems() {
                     </div>
                     <div class="wo-item-right">
                         <span class="wo-item-price">₹${parsePrice(item.price)}</span>
-                        <div class="wo-qty-ctrl" id="wqc-${CSS.escape(key)}">
-                            ${woCtrlHtml(item.name, '', item.price, qty)}
+                        <div class="wo-qty-ctrl" id="oqc-${CSS.escape(key)}">
+                            ${ooCtrlHtml(item.name, '', item.price, qty)}
                         </div>
                     </div>
                 </div>
@@ -719,69 +706,66 @@ function woRenderItems() {
     }).join('');
 }
 
-function woCtrlHtml(name, label, price, qty) {
+function ooCtrlHtml(name, label, price, qty) {
     const eName = name.replace(/"/g, '&quot;');
     const eLabel = label.replace(/"/g, '&quot;');
     const ePrice = String(price).replace(/"/g, '&quot;');
     if (qty <= 0) {
-        return `<button class="wo-add-btn" onclick="woAdd('${eName}','${eLabel}','${ePrice}')">+</button>`;
+        return `<button class="wo-add-btn" onclick="ooAdd('${eName}','${eLabel}','${ePrice}')">+</button>`;
     }
     return `
-        <button class="qty-btn wo-minus" onclick="woRemove('${eName}','${eLabel}','${ePrice}')">−</button>
+        <button class="qty-btn wo-minus" onclick="ooRemove('${eName}','${eLabel}','${ePrice}')">−</button>
         <span class="qty-num">${qty}</span>
-        <button class="qty-btn wo-plus" onclick="woAdd('${eName}','${eLabel}','${ePrice}')">+</button>`;
+        <button class="qty-btn wo-plus" onclick="ooAdd('${eName}','${eLabel}','${ePrice}')">+</button>`;
 }
 
-function woUpdateCtrl(name, label, price) {
-    const key = woGetKey(name, label);
-    const qty = waiterCart[key] ? waiterCart[key].qty : 0;
-    const el = document.getElementById('wqc-' + CSS.escape(key));
-    if (el) el.innerHTML = woCtrlHtml(name, label, price, qty);
+function ooUpdateCtrl(name, label, price) {
+    const key = ooGetKey(name, label);
+    const qty = overlayCart[key] ? overlayCart[key].qty : 0;
+    const el = document.getElementById('oqc-' + CSS.escape(key));
+    if (el) el.innerHTML = ooCtrlHtml(name, label, price, qty);
 }
 
-function woAdd(name, label, price) {
-    const key = woGetKey(name, label);
+function ooAdd(name, label, price) {
+    const key = ooGetKey(name, label);
     const displayName = label ? name + ' (' + label + ')' : name;
-    if (waiterCart[key]) {
-        waiterCart[key].qty++;
-    } else {
-        waiterCart[key] = { name, label, price, qty: 1, displayName };
-    }
-    woUpdateCtrl(name, label, price);
-    woUpdateBar();
+    if (overlayCart[key]) overlayCart[key].qty++;
+    else overlayCart[key] = { name, label, price, qty: 1, displayName };
+    ooUpdateCtrl(name, label, price);
+    ooUpdateBar();
 }
 
-function woRemove(name, label, price) {
-    const key = woGetKey(name, label);
-    if (!waiterCart[key]) return;
-    waiterCart[key].qty--;
-    if (waiterCart[key].qty <= 0) delete waiterCart[key];
-    woUpdateCtrl(name, label, price);
-    woUpdateBar();
+function ooRemove(name, label, price) {
+    const key = ooGetKey(name, label);
+    if (!overlayCart[key]) return;
+    overlayCart[key].qty--;
+    if (overlayCart[key].qty <= 0) delete overlayCart[key];
+    ooUpdateCtrl(name, label, price);
+    ooUpdateBar();
 }
 
-function woUpdateBar() {
-    const entries = Object.values(waiterCart);
+function ooUpdateBar() {
+    const entries = Object.values(overlayCart);
     const totalQty = entries.reduce((s, e) => s + e.qty, 0);
     const totalPrice = entries.reduce((s, e) => s + parsePrice(e.price) * e.qty, 0);
-
-    let bar = document.getElementById('wo-float-bar');
+    const bar = document.getElementById('oo-float-bar');
+    const badge = document.getElementById('oo-cart-badge');
     if (!bar) return;
 
     if (totalQty === 0) {
         bar.style.display = 'none';
+        if (badge) badge.style.display = 'none';
     } else {
         bar.style.display = 'flex';
-        bar.querySelector('.wo-bar-count').textContent = totalQty + ' item' + (totalQty > 1 ? 's' : '');
-        bar.querySelector('.wo-bar-total').textContent = '₹' + totalPrice;
+        document.getElementById('oo-bar-count').textContent = totalQty + ' item' + (totalQty > 1 ? 's' : '');
+        document.getElementById('oo-bar-total').textContent = '₹' + totalPrice;
+        if (badge) { badge.style.display = 'block'; badge.textContent = totalQty + ' items — ₹' + totalPrice; }
     }
 }
 
-async function placeOrder() {
-    const tableNo = parseInt(document.getElementById('wo-table').value);
-    if (!tableNo) { toast('Table number bharo'); return; }
-
-    const entries = Object.values(waiterCart);
+async function placeOrderFromOverlay() {
+    if (!overlayTableNo) { toast('Table number missing'); return; }
+    const entries = Object.values(overlayCart);
     if (!entries.length) { toast('Koi item select karo'); return; }
 
     const items = entries.map(e => ({
@@ -791,24 +775,29 @@ async function placeOrder() {
     }));
     const total = items.reduce((s, i) => s + i.qty * i.price, 0);
 
-    const res = await fetch(`/api/order/${clientId}/${tableNo}`, {
+    const res = await fetch(`/api/order/${clientId}/${overlayTableNo}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, total, source: 'Staff' })
     });
     if (res.ok) {
         toast('✅ Order placed!');
-        // Cart reset
-        Object.keys(waiterCart).forEach(k => delete waiterCart[k]);
-        woSearchQuery = '';
-        woActiveCat = 'all';
-        document.getElementById('wo-table').value = '';
-        renderMenu();
+        document.getElementById('order-overlay').classList.remove('open');
+        overlayTableNo = null;
+        Object.keys(overlayCart).forEach(k => delete overlayCart[k]);
         loadTables();
     } else {
         const err = await res.json();
         toast('❌ ' + (err.detail || 'Error'));
     }
 }
+
+// ── PLACE ORDER (old tab functions — kept as stubs, no longer used directly) ──
+const waiterCart = {};
+let woActiveCat = 'all';
+let woSearchQuery = '';
+
+function renderMenu() {}
+function placeOrder() {}
 
 // ── HELPERS ──
 function parsePrice(p) { return parseInt(String(p).replace(/[^0-9]/g, '')) || 0; }

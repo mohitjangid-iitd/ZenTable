@@ -59,7 +59,7 @@ body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; 
 .order-items-text { font-size:0.82rem; color:#555; margin-bottom:8px; }
 .order-row-foot { display:flex; justify-content:space-between; align-items:center; }
 .order-total-sm { font-weight:700; color:var(--primary); font-size:0.9rem; }
-.deliver-btn { padding:6px 14px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; font-family:var(--font-secondary); }
+.deliver-btn { padding:8px 18px; background:#2e7d32; color:white; border:none; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; font-family:var(--font-secondary); }
 .deliver-btn:active { opacity:0.8; }
 
 .bill-btn { padding:8px 16px; background:var(--primary); color:var(--secondary); border:none; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; font-family:var(--font-secondary); }
