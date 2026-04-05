@@ -48,14 +48,13 @@ zentable/
 ├── database.py                  # SQLite setup + all DB functions
 ├── auth.py                      # Login, session, role management
 ├── site_config.py               # ZenTable platform branding
+├── glb_optimizer.py             # 3D model optimization (GLB compression)
 ├── manage_restaurant.py         # Restaurant onboarding CLI
 ├── create_first_admin.py        # First admin setup script
 ├── clean_db.py                  # DB cleanup utility
-├── requirements.txt
+├── requirements.txt             # Python dependencies
+├── .python-version              # Python version pin (3.11)
 │
-├── data/
-│   ├── clint_one.json           # Restaurant 1 config (menu + theme + info)
-│   └── clint_two.json           # Restaurant 2 config
 │
 ├── templates/
 │   ├── landing.html             # ZenTable marketing page
@@ -75,13 +74,17 @@ zentable/
 │   ├── js/                      # Per-role JS files
 │   └── assets/
 │       ├── zentable/            # Platform branding assets
-│       ├── clint_one/           # Restaurant 1 images + targets.mind
-│       └── clint_two/           # Restaurant 2 images + targets.mind
+│       ├── clint_one/           # Restaurant 1 — images + targets.mind
+│       └── clint_two/           # Restaurant 2 — images + targets.mind
 │
-└── private/
-    └── assets/
-        ├── clint_one/           # Restaurant 1 — .glb models
-        └── clint_two/           # Restaurant 2 — .glb models
+├── private/
+│   ├── assets/
+│   │   ├── clint_one/           # Restaurant 1 — .glb 3D models
+│   │   └── clint_two/           # Restaurant 2 — .glb 3D models
+│   └── trash/                   # Deleted models (recoverable)
+│
+└── Public_HTML/
+    └── google...html            # Google Search Console verification
 ```
 
 ---
@@ -89,8 +92,9 @@ zentable/
 ## Setup
 
 ### Prerequisites
-- Python 3.8+
-- pip
+- Python 3.11+
+- PostgreSQL
+- Node.js (for GLB optimization)
 
 ### Installation
 
