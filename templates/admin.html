@@ -701,6 +701,136 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- ══ 3D GLB EDITOR ══ -->
+                <div id="glb-editor-section" style="display:none;margin-top:4px;">
+                    <div class="form-section" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
+                        <span>3D Preview &amp; Transform</span>
+                        <span id="glb-model-badge" style="font-size:0.65rem;color:var(--muted);font-family:var(--font-m);font-weight:400;text-transform:none;letter-spacing:0;"></span>
+                    </div>
+
+                    <!-- Layout: canvas left (phone ratio), controls right -->
+                    <div style="display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start;">
+
+                        <!-- LEFT: Phone-ratio canvas -->
+                        <div style="position:relative;width:180px;">
+                            <canvas id="glb-canvas"
+                                style="width:180px;height:320px;border-radius:12px;background:#0a0a12;
+                                       border:1px solid var(--border);display:block;cursor:grab;">
+                            </canvas>
+                            <div id="glb-loader-overlay"
+                                style="position:absolute;inset:0;display:flex;flex-direction:column;
+                                       align-items:center;justify-content:center;border-radius:12px;
+                                       background:rgba(10,10,18,0.9);font-size:0.75rem;color:var(--muted);gap:10px;">
+                                <div id="glb-loader-spinner"
+                                    style="width:24px;height:24px;border:3px solid rgba(108,99,255,0.2);
+                                           border-top-color:var(--primary);border-radius:50%;
+                                           animation:_glbSpin 0.75s linear infinite;"></div>
+                                <span id="glb-loader-text">Loading...</span>
+                            </div>
+                            <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;
+                                        font-size:0.55rem;color:rgba(255,255,255,0.15);pointer-events:none;font-family:var(--font-m);">
+                                drag · scroll zoom
+                            </div>
+                        </div>
+
+                        <!-- RIGHT: Sliders -->
+                        <div style="display:flex;flex-direction:column;gap:16px;padding-top:2px;">
+
+                            <!-- POSITION -->
+                            <div>
+                                <div class="glb-axis-label">Position</div>
+                                <div class="glb-slider-group">
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#ff6b6b;">X</span>
+                                        <input type="range"  id="glb-px-s" min="-5" max="5" step="0.05" value="0" class="glb-range glb-range-x" oninput="glbSlider('px')">
+                                        <input type="number" id="glb-px"   step="0.05" value="0" class="glb-numbox" oninput="glbNumbox('px')">
+                                    </div>
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#43e97b;">Y</span>
+                                        <input type="range"  id="glb-py-s" min="-5" max="5" step="0.05" value="0" class="glb-range glb-range-y" oninput="glbSlider('py')">
+                                        <input type="number" id="glb-py"   step="0.05" value="0" class="glb-numbox" oninput="glbNumbox('py')">
+                                    </div>
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#4dabf7;">Z</span>
+                                        <input type="range"  id="glb-pz-s" min="-5" max="5" step="0.05" value="0" class="glb-range glb-range-z" oninput="glbSlider('pz')">
+                                        <input type="number" id="glb-pz"   step="0.05" value="0" class="glb-numbox" oninput="glbNumbox('pz')">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SCALE -->
+                            <div>
+                                <div class="glb-axis-label" style="display:flex;align-items:center;justify-content:space-between;">
+                                    <span>Scale</span>
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;font-size:0.68rem;color:var(--muted);">
+                                        <input type="checkbox" id="glb-uniform" checked style="accent-color:var(--primary);width:12px;height:12px;">
+                                        Uniform
+                                    </label>
+                                </div>
+                                <div class="glb-slider-group">
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#ff6b6b;">X</span>
+                                        <input type="range"  id="glb-sx-s" min="0.05" max="10" step="0.05" value="1" class="glb-range glb-range-x" oninput="glbSlider('sx')">
+                                        <input type="number" id="glb-sx"   step="0.05" value="1" class="glb-numbox" oninput="glbNumbox('sx')">
+                                    </div>
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#43e97b;">Y</span>
+                                        <input type="range"  id="glb-sy-s" min="0.05" max="10" step="0.05" value="1" class="glb-range glb-range-y" oninput="glbSlider('sy')">
+                                        <input type="number" id="glb-sy"   step="0.05" value="1" class="glb-numbox" oninput="glbNumbox('sy')">
+                                    </div>
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#4dabf7;">Z</span>
+                                        <input type="range"  id="glb-sz-s" min="0.05" max="10" step="0.05" value="1" class="glb-range glb-range-z" oninput="glbSlider('sz')">
+                                        <input type="number" id="glb-sz"   step="0.05" value="1" class="glb-numbox" oninput="glbNumbox('sz')">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ROTATION -->
+                            <div>
+                                <div class="glb-axis-label">Rotation <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:0.62rem;">(deg)</span></div>
+                                <div class="glb-slider-group">
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#ff6b6b;">X</span>
+                                        <input type="range"  id="glb-rx-s" min="-180" max="180" step="1" value="0" class="glb-range glb-range-x" oninput="glbSlider('rx')">
+                                        <input type="number" id="glb-rx"   step="1" value="0" class="glb-numbox" oninput="glbNumbox('rx')">
+                                    </div>
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#43e97b;">Y</span>
+                                        <input type="range"  id="glb-ry-s" min="-180" max="180" step="1" value="0" class="glb-range glb-range-y" oninput="glbSlider('ry')">
+                                        <input type="number" id="glb-ry"   step="1" value="0" class="glb-numbox" oninput="glbNumbox('ry')">
+                                    </div>
+                                    <div class="glb-slider-row">
+                                        <span class="glb-axis-tag" style="color:#4dabf7;">Z</span>
+                                        <input type="range"  id="glb-rz-s" min="-180" max="180" step="1" value="0" class="glb-range glb-range-z" oninput="glbSlider('rz')">
+                                        <input type="number" id="glb-rz"   step="1" value="0" class="glb-numbox" oninput="glbNumbox('rz')">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Buttons -->
+                            <div style="display:flex;gap:8px;">
+                                <button type="button" onclick="glbReset()"
+                                    style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);
+                                           background:transparent;color:var(--muted);font-size:0.75rem;cursor:pointer;">
+                                    ↺ Reset
+                                </button>
+                                <button type="button" onclick="glbApplyToFields()"
+                                    style="flex:2;padding:8px 6px;border-radius:7px;border:none;
+                                           background:var(--primary);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                                    ✓ Apply to Dish
+                                </button>
+                            </div>
+                            <div id="glb-applied-msg"
+                                style="display:none;font-size:0.7rem;color:#43e97b;text-align:center;margin-top:-8px;">
+                                ✓ Applied! Save Dish dabao to commit.
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
             </div>
             <div class="modal-foot">
                 <button class="btn btn-ghost" onclick="closeModal('modal-dish')">Cancel</button>
@@ -1120,16 +1250,16 @@
             const res = await fetch(`/api/admin/trash/${encodeURIComponent(trashName)}`, { method: 'DELETE' });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || 'Failed');
-            showToast('Permanently deleted', 'success');
+            toast('Permanently deleted', 'success');
             loadTrash();
-        } catch(e) { showToast(e.message, 'error'); }
+        } catch(e) { toast(e.message, 'error'); }
     }
 
     async function downloadTrashFile(trashName, originalName, clientId) {
         // Download via blob — trash files are not publicly served
         try {
             const res = await fetch(`/api/admin/trash/${encodeURIComponent(trashName)}/download`);
-            if (!res.ok) { showToast('Download failed — file may not be accessible', 'error'); return; }
+            if (!res.ok) { toast('Download failed — file may not be accessible', 'error'); return; }
             const blob = await res.blob();
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
@@ -1137,7 +1267,7 @@
             a.download = originalName;
             a.click();
             URL.revokeObjectURL(url);
-        } catch(e) { showToast('Download failed', 'error'); }
+        } catch(e) { toast('Download failed', 'error'); }
     }
 
     async function emptyTrash() {
@@ -1154,9 +1284,9 @@
             const res  = await fetch(url, { method: 'DELETE' });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || 'Failed');
-            showToast(data.message, 'success');
+            toast(data.message, 'success');
             loadTrash();
-        } catch(e) { showToast(e.message, 'error'); }
+        } catch(e) { toast(e.message, 'error'); }
     }
     </script>
 
@@ -1379,6 +1509,60 @@
         }
         .trash-btn:hover { background: rgba(255,255,255,0.06); color: white; }
         .trash-btn.danger:hover { background: rgba(255,71,87,0.15); color: #ff4757; border-color: rgba(255,71,87,0.4); }
+
+        /* ── GLB 3D Editor ── */
+        @keyframes _glbSpin { to { transform: rotate(360deg); } }
+        .glb-axis-label {
+            font-family: var(--font-m);
+            font-size: 0.6rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .glb-axis-tag { font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; width: 10px; flex-shrink:0; }
+        .glb-slider-group { display: flex; flex-direction: column; gap: 6px; }
+        .glb-slider-row { display: flex; align-items: center; gap: 8px; }
+        .glb-range {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255,255,255,0.1);
+        }
+        .glb-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            cursor: grab;
+            border: 2px solid rgba(0,0,0,0.3);
+        }
+        .glb-range:active::-webkit-slider-thumb { cursor: grabbing; }
+        .glb-range-x::-webkit-slider-thumb { background: #ff6b6b; }
+        .glb-range-y::-webkit-slider-thumb { background: #43e97b; }
+        .glb-range-z::-webkit-slider-thumb { background: #4dabf7; }
+        .glb-range-x { accent-color: #ff6b6b; }
+        .glb-range-y { accent-color: #43e97b; }
+        .glb-range-z { accent-color: #4dabf7; }
+        .glb-numbox {
+            width: 52px;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            color: white;
+            font-family: var(--font-m);
+            font-size: 0.72rem;
+            padding: 4px 4px;
+            text-align: center;
+            outline: none;
+        }
+        .glb-numbox:focus { border-color: rgba(108,99,255,0.5); }
+        .glb-numbox::-webkit-inner-spin-button { opacity: 0.25; }
     </style>
 
 <div style="text-align:center;padding:10px;font-size:0.72rem;color:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;gap:6px;">

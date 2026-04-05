@@ -18,19 +18,5 @@ Thumbs.db
 # Environment variables
 .env
 
-# Dev-only files — excluded from deployment
-Notes.txt
-clean_db.py
-create_first_admin.py
-manage_restaurant.py
-data/orders.db
-data/*.db-wal
-data/*.db-shm
-
 # old json files
 data/
-
-# local assets
-static/assets/clint_one/
-static/assets/clint_two/
-private/

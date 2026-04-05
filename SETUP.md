@@ -2,8 +2,9 @@
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.11+ (see `.python-version`)
 - PostgreSQL (running locally or remote)
+- Node.js (for GLB optimization)
 - Git
 
 ---
@@ -134,6 +135,27 @@ Use the admin panel at `/admin` to create owner, waiter, kitchen, and counter ac
 - Free sources: [Sketchfab](https://sketchfab.com), [CGTrader](https://cgtrader.com)
 - Place in `private/assets/{client_id}/`
 - Reference in JSON: `"model": "{client_id}/dish.glb"`
+
+### Optimize 3D models
+
+GLB files optimize karne ke liye — size kam hogi, loading fast hogi.
+
+**Install once:**
+```bash
+npm install -g @gltf-transform/cli
+```
+
+**Run optimizer** (Two Ways):
+
+```bash
+# Option 1 — directly from Python script
+python glb_optimizer.py input.glb output.glb
+
+# Option 2 — via main.py route (automatically when upload)
+# GLB_SECRET should be in .env
+```
+
+Save Optimized files in `private/assets/{client_id}/`.
 
 **Note:** AR requires HTTPS in production. Camera API does not work on plain HTTP.
 

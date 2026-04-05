@@ -45,7 +45,6 @@
 <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('tables', this)">🪑 Tables</button>
     <button class="tab-btn" onclick="switchTab('orders', this)">📋 Orders</button>
-    <button class="tab-btn" onclick="switchTab('place', this)">➕ Place Order</button>
 </div>
 
 <div class="body">
@@ -84,21 +83,7 @@
     </div>
 
 
-    <!-- PLACE ORDER TAB -->
-    <div id="tab-place" style="display:none">
-        <div id="menu-items-list"></div>
-    </div>
-</div>
 
-<!-- Floating Place Order Bar -->
-<div id="wo-float-bar" style="display:none">
-    <div class="wo-bar-left">
-        <span class="wo-bar-count"></span>
-        <span class="wo-bar-total"></span>
-    </div>
-    <button class="wo-bar-btn" onclick="placeOrder()">
-        <i class="fas fa-paper-plane"></i> Place Order
-    </button>
 </div>
 
 <!-- TABLE ACTION MODAL -->
@@ -116,6 +101,36 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- FULL-SCREEN ORDER OVERLAY -->
+<div id="order-overlay" class="order-overlay">
+    <div class="order-overlay-header">
+        <button class="order-overlay-back" onclick="closeOrderOverlay()">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="order-overlay-title" id="order-overlay-title">Add Items</div>
+        <div id="oo-cart-badge" class="oo-cart-badge" style="display:none">0</div>
+    </div>
+    <div class="order-overlay-body" id="order-overlay-body">
+        <div class="wo-search-wrap" style="margin:12px 16px 8px;">
+            <i class="fas fa-search wo-search-icon"></i>
+            <input type="text" id="oo-search" placeholder="Search dishes..." oninput="ooOnSearch(this.value)">
+            <button class="wo-search-clear" id="oo-search-clear" onclick="ooClearSearch()" style="display:none">✕</button>
+        </div>
+        <div class="wo-cat-tabs" id="oo-cat-tabs"></div>
+        <div id="oo-items-wrap" style="padding:0 12px;"></div>
+        <div style="height:90px;"></div>
+    </div>
+    <div id="oo-float-bar" class="oo-float-bar" style="display:none">
+        <div class="wo-bar-left">
+            <span class="wo-bar-count" id="oo-bar-count"></span>
+            <span class="wo-bar-total" id="oo-bar-total"></span>
+        </div>
+        <button class="wo-bar-btn" onclick="placeOrderFromOverlay()">
+            <i class="fas fa-paper-plane"></i> Place Order
+        </button>
+    </div>
+</div>
 
 <!-- EDIT ORDER MODAL -->
 <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);">
@@ -421,6 +436,98 @@
             color: #666;
         }
         .edit-order-btn:hover { background: #f5f5f5; }
+
+/* ── FULL-SCREEN ORDER OVERLAY ── */
+.order-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: #f4f4f6;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+}
+.order-overlay.open {
+    transform: translateY(0);
+}
+.order-overlay-header {
+    background: var(--secondary);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+.order-overlay-back {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.order-overlay-title {
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    flex: 1;
+}
+.oo-cart-badge {
+    background: var(--primary);
+    color: var(--secondary);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--font-secondary);
+    flex-shrink: 0;
+}
+.order-overlay-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.oo-float-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--secondary);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+}
+/* Add Items button in modal footer */
+.add-items-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
 </style>
 
 <!-- Static JS file -->
