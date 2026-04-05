@@ -687,6 +687,7 @@ function renderItemsList() {
                 </div>
                 <div class="item-meta">${item.category || ''} &nbsp;·&nbsp; ${item.sizes ? item.sizes.map(s => s.label + ': ' + s.price).join(' / ') : (item.price || '')}</div>
                 <div class="item-meta" style="margin-top:3px">${item.description || ''}</div>
+                ${item.model ? '<div style="margin-top:4px;"><span style="font-size:0.65rem;padding:2px 7px;border-radius:4px;background:rgba(108,99,255,0.15);color:#a89cff;border:1px solid rgba(108,99,255,0.2);">📦 3D Model</span></div>' : ''}
             </div>
             <div class="item-actions">
                 <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditItem(${i})">✏️</button>
@@ -719,6 +720,7 @@ function openAddItem() {
     resetUploadBox('di-model-box','📦','GLB model file upload karo',null,'di-model-icon','di-model-hint');
     initUploadDragDrop('di-image-box','di-image-file');
     initUploadDragDrop('di-model-box','di-model-file');
+    initGlbEditor('');
     openModal('modal-dish');
 }
 
@@ -772,6 +774,7 @@ function openEditItem(index) {
         document.getElementById('di-price-multi').style.display = 'none';
         document.getElementById('di-sizes-list').innerHTML = '';
     }
+    initGlbEditor(item.model || '');
     openModal('modal-dish');
 }
 
@@ -1340,3 +1343,298 @@ function togglePass(inputId, btnId) {
         closed.style.display = "none";
     }
 }
+
+// ════════════════════════════════
+// GLB 3D EDITOR
+// ════════════════════════════════
+(function () {
+
+    // ── Expose currentEditClientId to window so IIFE can read it ──
+    // (let variables aren't on window, so we proxy via a getter)
+    Object.defineProperty(window, '_glbClientId', {
+        get: () => typeof currentEditClientId !== 'undefined' ? currentEditClientId : null
+    });
+
+    let _S    = null;   // scene state
+    let _orbit = { active:false, lastX:0, lastY:0, rotX:0.3, rotY:0.4, zoom:5 };
+    let _loaded = { three:false, gltf:false };
+
+    // Slider range limits per axis group
+    const RANGES = {
+        p: { min:-5,   max:5,   step:0.05 },
+        s: { min:0.05, max:10,  step:0.05 },
+        r: { min:-180, max:180, step:1    }
+    };
+
+    // ── Public entry ──
+    window.initGlbEditor = function (modelPath) {
+        const section = document.getElementById('glb-editor-section');
+        const badge   = document.getElementById('glb-model-badge');
+
+        if (!modelPath || modelPath.toLowerCase() === 'none' || !modelPath.trim()) {
+            section.style.display = 'none';
+            _destroyScene();
+            return;
+        }
+
+        section.style.display = 'block';
+        badge.textContent = modelPath.split('/').pop();
+        _showOverlay('Loading...');
+        _syncInputsFromFields();   // populate sliders from dish fields
+
+        _loadThree(() => _loadGltf(() => {
+            _buildScene();
+            _fetchAndLoad(modelPath);
+        }));
+    };
+
+    // ── Script loaders ──
+    function _loadThree(cb) {
+        if (_loaded.three && window.THREE) { cb(); return; }
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+        s.onload = () => { _loaded.three = true; cb(); };
+        document.head.appendChild(s);
+    }
+    function _loadGltf(cb) {
+        if (_loaded.gltf && window.THREE && window.THREE.GLTFLoader) { cb(); return; }
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+        s.onload = () => { _loaded.gltf = true; cb(); };
+        document.head.appendChild(s);
+    }
+
+    // ── Build Three.js scene ──
+    function _buildScene() {
+        _destroyScene();
+        const canvas = document.getElementById('glb-canvas');
+        canvas.width  = canvas.clientWidth  || 180;
+        canvas.height = canvas.clientHeight || 320;
+
+        const THREE = window.THREE;
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a12);
+
+        // Grid
+        const grid = new THREE.GridHelper(6, 14, 0x1a1a2e, 0x141420);
+        grid.position.y = -1.2; scene.add(grid);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const d1 = new THREE.DirectionalLight(0xffffff, 1.2);
+        d1.position.set(5, 8, 6); scene.add(d1);
+        const d2 = new THREE.DirectionalLight(0x6666ff, 0.3);
+        d2.position.set(-4, -2, -5); scene.add(d2);
+
+        const camera = new THREE.PerspectiveCamera(
+            45, canvas.width / canvas.height, 0.01, 500
+        );
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(canvas.width, canvas.height, false);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.physicallyCorrectLights = true;
+
+        _orbit = { active:false, lastX:0, lastY:0, rotX:0.3, rotY:0.4, zoom:5 };
+        _attachOrbit(canvas, camera);
+
+        const animId = { v:null };
+        (function loop() { animId.v = requestAnimationFrame(loop); _updateCamera(camera); renderer.render(scene, camera); })();
+
+        _S = { THREE, scene, camera, renderer, animId, model:null };
+    }
+
+    // ── Fetch signed URL then load GLB ──
+    function _fetchAndLoad(modelPath) {
+        const clientId = window._glbClientId;   // BUG FIX: proxy getter
+        if (!clientId) { _showOverlay('Restaurant ID nahi mila'); return; }
+
+        fetch('/api/menu/' + clientId)
+            .then(r => r.json())
+            .then(data => {
+                const item = (data.items || []).find(it => it.model === modelPath);
+                if (!item || !item.model_url) {
+                    _showOverlay('Signed URL nahi mila — pehle dish save karo');
+                    return;
+                }
+                _loadGlbUrl(item.model_url);
+            })
+            .catch(e => { console.error('[GLB]', e); _showOverlay('API error'); });
+    }
+
+    function _loadGlbUrl(url) {
+        if (!_S) return;
+        const { THREE, scene } = _S;
+        const loader = new THREE.GLTFLoader();
+        loader.load(url, gltf => {
+            if (!_S) return;
+            if (_S.model) { scene.remove(_S.model); _S.model = null; }
+            const model = gltf.scene;
+
+            // Normalize to ~2-unit sphere
+            const box    = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size   = box.getSize(new THREE.Vector3());
+            const norm   = 2 / (Math.max(size.x, size.y, size.z) || 1);
+            model.position.sub(center.multiplyScalar(norm));
+            model.userData.normScale = norm;
+
+            scene.add(model);
+            _S.model = model;
+            _applyTransform();
+            _hideOverlay();
+        }, undefined, err => {
+            console.error('[GLB load]', err);
+            _showOverlay('Load failed');
+        });
+    }
+
+    // ── Apply xyz inputs → Three.js model ──
+    function _applyTransform() {
+        if (!_S || !_S.model) return;
+        const m    = _S.model;
+        const norm = m.userData.normScale || 1;
+        const DEG  = Math.PI / 180;
+        m.position.set(_n('glb-px'), _n('glb-py'), _n('glb-pz'));
+        m.scale.set(_n('glb-sx')*norm, _n('glb-sy')*norm, _n('glb-sz')*norm);
+        m.rotation.set(_n('glb-rx')*DEG, _n('glb-ry')*DEG, _n('glb-rz')*DEG);
+    }
+
+    // ── Sync sliders ↔ numboxes → model ──
+    window.glbSlider = function (axis) {
+        // slider moved → copy to numbox
+        const sv = document.getElementById('glb-'+axis+'-s').value;
+        document.getElementById('glb-'+axis).value = sv;
+        _handleUniform(axis, sv);
+        _applyTransform();
+    };
+    window.glbNumbox = function (axis) {
+        // numbox typed → copy to slider (clamped)
+        let v = parseFloat(document.getElementById('glb-'+axis).value) || 0;
+        const s = document.getElementById('glb-'+axis+'-s');
+        v = Math.max(parseFloat(s.min), Math.min(parseFloat(s.max), v));
+        s.value = v;
+        document.getElementById('glb-'+axis).value = v;
+        _handleUniform(axis, v);
+        _applyTransform();
+    };
+
+    function _handleUniform(axis, val) {
+        if (!document.getElementById('glb-uniform').checked) return;
+        if (!['sx','sy','sz'].includes(axis)) return;
+        ['sx','sy','sz'].forEach(a => {
+            document.getElementById('glb-'+a).value   = val;
+            document.getElementById('glb-'+a+'-s').value = val;
+        });
+    }
+
+    // ── Sync from di-position/scale/rotation text fields → inputs+sliders ──
+    function _syncInputsFromFields() {
+        const pos = _p3(document.getElementById('di-position')?.value, '0 0 0');
+        const scl = _p3(document.getElementById('di-scale')?.value,    '1 1 1');
+        const rot = _p3(document.getElementById('di-rotation')?.value, '0 0 0');
+
+        _setAxis('px', pos[0]); _setAxis('py', pos[1]); _setAxis('pz', pos[2]);
+        _setAxis('sx', scl[0]); _setAxis('sy', scl[1]); _setAxis('sz', scl[2]);
+        _setAxis('rx', rot[0]); _setAxis('ry', rot[1]); _setAxis('rz', rot[2]);
+    }
+
+    function _setAxis(axis, val) {
+        const num = document.getElementById('glb-'+axis);
+        const sld = document.getElementById('glb-'+axis+'-s');
+        if (num) num.value = val;
+        if (sld) {
+            const clamped = Math.max(parseFloat(sld.min), Math.min(parseFloat(sld.max), val));
+            sld.value = clamped;
+        }
+    }
+
+    // ── Apply editor values → di-position/scale/rotation text fields ──
+    window.glbApplyToFields = function () {
+        const f = id => document.getElementById(id)?.value || 0;
+        _field('di-position', `${f('glb-px')} ${f('glb-py')} ${f('glb-pz')}`);
+        _field('di-scale',    `${f('glb-sx')} ${f('glb-sy')} ${f('glb-sz')}`);
+        _field('di-rotation', `${f('glb-rx')} ${f('glb-ry')} ${f('glb-rz')}`);
+        const msg = document.getElementById('glb-applied-msg');
+        if (msg) { msg.style.display='block'; setTimeout(()=>msg.style.display='none', 3000); }
+    };
+
+    // ── Reset to defaults ──
+    window.glbReset = function () {
+        ['px','py','pz'].forEach(a => _setAxis(a, 0));
+        ['sx','sy','sz'].forEach(a => _setAxis(a, 1));
+        ['rx','ry','rz'].forEach(a => _setAxis(a, 0));
+        _applyTransform();
+    };
+
+    // ── Orbit (mouse + touch) ──
+    function _attachOrbit(canvas, camera) {
+        canvas.addEventListener('mousedown', e => {
+            _orbit.active=true; _orbit.lastX=e.clientX; _orbit.lastY=e.clientY;
+            canvas.style.cursor='grabbing';
+        });
+        window.addEventListener('mouseup', () => { _orbit.active=false; canvas.style.cursor='grab'; });
+        window.addEventListener('mousemove', e => {
+            if (!_orbit.active) return;
+            _orbit.rotY += (e.clientX-_orbit.lastX)*0.008;
+            _orbit.rotX += (e.clientY-_orbit.lastY)*0.008;
+            _orbit.rotX  = Math.max(-1.4, Math.min(1.4, _orbit.rotX));
+            _orbit.lastX=e.clientX; _orbit.lastY=e.clientY;
+        });
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            _orbit.zoom = Math.max(0.5, Math.min(25, _orbit.zoom+e.deltaY*0.012));
+        }, {passive:false});
+        let t0=null;
+        canvas.addEventListener('touchstart',  e => { _orbit.active=true;  t0=e.touches[0]; });
+        canvas.addEventListener('touchend',    () => { _orbit.active=false; t0=null; });
+        canvas.addEventListener('touchmove',   e => {
+            if (!_orbit.active||!t0) return;
+            _orbit.rotY+=(e.touches[0].clientX-t0.clientX)*0.01;
+            _orbit.rotX+=(e.touches[0].clientY-t0.clientY)*0.01;
+            _orbit.rotX =Math.max(-1.4,Math.min(1.4,_orbit.rotX));
+            t0=e.touches[0]; e.preventDefault();
+        }, {passive:false});
+    }
+    function _updateCamera(camera) {
+        const r=_orbit.zoom;
+        camera.position.set(
+            r*Math.sin(_orbit.rotY)*Math.cos(_orbit.rotX),
+            r*Math.sin(_orbit.rotX),
+            r*Math.cos(_orbit.rotY)*Math.cos(_orbit.rotX)
+        );
+        camera.lookAt(0,0,0);
+    }
+
+    // ── Cleanup ──
+    function _destroyScene() {
+        if (!_S) return;
+        cancelAnimationFrame(_S.animId.v);
+        _S.renderer.dispose();
+        _S = null;
+    }
+    document.addEventListener('click', e => {
+        if (e.target.id==='modal-dish' ||
+           (e.target.classList.contains('modal-close') && e.target.closest('#modal-dish'))) {
+            _destroyScene();
+        }
+    });
+
+    // ── Helpers ──
+    function _n(id)        { return parseFloat(document.getElementById(id)?.value) || 0; }
+    function _field(id,v)  { const el=document.getElementById(id); if(el) el.value=v; }
+    function _p3(str, fb)  { const p=(str||fb).trim().split(/\s+/).map(Number); while(p.length<3)p.push(0); return p; }
+    function _showOverlay(msg) {
+        const ov=document.getElementById('glb-loader-overlay');
+        const sp=document.getElementById('glb-loader-spinner');
+        const tx=document.getElementById('glb-loader-text');
+        if (!ov) return; ov.style.display='flex';
+        if (sp) sp.style.display=/fail|nahi|error/i.test(msg)?'none':'block';
+        if (tx) tx.textContent=msg;
+    }
+    function _hideOverlay() {
+        const ov=document.getElementById('glb-loader-overlay');
+        if (ov) ov.style.display='none';
+    }
+
+})();
