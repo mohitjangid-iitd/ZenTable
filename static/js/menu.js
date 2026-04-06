@@ -24,6 +24,7 @@ document.addEventListener('click', function(e) {
     // 1. Size toggle button (+ on card) — open/close dropdown
     const sizeToggle = e.target.closest('.js-size-toggle');
     if (sizeToggle) {
+        e.stopPropagation();
         const ddId = sizeToggle.dataset.ddid;
         const dd = document.getElementById(ddId);
         if (!dd) return;
@@ -36,6 +37,7 @@ document.addEventListener('click', function(e) {
     // 2. + button inside dropdown row
     const sizeAdd = e.target.closest('.js-size-add');
     if (sizeAdd) {
+        e.stopPropagation();
         addItem(
             sizeAdd.dataset.dish,
             sizeAdd.dataset.label,
@@ -49,6 +51,7 @@ document.addEventListener('click', function(e) {
     // 3. − button inside dropdown row
     const sizeMinus = e.target.closest('.js-size-minus');
     if (sizeMinus) {
+        e.stopPropagation();
         removeItem(
             sizeMinus.dataset.dish,
             sizeMinus.dataset.label,
@@ -74,8 +77,20 @@ document.addEventListener('click', function(e) {
         return;
     }
 
-    // 6. Click bahar — dropdowns band
-    if (!e.target.closest('.size-dropdown') && !e.target.closest('.js-size-toggle')) {
+    // 6. Dish card click — dropdown toggle
+    const dishCard = e.target.closest('.dish-card');
+    if (dishCard) {
+        const ddId = dishCard.dataset.ddid;
+        const dd = document.getElementById(ddId);
+        if (!dd) return;
+        const wasOpen = dd.classList.contains('open');
+        document.querySelectorAll('.size-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (!wasOpen) dd.classList.add('open');
+        return;
+    }
+
+    // 7. Click bahar — dropdowns band
+    if (!e.target.closest('.size-dropdown')) {
         document.querySelectorAll('.size-dropdown.open').forEach(d => d.classList.remove('open'));
     }
 });

@@ -6,8 +6,8 @@ from fastapi.staticfiles import StaticFiles
 
 from site_config import SITE_CONFIG
 from database import init_db, seed_tables, get_all_restaurants_info
-from r2 import USE_R2, IS_PROD, r2_public_url
-from helpers import get_client_data, require_auth
+from r2 import USE_R2, r2_public_url
+from helpers import get_client_data
 from trash_utils import purge_expired_trash
 
 from routers.menu   import router as menu_router
