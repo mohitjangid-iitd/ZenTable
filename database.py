@@ -167,6 +167,23 @@ def init_db():
         )
     """)
 
+    # ── Trash meta table ──
+    # Local json file ki jagah — Render ephemeral disk pe survive karta hai
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trash_meta (
+            id              SERIAL PRIMARY KEY,
+            client_id       TEXT NOT NULL,
+            original_name   TEXT NOT NULL,
+            original_path   TEXT NOT NULL,
+            trash_name      TEXT NOT NULL UNIQUE,
+            file_type       TEXT NOT NULL,
+            size_kb         REAL DEFAULT 0,
+            storage         TEXT DEFAULT 'local',
+            deleted_at      TEXT NOT NULL,
+            auto_delete_at  TEXT NOT NULL
+        )
+    """)
+
     # ── Migrations for older DBs ──
     try:
         cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'customer'")
@@ -1072,3 +1089,110 @@ def export_full_db_zip() -> str:
 
     conn.close()
     return tmp.name
+
+
+# ════════════════════════════════
+# TRASH META — DB FUNCTIONS
+# ════════════════════════════════
+
+def trash_add(entry: dict):
+    """
+    Naya trash entry DB mein insert karo.
+    entry keys: client_id, original_name, original_path, trash_name,
+                file_type, size_kb, storage, deleted_at, auto_delete_at
+    """
+    conn = get_db()
+    try:
+        conn.execute("""
+            INSERT INTO trash_meta
+                (client_id, original_name, original_path, trash_name,
+                 file_type, size_kb, storage, deleted_at, auto_delete_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (trash_name) DO NOTHING
+        """, (
+            entry["client_id"],
+            entry["original_name"],
+            entry["original_path"],
+            entry["trash_name"],
+            entry["file_type"],
+            entry.get("size_kb", 0),
+            entry.get("storage", "local"),
+            entry["deleted_at"],
+            entry["auto_delete_at"],
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def trash_get_all(client_id: str = None) -> list:
+    """Saari trash entries — client_id dene pe filter hogi."""
+    conn = get_db()
+    if client_id:
+        cur = conn.execute(
+            "SELECT * FROM trash_meta WHERE client_id=%s ORDER BY deleted_at DESC",
+            (client_id,)
+        )
+    else:
+        cur = conn.execute(
+            "SELECT * FROM trash_meta ORDER BY deleted_at DESC"
+        )
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def trash_get_one(trash_name: str) -> dict | None:
+    """Ek specific trash entry by trash_name."""
+    conn = get_db()
+    cur = conn.execute(
+        "SELECT * FROM trash_meta WHERE trash_name=%s", (trash_name,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def trash_remove(trash_name: str):
+    """Ek entry DB se hata do."""
+    conn = get_db()
+    conn.execute("DELETE FROM trash_meta WHERE trash_name=%s", (trash_name,))
+    conn.commit()
+    conn.close()
+
+
+def trash_remove_by_client(client_id: str):
+    """Kisi restaurant ki saari trash entries hata do."""
+    conn = get_db()
+    conn.execute("DELETE FROM trash_meta WHERE client_id=%s", (client_id,))
+    conn.commit()
+    conn.close()
+
+
+def trash_remove_all():
+    """Saari trash entries ek saath delete karo."""
+    conn = get_db()
+    conn.execute("DELETE FROM trash_meta")
+    conn.commit()
+    conn.close()
+
+
+def trash_remove_expired(before_datetime_str: str) -> list:
+    """
+    auto_delete_at < before_datetime_str wali entries return karke delete karo.
+    Returns list of expired entries (taaki caller file bhi delete kar sake).
+    """
+    conn = get_db()
+    cur = conn.execute(
+        "SELECT * FROM trash_meta WHERE auto_delete_at < %s",
+        (before_datetime_str,)
+    )
+    expired = [dict(r) for r in cur.fetchall()]
+    if expired:
+        conn.execute(
+            "DELETE FROM trash_meta WHERE auto_delete_at < %s",
+            (before_datetime_str,)
+        )
+        conn.commit()
+    conn.close()
+    return expired

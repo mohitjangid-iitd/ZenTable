@@ -28,7 +28,9 @@ from database import (
     toggle_staff_active, delete_staff,
     get_all_restaurants_info, get_overall_stats, get_top_dishes_overall,
     save_restaurant_json, delete_restaurant_full,
-    create_admin, export_full_db_zip
+    create_admin, export_full_db_zip,
+    trash_add, trash_get_all, trash_get_one,
+    trash_remove, trash_remove_by_client, trash_remove_all, trash_remove_expired,
 )
 from auth import login_staff, login_admin, decode_token, get_redirect_url
 from glb_optimizer import optimize_and_audit
@@ -142,29 +144,12 @@ UPLOAD_RULES = {
 }
 
 # ── Trash config ──
-TRASH_DIR        = "private/trash"
-TRASH_META_FILE  = "private/trash/trash_meta.json"
+TRASH_DIR         = "private/trash"
 TRASH_EXPIRY_DAYS = 30
 
 # ════════════════════════════════
 # TRASH HELPERS
 # ════════════════════════════════
-
-def _load_trash_meta() -> list:
-    """trash_meta.json padho — nahi hai to empty list"""
-    if not os.path.exists(TRASH_META_FILE):
-        return []
-    try:
-        with open(TRASH_META_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-def _save_trash_meta(meta: list):
-    """trash_meta.json save karo"""
-    os.makedirs(TRASH_DIR, exist_ok=True)
-    with open(TRASH_META_FILE, "w", encoding="utf-8") as f:
-        json.dump(meta, f, indent=2, ensure_ascii=False)
 
 def move_to_trash(client_id: str, save_path: str, file_type: str):
     """
@@ -172,6 +157,7 @@ def move_to_trash(client_id: str, save_path: str, file_type: str):
     save_path  — local path (e.g. static/assets/clint_one/logo.png)
                  ya R2 key (e.g. clint_one/logo.png) — USE_R2 ke hisaab se
     file_type  — "image" | "model" | "mind"
+    Meta ab PostgreSQL mein jaata hai (Render-safe).
     """
     now        = datetime.now(IST)
     ts         = int(now.timestamp())
@@ -182,9 +168,6 @@ def move_to_trash(client_id: str, save_path: str, file_type: str):
 
     if USE_R2:
         # R2 key derive karo save_path se
-        # image: "static/assets/clint_one/logo.png" → "clint_one/logo.png"
-        # model: "private/assets/clint_one/burger.glb" → "clint_one/burger.glb"
-        # old_path (model): "clint_one/burger.glb" → already correct
         src_key = save_path
         for prefix in ("static/assets/", "private/assets/"):
             if save_path.startswith(prefix):
@@ -192,14 +175,19 @@ def move_to_trash(client_id: str, save_path: str, file_type: str):
                 break
 
         trash_key = f"trash/{client_id}/{trash_name}"
-
-        # R2 pe copy karo, phir original delete karo
         copied = r2_copy(src_key, trash_key)
         if not copied:
-            return  # file R2 pe thi hi nahi
+            return  # file R2 pe thi hi nahi — silently skip
 
         r2_delete(src_key)
-        size_kb = 0  # R2 se size fetch karna expensive hai, skip
+
+        # R2 se size fetch karo (head_object — cheap request)
+        size_kb = 0
+        try:
+            head = _r2_client.head_object(Bucket=R2_BUCKET, Key=trash_key)
+            size_kb = round(head["ContentLength"] / 1024, 1)
+        except Exception:
+            pass
 
     else:
         if not os.path.exists(save_path):
@@ -211,8 +199,7 @@ def move_to_trash(client_id: str, save_path: str, file_type: str):
         shutil.move(save_path, dest)
         size_kb = round(os.path.getsize(dest) / 1024, 1)
 
-    meta = _load_trash_meta()
-    meta.append({
+    trash_add({
         "client_id":      client_id,
         "original_name":  orig_name,
         "original_path":  save_path,
@@ -223,24 +210,16 @@ def move_to_trash(client_id: str, save_path: str, file_type: str):
         "auto_delete_at": auto_delete_at,
         "storage":        "r2" if USE_R2 else "local",
     })
-    _save_trash_meta(meta)
+
 
 def purge_expired_trash():
     """30 din se purani trash files delete karo. Lifespan mein call hota hai."""
-    meta    = _load_trash_meta()
-    now     = datetime.now(IST)
-    kept    = []
-    deleted = 0
+    now_str  = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+    expired  = trash_remove_expired(now_str)   # DB se entries hata ke return karo
+    deleted  = 0
 
-    for entry in meta:
+    for entry in expired:
         try:
-            expiry = datetime.strptime(entry["auto_delete_at"], "%Y-%m-%d %H:%M:%S")
-            expiry = expiry.replace(tzinfo=IST)
-        except Exception:
-            kept.append(entry)
-            continue
-
-        if now > expiry:
             if entry.get("storage") == "r2" or USE_R2:
                 r2_delete(f"trash/{entry['client_id']}/{entry['trash_name']}")
             else:
@@ -248,53 +227,68 @@ def purge_expired_trash():
                 if os.path.exists(trash_path):
                     os.remove(trash_path)
             deleted += 1
-        else:
-            kept.append(entry)
+        except Exception:
+            pass
 
     if deleted:
-        _save_trash_meta(kept)
         print(f"🗑️  Trash purge: {deleted} expired file(s) deleted")
+
 
 def restore_from_trash(trash_name: str) -> bool:
     """
     Trash file ko uski original location pe wapas rakho.
+    R2 aur local dono modes support karta hai.
     Return True on success, False if not found.
     """
-    meta = _load_trash_meta()
-    entry = next((e for e in meta if e["trash_name"] == trash_name), None)
+    entry = trash_get_one(trash_name)
     if not entry:
         return False
 
-    trash_path    = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
     original_path = entry["original_path"]
 
-    if not os.path.exists(trash_path):
-        return False
+    if entry.get("storage") == "r2" or USE_R2:
+        # R2: trash key → original key pe copy karo, phir trash delete karo
+        trash_key = f"trash/{entry['client_id']}/{trash_name}"
 
-    os.makedirs(os.path.dirname(original_path), exist_ok=True)
-    shutil.move(trash_path, original_path)
+        # original_path se R2 key derive karo (same logic as move_to_trash)
+        orig_key = original_path
+        for prefix in ("static/assets/", "private/assets/"):
+            if original_path.startswith(prefix):
+                orig_key = original_path[len(prefix):]
+                break
 
-    # Meta se entry hatao
-    updated = [e for e in meta if e["trash_name"] != trash_name]
-    _save_trash_meta(updated)
+        copied = r2_copy(trash_key, orig_key)
+        if not copied:
+            return False
+        r2_delete(trash_key)
+    else:
+        trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
+        if not os.path.exists(trash_path):
+            return False
+        os.makedirs(os.path.dirname(original_path), exist_ok=True)
+        shutil.move(trash_path, original_path)
+
+    trash_remove(trash_name)
     return True
 
+
 def delete_from_trash(trash_name: str) -> bool:
-    """Trash se permanently delete karo."""
-    meta  = _load_trash_meta()
-    entry = next((e for e in meta if e["trash_name"] == trash_name), None)
+    """Trash se permanently delete karo (file + DB entry)."""
+    entry = trash_get_one(trash_name)
     if not entry:
         return False
 
-    if entry.get("storage") == "r2" or USE_R2:
-        r2_delete(f"trash/{entry['client_id']}/{trash_name}")
-    else:
-        trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
-        if os.path.exists(trash_path):
-            os.remove(trash_path)
+    try:
+        if entry.get("storage") == "r2" or USE_R2:
+            r2_delete(f"trash/{entry['client_id']}/{trash_name}")
+        else:
+            trash_path = os.path.join(TRASH_DIR, entry["client_id"], trash_name)
+            if os.path.exists(trash_path):
+                os.remove(trash_path)
+    except Exception:
+        pass
 
-    updated = [e for e in meta if e["trash_name"] != trash_name]
-    _save_trash_meta(updated)
+    trash_remove(trash_name)
     return True
 
 
@@ -1017,22 +1011,18 @@ async def api_get_trash(client_id: str = None, auth_token: Optional[str] = Cooki
     Har entry mein 'days_left' bhi hoga.
     """
     require_auth(auth_token, ["admin"])
-    meta = _load_trash_meta()
-    now  = datetime.now(IST)
+    entries = trash_get_all(client_id)
+    now     = datetime.now(IST)
 
     result = []
-    for entry in meta:
-        if client_id and entry["client_id"] != client_id:
-            continue
+    for entry in entries:
         try:
-            expiry   = datetime.strptime(entry["auto_delete_at"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=IST)
+            expiry    = datetime.strptime(entry["auto_delete_at"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=IST)
             days_left = max(0, (expiry - now).days)
         except Exception:
             days_left = None
         result.append({**entry, "days_left": days_left})
 
-    # Naye pehle
-    result.sort(key=lambda x: x["deleted_at"], reverse=True)
     return result
 
 @app.post("/api/admin/trash/{trash_name}/restore")
@@ -1057,8 +1047,7 @@ async def api_delete_trash(trash_name: str, auth_token: Optional[str] = Cookie(N
 async def api_download_trash(trash_name: str, auth_token: Optional[str] = Cookie(None)):
     """Trash file download karo"""
     require_auth(auth_token, ["admin"])
-    meta  = _load_trash_meta()
-    entry = next((e for e in meta if e["trash_name"] == trash_name), None)
+    entry = trash_get_one(trash_name)
     if not entry:
         raise HTTPException(status_code=404, detail="Trash entry nahi mila")
 
@@ -1082,23 +1071,27 @@ async def api_empty_trash(client_id: str = None, auth_token: Optional[str] = Coo
     client_id dene pe sirf usi restaurant ki trash saaf hogi.
     """
     require_auth(auth_token, ["admin"])
-    meta    = _load_trash_meta()
+    entries = trash_get_all(client_id)
     removed = 0
 
-    for entry in meta:
-        if client_id and entry["client_id"] != client_id:
-            continue
-        trash_path = os.path.join(TRASH_DIR, entry["client_id"], entry["trash_name"])
-        if os.path.exists(trash_path):
-            os.remove(trash_path)
+    for entry in entries:
+        try:
+            if entry.get("storage") == "r2" or USE_R2:
+                r2_delete(f"trash/{entry['client_id']}/{entry['trash_name']}")
+            else:
+                trash_path = os.path.join(TRASH_DIR, entry["client_id"], entry["trash_name"])
+                if os.path.exists(trash_path):
+                    os.remove(trash_path)
+        except Exception:
+            pass
         removed += 1
 
+    # DB se hata do
     if client_id:
-        updated = [e for e in meta if e["client_id"] != client_id]
+        trash_remove_by_client(client_id)
     else:
-        updated = []
+        trash_remove_all()
 
-    _save_trash_meta(updated)
     return {"message": f"{removed} file(s) permanently delete ki gayi"}
 
 # ════════════════════════════════
