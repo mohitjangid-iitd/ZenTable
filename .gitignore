@@ -18,5 +18,23 @@ Thumbs.db
 # Environment variables
 .env
 
-# old json files
-data/
+# Notes
+Notes.txt
+
+# Production scripts
+clean_db.py
+create_first_admin.py
+manage_restaurant.py
+
+# Database
+data/orders.db
+data/*.db-wal
+data/*.db-shm
+
+# Assets
+static/assets/clint_one
+static/assets/clint_two
+private/
+
+# Python version
+.python-version
