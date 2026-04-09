@@ -28,6 +28,14 @@ Create a `.env` file in the project root:
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 SECRET_KEY=your-secret-key-here
 GLB_SECRET=your-glb-secret-here
+
+# R2 (optional — USE_R2=false pe local storage use hogi)
+USE_R2=false
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY=
+R2_SECRET_KEY=
+R2_BUCKET=
+R2_PUBLIC_URL=
 ```
 
 Generate secure keys:
@@ -47,6 +55,8 @@ python database.py
 ```
 
 This creates all tables. Safe to run multiple times — uses `CREATE TABLE IF NOT EXISTS`.
+
+Tables created: `tables`, `orders`, `bills`, `staff`, `branches`, `admins`, `restaurants`, `trash_meta`
 
 ---
 
@@ -89,33 +99,37 @@ uvicorn main:app --reload
 
 ## 6. Onboard a Restaurant
 
-### 6a. Create config file
+Restaurant config ab JSON files mein nahi hoti — **PostgreSQL `restaurants` table (JSONB)** mein store hoti hai.
 
-Create `data/{client_id}.json` — copy `data/clint_one.json` as reference and update:
+### 6a. Admin panel se create karo
 
-- `restaurant` — name, address, timings, contact, social
-- `theme` — colors, fonts
-- `items` — menu items with images, prices, AR models
-- `subscription.features` — which features are enabled
+`/admin` → "New Restaurant" → fill in details → Create
 
-### 6b. Add assets
+Ya CLI se:
+```bash
+python manage_restaurant.py
+```
+
+### 6b. Assets upload karo
+
+Admin panel → Restaurant → Assets tab se upload karo:
 
 ```
-static/assets/{client_id}/
+Images (static/assets/{client_id}/ ya R2):
 ├── logo.png              # Transparent PNG, 500x500px recommended
 ├── banner.png            # Hero banner, 1920x1080px recommended
 ├── targets.mind          # AR target file
-└── *.jpg                 # Dish images
+└── *.jpg / *.webp        # Dish images
+
+3D Models (private/assets/{client_id}/ ya R2):
+└── *.glb                 # AR models — auto-optimized on upload
 ```
 
-```
-private/assets/{client_id}/
-└── *.glb                 # 3D models for AR
-```
+**Note:** `USE_R2=true` hone pe files Cloudflare R2 pe jaati hain — local disk pe nahi. Render pe production deployment ke liye R2 zaroori hai (ephemeral disk).
 
-### 6c. Create staff accounts
+### 6c. Staff accounts banao
 
-Use the admin panel at `/admin` to create owner, waiter, kitchen, and counter accounts for the restaurant.
+Admin panel → Restaurant → Staff tab → Create staff accounts (owner, waiter, kitchen, counter).
 
 ---
 
@@ -126,42 +140,46 @@ Use the admin panel at `/admin` to create owner, waiter, kitchen, and counter ac
 1. Go to [MindAR Compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile)
 2. Upload restaurant logo or a high-contrast custom marker (1024×1024px recommended)
 3. Download `targets.mind`
-4. Place in `static/assets/{client_id}/targets.mind`
+4. Admin panel se upload karo (type: mind)
 
 ### 3D models
 
 - Format: `.glb` (compressed GLTF)
-- Size: under 5MB per model recommended
+- Size: under 3MB recommended (audit report upload pe automatically milta hai)
+- Poly count: under 20K for smooth mobile AR
 - Free sources: [Sketchfab](https://sketchfab.com), [CGTrader](https://cgtrader.com)
-- Place in `private/assets/{client_id}/`
-- Reference in JSON: `"model": "{client_id}/dish.glb"`
+- Admin panel se upload karo (type: model) — auto-optimized ho jaata hai
 
-### Optimize 3D models
+### GLB Optimizer (manual use)
 
-GLB files optimize karne ke liye — size kam hogi, loading fast hogi.
-
-**Install once:**
 ```bash
+# Install once
 npm install -g @gltf-transform/cli
-```
 
-**Run optimizer** (Two Ways):
-
-```bash
-# Option 1 — directly from Python script
+# Run manually
 python glb_optimizer.py input.glb output.glb
-
-# Option 2 — via main.py route (automatically when upload)
-# GLB_SECRET should be in .env
 ```
 
-Save Optimized files in `private/assets/{client_id}/`.
+Upload pe automatically optimize + audit hota hai agar `gltf-transform` installed ho.
 
-**Note:** AR requires HTTPS in production. Camera API does not work on plain HTTP.
+**Note:** AR requires HTTPS in production. Camera API plain HTTP pe kaam nahi karta.
 
 ---
 
-## 8. Test on Phone (Local)
+## 8. Trash System
+
+Upload pe purani file automatically trash mein jaati hai (30 din tak recoverable).
+
+Admin panel → Trash tab:
+- **Restore** — file wapas original location pe
+- **Delete** — permanently delete
+- **Auto-purge** — 30 din baad server restart pe automatic delete
+
+Trash metadata PostgreSQL `trash_meta` table mein store hoti hai — Render restarts pe safe.
+
+---
+
+## 9. Test on Phone (Local)
 
 ```bash
 # Find your local IP
@@ -174,16 +192,17 @@ http://YOUR_IP:8000/{client_id}/ar-menu
 
 ---
 
-## 9. Production Deployment
+## 10. Production Deployment
 
 ### Checklist
 
 - [ ] HTTPS enabled (required for AR/camera)
 - [ ] `DATABASE_URL` set to production PostgreSQL
 - [ ] `SECRET_KEY` and `GLB_SECRET` set to strong random values
+- [ ] `USE_R2=true` + R2 credentials set (Render disk ephemeral hai)
 - [ ] `.env` not committed to Git
 - [ ] `create_first_admin.py` run once on server
-- [ ] All assets uploaded
+- [ ] Assets uploaded via admin panel
 - [ ] Tested on Android and iOS
 
 ### Run command
@@ -194,9 +213,9 @@ uvicorn main:app --host 0.0.0.0 --port 8080
 
 ### Recommended hosting
 
+- **Render** (currently used) — free tier available, auto-deploy from Git
 - DigitalOcean App Platform
 - Railway
-- Render
 - AWS EC2 / Google Cloud Run
 
 ---
@@ -205,8 +224,11 @@ uvicorn main:app --host 0.0.0.0 --port 8080
 
 | Issue | Fix |
 |---|---|
-| AR camera not starting | HTTPS required — does not work on plain HTTP |
-| 3D models not loading | Check file paths in JSON match actual filenames |
-| AR target not detecting | Use high-contrast image, good lighting, marker size 10cm+ |
+| AR camera not starting | HTTPS required — plain HTTP pe kaam nahi karta |
+| 3D models not loading | Check JSON mein `model` field ka path — `{client_id}/file.glb` format hona chahiye |
+| AR target not detecting | High-contrast image use karo, good lighting, marker size 10cm+ |
 | Fonts not loading | Google Fonts require internet connection |
-| DB connection error | Check `DATABASE_URL` in `.env`, verify PostgreSQL is running |
+| DB connection error | `DATABASE_URL` in `.env` check karo, PostgreSQL running hai? |
+| Upload 500 error (Windows) | File lock issue — `copy2 + os.remove` use hota hai, normal hai |
+| GLB audit shows warnings | `npm install -g @gltf-transform/cli` run karo — optimization enable hogi |
+| `static_v` undefined error | `templates_env.py` se `templates` import karo — apna instance mat banao routers mein |

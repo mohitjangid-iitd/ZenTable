@@ -23,7 +23,9 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 - **Admin Panel** — Manage all restaurants from one place
 - **Per-restaurant stats** — Revenue, orders, top dishes
 - **Staff management** — Create, edit, deactivate staff accounts
-- **Restaurant onboarding** — JSON-based config, instant setup
+- **Restaurant onboarding** — Admin panel se instant setup
+- **File management** — Upload images/models, trash + restore system
+- **DB export** — Full PostgreSQL export as ZIP
 
 ---
 
@@ -32,11 +34,12 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 | Layer | Technology |
 |---|---|
 | Backend | Python — FastAPI |
-| Database | PostgreSQL |
-| Static data | JSON files (`data/{client_id}.json`) |
-| Frontend | HTML, CSS, Vanilla JS |
-| AR | MindAR + Three.js |
-| Auth | bcrypt + session-based |
+| Database | PostgreSQL (psycopg2, ThreadedConnectionPool) |
+| Restaurant Config | PostgreSQL `restaurants` table (JSONB) |
+| Frontend | HTML, CSS, Vanilla JS (Jinja2 templates) |
+| AR | MindAR + Three.js r128 |
+| Auth | bcrypt + JWT (cookie-based) |
+| File Storage | Cloudflare R2 (production) / local (development) |
 
 ---
 
@@ -44,36 +47,37 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 
 ```
 zentable/
-├── main.py                      # FastAPI routes
-├── database.py                  # SQLite setup + all DB functions
-├── auth.py                      # Login, session, role management
+├── main.py                      # App init, lifespan, static mount, utility routes
+├── database.py                  # PostgreSQL setup + all DB functions (psycopg2)
+├── auth.py                      # JWT logic — create/verify token, login functions
+├── helpers.py                   # Shared helpers — get_client_data, require_auth, etc.
+├── r2.py                        # Cloudflare R2 client + helper functions
+├── glb_token.py                 # GLB signed token create/verify
+├── trash_utils.py               # Trash file management — move, restore, delete, purge
+├── templates_env.py             # Shared Jinja2 instance (globals: static_v, site)
 ├── site_config.py               # ZenTable platform branding
-├── glb_optimizer.py             # 3D model optimization (GLB compression)
+├── glb_optimizer.py             # GLB optimization + audit
 ├── manage_restaurant.py         # Restaurant onboarding CLI
 ├── create_first_admin.py        # First admin setup script
 ├── clean_db.py                  # DB cleanup utility
-├── requirements.txt             # Python dependencies
-├── .python-version              # Python version pin (3.11)
+├── requirements.txt
+├── .python-version              # Python 3.11
 │
+├── routers/
+│   ├── __init__.py
+│   ├── menu.py                  # GET /api/menu/{client_id}, GET /glb/{token}
+│   ├── tables.py                # Table activate/close/summary API
+│   ├── orders.py                # Orders + Bills API
+│   ├── login.py                 # Login/logout routes
+│   ├── admin.py                 # All admin routes
+│   └── pages.py                 # All HTML page routes
 │
-├── templates/
-│   ├── landing.html             # ZenTable marketing page
-│   ├── home.html                # Restaurant home page
-│   ├── menu.html                # Digital menu
-│   ├── ar_menu.html             # AR menu experience
-│   ├── login.html               # Staff login
-│   ├── staff_owner.html         # Owner dashboard
-│   ├── staff_waiter.html        # Waiter interface
-│   ├── staff_kitchen.html       # Kitchen display
-│   ├── staff_counter.html       # Counter interface
-│   ├── admin.html               # ZenTable admin panel
-│   └── admin_login.html         # Admin login
-│
+├── templates/                   # Jinja2 HTML templates
 ├── static/
-│   ├── css/                     # Per-role stylesheets
-│   ├── js/                      # Per-role JS files
+│   ├── css/
+│   ├── js/
 │   └── assets/
-│       ├── zentable/            # Platform branding assets
+│       ├── zentable/            # Platform branding
 │       ├── clint_one/           # Restaurant 1 — images + targets.mind
 │       └── clint_two/           # Restaurant 2 — images + targets.mind
 │
@@ -81,7 +85,7 @@ zentable/
 │   ├── assets/
 │   │   ├── clint_one/           # Restaurant 1 — .glb 3D models
 │   │   └── clint_two/           # Restaurant 2 — .glb 3D models
-│   └── trash/                   # Deleted models (recoverable)
+│   └── trash/                   # Trashed files (local mode only)
 │
 └── Public_HTML/
     └── google...html            # Google Search Console verification
@@ -94,7 +98,7 @@ zentable/
 ### Prerequisites
 - Python 3.11+
 - PostgreSQL
-- Node.js (for GLB optimization)
+- Node.js (for GLB optimization via gltf-transform)
 
 ### Installation
 
@@ -106,11 +110,14 @@ cd zentable
 # Install dependencies
 pip install -r requirements.txt
 
+# Install GLB optimizer (optional but recommended)
+npm install -g @gltf-transform/cli
+
 # Create first admin account
 python create_first_admin.py
 
-# Initialize database and run
-python main.py
+# Run
+uvicorn main:app --reload
 ```
 
 ### Environment Variables
@@ -120,6 +127,14 @@ Create a `.env` file in the project root:
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 SECRET_KEY=your-secret-key-here
 GLB_SECRET=your-glb-secret-here
+
+# R2 (optional — USE_R2=false pe local storage)
+USE_R2=false
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY=
+R2_SECRET_KEY=
+R2_BUCKET=
+R2_PUBLIC_URL=
 ```
 
 ### Access
@@ -130,16 +145,16 @@ GLB_SECRET=your-glb-secret-here
 | `http://localhost:8000/{client_id}` | Restaurant home page |
 | `http://localhost:8000/{client_id}/menu` | Digital menu |
 | `http://localhost:8000/{client_id}/ar-menu` | AR menu |
-| `http://localhost:8000/{client_id}/login` | Staff login |
+| `http://localhost:8000/login` | Staff login |
 | `http://localhost:8000/admin` | ZenTable admin panel |
 
 ---
 
 ## Adding a Restaurant
 
-Each restaurant is a JSON file in `data/` and an assets folder in `static/assets/`.
+Restaurants ab admin panel se directly create ho jaate hain (`/admin`). Manual JSON files ki zaroorat nahi.
 
-### 1. Create config file — `data/{client_id}.json`
+Config structure jo DB mein store hoti hai:
 
 ```json
 {
@@ -161,8 +176,8 @@ Each restaurant is a JSON file in `data/` and an assets folder in `static/assets
     },
     "social": {
       "instagram": "https://instagram.com/...",
-      "facebook": "https://facebook.com/...",
-      "twitter": "https://twitter.com/..."
+      "facebook": "",
+      "twitter": ""
     }
   },
   "theme": {
@@ -193,23 +208,10 @@ Each restaurant is a JSON file in `data/` and an assets folder in `static/assets
     }
   ],
   "subscription": {
+    "active": true,
     "features": ["basic", "ordering", "analytics", "ar_menu"]
   }
 }
-```
-
-### 2. Add assets
-
-```
-static/assets/{client_id}/    ← logo, banner, dish images, targets.mind
-private/assets/{client_id}/   ← .glb 3D models (not publicly listed)
-```
-
-### 3. Seed tables in DB
-
-```python
-from database import seed_tables
-seed_tables("client_id", num_tables=10)
 ```
 
 ---
@@ -232,14 +234,14 @@ seed_tables("client_id", num_tables=10)
 1. Go to [MindAR Compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile)
 2. Upload restaurant logo or menu cover image (1024×1024px recommended, high contrast)
 3. Download `targets.mind`
-4. Place in `static/assets/{client_id}/targets.mind`
+4. Upload via admin panel → Assets
 
 ### 3D Model Requirements
 
 - Format: `.glb` (compressed GLTF)
-- Size: under 5MB recommended
-- Default orientation: facing forward at `0 0 0`
-- Scale and position configurable per item in JSON
+- Size: under 3MB recommended (auto-audited on upload)
+- Poly count: under 20K recommended for mobile AR
+- Scale/position/rotation configurable per item in config
 
 Free model sources: Sketchfab, TurboSquid, CGTrader
 
@@ -250,17 +252,14 @@ Free model sources: Sketchfab, TurboSquid, CGTrader
 ### Production Checklist
 
 - [ ] HTTPS enabled (required for camera/AR access)
-- [ ] Real images and 3D models added
+- [ ] `USE_R2=true` + R2 credentials set (Render disk ephemeral hai)
 - [ ] `create_first_admin.py` run once on server
-- [ ] Environment variables set (if any)
+- [ ] Real images and 3D models uploaded via admin panel
 - [ ] Tested on Android + iOS devices
 
-### Recommended Hosting
+### Hosting
 
-- DigitalOcean App Platform
-- Railway
-- Render
-- AWS EC2 / Google Cloud Run
+Currently deployed on **Render** with **Cloudflare R2** for file storage and **Render PostgreSQL** as database.
 
 ---
 
@@ -272,6 +271,10 @@ uvicorn[standard]
 jinja2
 python-multipart
 bcrypt
+python-jose[cryptography]
+psycopg2-binary
+python-dotenv
+boto3
 ```
 
 Full list in `requirements.txt`.
