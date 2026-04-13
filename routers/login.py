@@ -11,9 +11,9 @@ GET  /logout
 from typing import Optional
 from fastapi import APIRouter, Cookie, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from pydantic import BaseModel
+from templates_env import templates
 
 from auth import login_staff, login_admin, get_redirect_url
 from helpers import get_client_data, get_current_user
@@ -21,7 +21,6 @@ from r2 import IS_PROD
 from site_config import SITE_CONFIG
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 class LoginRequest(BaseModel):
@@ -41,6 +40,8 @@ async def login_page(request: Request, auth_token: Optional[str] = Cookie(None))
 
 @router.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request, auth_token: Optional[str] = Cookie(None)):
+    if IS_PROD and request.headers.get("host") != "admin.zentable.in":
+        raise HTTPException(status_code=404)
     user = get_current_user(auth_token)
     if user and user.get("role") == "admin":
         return RedirectResponse(url="/admin")
@@ -73,6 +74,7 @@ async def api_login(body: LoginRequest, response: Response):
         samesite="lax",
         secure=IS_PROD,
         max_age=60 * 60 * 24 * 7,
+        domain=".zentable.in" if IS_PROD else None,
     )
     return {"redirect": redirect_url, "role": user["role"], "name": user["name"]}
 
