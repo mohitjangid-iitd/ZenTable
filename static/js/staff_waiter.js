@@ -1,6 +1,51 @@
 // clientId, menuItems, waiterQtys, pendingBillId — HTML template mein inject hote hain
 
-// ── TABS ──
+// ════════════════════════════════
+// WAITER CALL — SOUND + STATE
+// ════════════════════════════════
+
+let _activeCalls = new Set();  // currently pending call wale table_nos
+let _audioCtx = null;
+
+// AudioContext browser mein user gesture ke baad hi ban sakta hai
+// Isliye pehli click pe initialize karo
+document.addEventListener('click', function _initAudio() {
+    if (!_audioCtx) {
+        try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    document.removeEventListener('click', _initAudio);
+}, { once: true });
+
+function playBellSound() {
+    try {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (_audioCtx.state === 'suspended') _audioCtx.resume();
+
+        const now = _audioCtx.currentTime;
+
+        // D1 — warm sine, gentle fade
+        [
+            [800,  720,  0.65, 0.004, 0.9 ],   // fundamental
+            [1600, 1400, 0.16, 0.004, 0.45],   // harmonic
+        ].forEach(([f1, f2, vol, attack, dur]) => {
+            const osc  = _audioCtx.createOscillator();
+            const gain = _audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(_audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f1, now);
+            osc.frequency.exponentialRampToValueAtTime(f2, now + dur);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(vol, now + attack);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            osc.start(now);
+            osc.stop(now + dur);
+        });
+
+    } catch(e) { console.warn('Bell sound error:', e); }
+}
+
+
 function switchTab(tab, btn) {
     ['tables', 'orders'].forEach(t => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
@@ -13,8 +58,29 @@ function switchTab(tab, btn) {
 
 // ── TABLES ──
 async function loadTables() {
-    const res = await fetch(`/api/tables/${clientId}/summary`);
-    const tables = await res.json();
+    const [tabRes, callRes] = await Promise.all([
+        fetch(`/api/tables/${clientId}/summary`),
+        fetch(`/api/tables/${clientId}/calls`).catch(() => null)
+    ]);
+    const tables = await tabRes.json();
+
+    // Calls process karo
+    let newCalls = new Set();
+    if (callRes && callRes.ok) {
+        const calls = await callRes.json();
+        calls.forEach(c => newCalls.add(c.table_no));
+    }
+
+    // Naye calls pe sound + toast bajao
+    let soundPlayed = false;
+    newCalls.forEach(n => {
+        if (!_activeCalls.has(n)) {
+            if (!soundPlayed) { playBellSound(); soundPlayed = true; }
+            toast(`🔔 Table ${n} — Waiter bulaya!`);
+        }
+    });
+    _activeCalls = newCalls;
+
     const map = {};
     tables.forEach(t => map[t.table_no] = t);
 
@@ -27,9 +93,11 @@ async function loadTables() {
         const n = i + 1;
         const t = map[n];
         const ds = t ? t.display_status : 'inactive';
-        return `<div class="table-box ${ds}" onclick="openModal(${n})">
+        const hasCall = _activeCalls.has(n);
+        return `<div class="table-box ${ds}${hasCall ? ' has-call' : ''}" onclick="openModal(${n})">
             <div class="table-num">T${n}</div>
             <div class="table-status">${labels[ds] || ds}</div>
+            ${hasCall ? '<div class="call-badge"><i class="fas fa-bell"></i></div>' : ''}
         </div>`;
     }).join('');
 }
@@ -370,6 +438,22 @@ async function openModal(tableNo) {
     }
     document.getElementById('modal-body').innerHTML = bodyHtml;
 
+    // Agar is table pe active call hai toh modal body ke top mein "Mark Attended" inject karo
+    if (_activeCalls.has(tableNo)) {
+        const callBanner = document.createElement('div');
+        callBanner.className = 'call-resolve-banner';
+        callBanner.innerHTML = `
+            <div class="call-resolve-info">
+                <i class="fas fa-bell call-resolve-icon"></i>
+                <span>Customer ne waiter bulaya hai</span>
+            </div>
+            <button class="call-resolve-btn" onclick="resolveCall(${tableNo})">
+                ✓ On My Way
+            </button>`;
+        const modalBody = document.getElementById('modal-body');
+        modalBody.insertBefore(callBanner, modalBody.firstChild);
+    }
+
     const footer = document.getElementById('modal-footer');
 
     if (ds === 'inactive') {
@@ -416,6 +500,14 @@ async function openModal(tableNo) {
 
 function closeModal() {
     document.getElementById('modal').classList.remove('open');
+}
+
+async function resolveCall(tableNo) {
+    await fetch(`/api/table/${clientId}/${tableNo}/call/resolve`, { method: 'POST' });
+    _activeCalls.delete(tableNo);
+    toast(`✅ Table ${tableNo} — Ja raha hoon!`);
+    closeModal();
+    loadTables();
 }
 
 async function activateTable(tableNo) {

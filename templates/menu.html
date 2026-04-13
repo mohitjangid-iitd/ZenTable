@@ -177,6 +177,13 @@
     <span class="plate-total" id="plate-total"></span>
 </button>
 
+{% if table_no %}
+<!-- Call Waiter Bell Button — sirf table page pe dikhega -->
+<button id="call-waiter-btn" onclick="callWaiter()" title="Call Waiter">
+    <i class="fas fa-bell"></i>
+</button>
+{% endif %}
+
 <!-- Overlay -->
 <div id="overlay" onclick="toggleDrawer()"></div>
 
@@ -235,6 +242,136 @@
 .add-btn-locked { opacity: 0.45; cursor: pointer; }
 .ar-btn-locked  { opacity: 0.55; }
 </style>
+
+{% if table_no %}
+<!-- Call Waiter Button CSS -->
+<style>
+#call-waiter-btn {
+    position: fixed;
+    bottom: 86px;
+    right: 20px;
+    z-index: 200;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: none;
+    background: var(--secondary);
+    color: white;
+    font-size: 1.25rem;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+#call-waiter-btn:active { transform: scale(0.92); }
+#call-waiter-btn.called {
+    background: #4caf50;
+}
+#call-waiter-btn.cooldown {
+    background: #9e9e9e;
+    cursor: not-allowed;
+}
+
+/* Tooltip / confirmation popup */
+#call-waiter-toast {
+    position: fixed;
+    bottom: 150px;
+    right: 16px;
+    background: var(--secondary);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 0.82rem;
+    font-family: var(--font-secondary);
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    z-index: 210;
+    white-space: nowrap;
+}
+#call-waiter-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+</style>
+
+<div id="call-waiter-toast"></div>
+
+<script>
+let _cwCooldown = false;
+
+// Cooldown sessionStorage se restore karo (refresh ke baad bhi persist rahe)
+(function() {
+    const stored = sessionStorage.getItem('cw_cooldown_until');
+    if (stored && Date.now() < parseInt(stored)) {
+        _cwCooldown = true;
+        const btn = document.getElementById('call-waiter-btn');
+        if (btn) {
+            btn.classList.add('cooldown');
+            btn.innerHTML = '<i class="fas fa-clock"></i>';
+        }
+        const remaining = parseInt(stored) - Date.now();
+        setTimeout(() => {
+            _cwCooldown = false;
+            const b = document.getElementById('call-waiter-btn');
+            if (b) {
+                b.classList.remove('cooldown', 'called');
+                b.innerHTML = '<i class="fas fa-bell"></i>';
+            }
+        }, remaining);
+    }
+})();
+
+function showCallToast(msg, duration = 2500) {
+    const el = document.getElementById('call-waiter-toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), duration);
+}
+
+async function callWaiter() {
+    if (_cwCooldown) {
+        showCallToast('⏳ Waiter ko already call kar diya hai');
+        return;
+    }
+
+    const btn = document.getElementById('call-waiter-btn');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/table/${CLIENT_ID}/${TABLE_NO}/call`, { method: 'POST' });
+        if (res.ok) {
+            _cwCooldown = true;
+            const cooldownMs = 30000;
+            sessionStorage.setItem('cw_cooldown_until', String(Date.now() + cooldownMs));
+
+            btn.classList.add('called');
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            showCallToast('🔔 Waiter ko call kar diya! Thodi der mein aayenge.', 3000);
+
+            setTimeout(() => {
+                _cwCooldown = false;
+                btn.disabled = false;
+                btn.classList.remove('called', 'cooldown');
+                btn.innerHTML = '<i class="fas fa-bell"></i>';
+            }, cooldownMs);
+        } else {
+            btn.disabled = false;
+            showCallToast('❌ Kuch error hua, dobara try karein');
+        }
+    } catch(e) {
+        btn.disabled = false;
+        showCallToast('❌ Network error');
+    }
+}
+</script>
+{% endif %}
 
 <script>
 function showOrderingLocked() {

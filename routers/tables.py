@@ -18,6 +18,7 @@ from database import (
     close_table, close_all_tables,
     get_all_tables, get_table_summary,
     get_table_orders_detail,
+    create_waiter_call, get_active_calls, resolve_waiter_call,
 )
 from helpers import get_client_data, require_auth
 
@@ -71,3 +72,35 @@ async def api_get_tables(client_id: str):
 @router.get("/api/table/{client_id}/{table_no}/detail")
 async def api_table_detail(client_id: str, table_no: int):
     return get_table_orders_detail(client_id, table_no)
+
+
+# ════════════════════════════════
+# WAITER CALL ENDPOINTS
+# ════════════════════════════════
+
+@router.post("/api/table/{client_id}/{table_no}/call")
+async def api_call_waiter(client_id: str, table_no: int):
+    """Customer ne bell dabaya — no auth (public endpoint)"""
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    create_waiter_call(client_id, table_no)
+    return {"message": f"Waiter called for table {table_no}"}
+
+
+@router.post("/api/table/{client_id}/{table_no}/call/resolve")
+async def api_resolve_call(client_id: str, table_no: int,
+                           auth_token: Optional[str] = Cookie(None)):
+    """Waiter ne call attend kar li — call hata do"""
+    require_auth(auth_token, ["waiter", "counter", "owner", "admin"], client_id)
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    resolve_waiter_call(client_id, table_no)
+    return {"message": f"Call resolved for table {table_no}"}
+
+
+@router.get("/api/tables/{client_id}/calls")
+async def api_get_calls(client_id: str,
+                        auth_token: Optional[str] = Cookie(None)):
+    """Saari active waiter calls — waiter panel polling ke liye"""
+    require_auth(auth_token, ["waiter", "counter", "owner", "admin"], client_id)
+    return get_active_calls(client_id)
