@@ -80,12 +80,13 @@ async def api_login(body: LoginRequest, response: Response):
 
 
 @router.post("/api/auth/logout")
-async def api_logout(response: Response):
+async def api_logout(request: Request, response: Response):
     response.delete_cookie("auth_token", domain=".zentable.in" if IS_PROD else None)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
-    return {"redirect": "/login"}
+    is_admin = IS_PROD and request.headers.get("host") == "admin.zentable.in"
+    return {"redirect": "/" if is_admin else "/login"}
 
 
 @router.get("/logout")
