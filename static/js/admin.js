@@ -1020,7 +1020,8 @@ async function changeAdminPassword() {
 // ════════════════════════════════
 async function doLogout() {
     await fetch('/api/auth/logout', { method:'POST' });
-    window.location.replace('/admin/login');
+    const isAdminSubdomain = window.location.hostname === 'admin.zentable.in';
+    window.location.replace(isAdminSubdomain ? '/' : '/admin/login');
 }
 
 // ════════════════════════════════
