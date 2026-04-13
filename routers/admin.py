@@ -69,7 +69,7 @@ from database import (
 )
 from helpers import get_client_data, require_auth, require_feature
 from r2 import (
-    USE_R2, R2_BUCKET, _r2_client,
+    USE_R2, IS_PROD, R2_BUCKET, _r2_client,
     r2_upload, r2_delete, r2_copy, r2_presign, r2_public_url,
 )
 from trash_utils import IST, TRASH_DIR, move_to_trash, restore_from_trash, delete_from_trash
@@ -144,6 +144,8 @@ class CreateAdminRequest(BaseModel):
 
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(None)):
+    if IS_PROD and request.headers.get("host") != "admin.zentable.in":
+        raise HTTPException(status_code=404)
     user = require_auth(auth_token, ["admin"])
     response = templates.TemplateResponse("admin.html", {
         "request": request, "site": SITE_CONFIG, "user": user,
