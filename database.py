@@ -167,6 +167,17 @@ def init_db():
         )
     """)
 
+    # ── Waiter calls table ──
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS waiter_calls (
+            id          SERIAL PRIMARY KEY,
+            client_id   TEXT NOT NULL,
+            table_no    INTEGER NOT NULL,
+            called_at   TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
+            UNIQUE(client_id, table_no)
+        )
+    """)
+
     # ── Trash meta table ──
     # Local json file ki jagah — Render ephemeral disk pe survive karta hai
     cur.execute("""
@@ -1089,6 +1100,46 @@ def export_full_db_zip() -> str:
 
     conn.close()
     return tmp.name
+
+
+# ════════════════════════════════
+# WAITER CALLS
+# ════════════════════════════════
+
+def create_waiter_call(client_id: str, table_no: int):
+    """Customer ne waiter ko call kiya — upsert (duplicate pe reset)"""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO waiter_calls (client_id, table_no, called_at)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (client_id, table_no)
+        DO UPDATE SET called_at = %s
+    """, (client_id, table_no, now, now))
+    conn.commit()
+    conn.close()
+
+def get_active_calls(client_id: str):
+    """Saari pending calls return karo"""
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT table_no, called_at FROM waiter_calls
+        WHERE client_id = %s
+        ORDER BY called_at ASC
+    """, (client_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def resolve_waiter_call(client_id: str, table_no: int):
+    """Waiter pahunch gaya — call hata do"""
+    conn = get_db()
+    conn.execute("""
+        DELETE FROM waiter_calls
+        WHERE client_id = %s AND table_no = %s
+    """, (client_id, table_no))
+    conn.commit()
+    conn.close()
 
 
 # ════════════════════════════════
