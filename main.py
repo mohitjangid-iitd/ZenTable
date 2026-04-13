@@ -102,7 +102,16 @@ async def sitemap(request: Request):
 @app.get("/")
 async def landing(request: Request):
     if IS_PROD and request.headers.get("host") == "admin.zentable.in":
-        raise HTTPException(status_code=404)
+        auth_token = request.cookies.get("auth_token")
+        from helpers import get_current_user
+        user = get_current_user(auth_token)
+        if user and user.get("role") == "admin":
+            return templates.TemplateResponse("admin.html", {
+                "request": request, "site": SITE_CONFIG, "user": user,
+            })
+        return templates.TemplateResponse("admin_login.html", {
+            "request": request, "site": SITE_CONFIG,
+        })
     return templates.TemplateResponse("landing.html", {
         "request": request, "config": SITE_CONFIG
     })
