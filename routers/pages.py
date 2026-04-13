@@ -24,20 +24,21 @@ Admin:
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from fastapi import Request
 
-from database import get_table_status, get_summary
+from database import get_table_status, get_summary, get_analytics
 from helpers import (
     get_client_data, require_auth,
     is_restaurant_active, closed_response, require_feature,
 )
-from r2 import USE_R2, r2_public_url
+from r2 import USE_R2, IS_PROD, r2_public_url
 from site_config import SITE_CONFIG
 from templates_env import templates
 
 router = APIRouter()
-
+def _block_on_admin_subdomain(request: Request):
+    if IS_PROD and request.headers.get("host") == "admin.zentable.in":
+        raise HTTPException(status_code=404)
 
 # ════════════════════════════════
 # PUBLIC PAGES
@@ -45,6 +46,7 @@ router = APIRouter()
 
 @router.get("/{client_id}", response_class=HTMLResponse)
 async def restaurant_home(request: Request, client_id: str):
+    _block_on_admin_subdomain(request)
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
@@ -58,6 +60,7 @@ async def restaurant_home(request: Request, client_id: str):
 
 @router.get("/{client_id}/menu", response_class=HTMLResponse)
 async def menu(request: Request, client_id: str):
+    _block_on_admin_subdomain(request)
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
@@ -71,6 +74,7 @@ async def menu(request: Request, client_id: str):
 
 @router.get("/{client_id}/ar-menu", response_class=HTMLResponse)
 async def ar_menu(request: Request, client_id: str):
+    _block_on_admin_subdomain(request)
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
@@ -89,6 +93,7 @@ async def ar_menu(request: Request, client_id: str):
 
 @router.get("/{client_id}/table/{table_no}", response_class=HTMLResponse)
 async def table_home(request: Request, client_id: str, table_no: int):
+    _block_on_admin_subdomain(request)
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
@@ -104,6 +109,7 @@ async def table_home(request: Request, client_id: str, table_no: int):
 
 @router.get("/{client_id}/table/{table_no}/menu", response_class=HTMLResponse)
 async def table_menu(request: Request, client_id: str, table_no: int):
+    _block_on_admin_subdomain(request)
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
@@ -120,6 +126,7 @@ async def table_menu(request: Request, client_id: str, table_no: int):
 
 @router.get("/{client_id}/table/{table_no}/ar-menu", response_class=HTMLResponse)
 async def table_ar_menu(request: Request, client_id: str, table_no: int):
+    _block_on_admin_subdomain(request)
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
@@ -146,6 +153,7 @@ async def table_ar_menu(request: Request, client_id: str, table_no: int):
 @router.get("/{client_id}/staff/owner", response_class=HTMLResponse)
 async def staff_owner(request: Request, client_id: str,
                       auth_token: Optional[str] = Cookie(None)):
+    _block_on_admin_subdomain(request)
     user = require_auth(auth_token, ["owner", "admin"], client_id)
     data = get_client_data(client_id)
     if not data:
@@ -162,6 +170,7 @@ async def staff_owner(request: Request, client_id: str,
 @router.get("/{client_id}/staff/kitchen", response_class=HTMLResponse)
 async def staff_kitchen(request: Request, client_id: str,
                         auth_token: Optional[str] = Cookie(None)):
+    _block_on_admin_subdomain(request)
     user = require_auth(auth_token, ["kitchen", "owner", "admin"], client_id)
     data = get_client_data(client_id)
     if not data:
@@ -177,6 +186,7 @@ async def staff_kitchen(request: Request, client_id: str,
 @router.get("/{client_id}/staff/waiter", response_class=HTMLResponse)
 async def staff_waiter(request: Request, client_id: str,
                        auth_token: Optional[str] = Cookie(None)):
+    _block_on_admin_subdomain(request)
     user = require_auth(auth_token, ["waiter", "owner", "admin"], client_id)
     data = get_client_data(client_id)
     if not data:
@@ -192,6 +202,7 @@ async def staff_waiter(request: Request, client_id: str,
 @router.get("/{client_id}/staff/counter", response_class=HTMLResponse)
 async def staff_counter(request: Request, client_id: str,
                         auth_token: Optional[str] = Cookie(None)):
+    _block_on_admin_subdomain(request)
     user = require_auth(auth_token, ["counter", "owner", "admin"], client_id)
     data = get_client_data(client_id)
     if not data:
@@ -202,33 +213,3 @@ async def staff_counter(request: Request, client_id: str,
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     return response
-
-
-# ════════════════════════════════
-# ADMIN PAGE + ANALYTICS
-# ════════════════════════════════
-
-@router.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(None)):
-    user = require_auth(auth_token, ["admin"])
-    response = templates.TemplateResponse("admin.html", {
-        "request": request, "site": SITE_CONFIG, "user": user,
-    })
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    return response
-
-
-@router.get("/api/admin/summary/{client_id}")
-async def api_summary(client_id: str):
-    return get_summary(client_id)
-
-
-@router.get("/api/admin/analytics/{client_id}")
-async def api_analytics(client_id: str):
-    data = get_client_data(client_id)
-    if not data:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
-    require_feature(data, "analytics")
-    from database import get_analytics
-    return get_analytics(client_id)
