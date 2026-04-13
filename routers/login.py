@@ -81,7 +81,7 @@ async def api_login(body: LoginRequest, response: Response):
 
 @router.post("/api/auth/logout")
 async def api_logout(response: Response):
-    response.delete_cookie("auth_token")
+    response.delete_cookie("auth_token", domain=".zentable.in" if IS_PROD else None)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -90,7 +90,7 @@ async def api_logout(response: Response):
 
 @router.get("/logout")
 async def logout_redirect(response: Response):
-    response.delete_cookie("auth_token")
+    response.delete_cookie("auth_token", domain=".zentable.in" if IS_PROD else None)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
