@@ -42,7 +42,6 @@ Export:
 """
 
 import os
-import json
 import bcrypt
 import shutil
 import tempfile
@@ -51,7 +50,6 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Cookie, UploadFile, File, Form, Request
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from templates_env import templates

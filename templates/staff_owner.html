@@ -17,6 +17,7 @@
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <!-- Theme variables — Jinja2 se inject -->
     <style>
@@ -57,6 +58,46 @@
         .dot-inactive { background:#ef5350; }
         .qr-btn { margin-top:8px; width:100%; padding:5px 0; background:#f0f0f0; border:none; border-radius:8px; font-size:0.75rem; cursor:pointer; color:#333; font-weight:600; }
         .qr-btn:hover { background:#e0e0e0; }
+
+        /* Manage sub-nav */
+        .manage-subnav { display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; scrollbar-width:none; }
+        .manage-subnav::-webkit-scrollbar { display:none; }
+        .manage-sub-btn { padding:8px 16px; border-radius:20px; border:1.5px solid #eee; background:white; font-family:var(--font-secondary); font-size:0.8rem; font-weight:600; cursor:pointer; color:#999; white-space:nowrap; transition:all 0.2s; }
+        .manage-sub-btn.active { background:var(--primary); color:var(--secondary); border-color:var(--primary); }
+
+        /* Manage cards */
+        .manage-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; margin-bottom:14px; }
+        .manage-card-title { font-family:var(--font-primary); font-size:0.92rem; color:var(--secondary); font-weight:700; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+
+        /* Owner form groups */
+        .owner-form-group { margin-bottom:13px; }
+        .owner-form-group label { display:block; font-size:0.7rem; color:#888; margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+        .owner-form-group input, .owner-form-group textarea, .owner-form-group select { width:100%; padding:10px 12px; border:1.5px solid #eee; border-radius:10px; font-size:0.88rem; outline:none; font-family:var(--font-secondary); background:white; }
+        .owner-form-group input:focus, .owner-form-group textarea:focus, .owner-form-group select:focus { border-color:var(--primary); }
+
+        /* Upload boxes in owner panel */
+        .owner-upload-box { border:2px dashed #ddd; border-radius:12px; padding:16px; text-align:center; cursor:pointer; transition:border-color 0.2s; background:#fafafa; }
+        .owner-upload-box:hover { border-color:var(--primary); }
+        .owner-upload-box.upload-success { border-color:#4caf50; border-style:solid; background:#f1f8f0; }
+        .owner-upload-box.upload-error   { border-color:#ef5350; border-style:solid; background:#fff5f5; }
+        .owner-upload-progress { height:4px; background:#eee; border-radius:2px; margin-top:8px; overflow:hidden; }
+        .owner-upload-bar { height:4px; background:var(--primary); border-radius:2px; width:0%; transition:width 0.3s; }
+
+        /* Save button */
+        .owner-save-btn { width:100%; padding:13px; border-radius:12px; border:none; background:var(--primary); color:var(--secondary); font-weight:700; font-size:0.9rem; cursor:pointer; font-family:var(--font-secondary); margin-top:4px; }
+        .owner-save-btn:active { opacity:0.85; }
+
+        /* Dish item rows in owner panel */
+        .owner-dish-row { background:white; border-radius:12px; box-shadow:var(--shadow); padding:13px 14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
+        .owner-dish-img { width:50px; height:50px; border-radius:8px; object-fit:cover; background:#f0f0f0; flex-shrink:0; }
+        .owner-dish-info { flex:1; min-width:0; }
+        .owner-dish-name { font-weight:700; font-size:0.9rem; color:var(--secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .owner-dish-meta { font-size:0.72rem; color:#aaa; margin-top:2px; }
+        .owner-dish-actions { display:flex; gap:6px; flex-shrink:0; }
+        .owner-dish-btn { padding:6px 12px; border-radius:8px; border:none; font-size:0.72rem; font-weight:600; cursor:pointer; font-family:var(--font-secondary); }
+        .owner-dish-edit { background:#e3f2fd; color:#1565c0; }
+        .owner-dish-delete { background:#fce4ec; color:#c62828; }
+        .owner-dish-veg { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
     </style>
 
     <!-- Static CSS -->
@@ -81,6 +122,7 @@
     <button class="tab-btn" onclick="switchTab('orders',this)">🧾 Orders</button>
     <button class="tab-btn" onclick="switchTab('tables',this)">🪑 Tables</button>
     <button class="tab-btn" onclick="switchTab('staff',this)">👥 Staff</button>
+    <button class="tab-btn" onclick="switchTab('manage',this)">✏️ Manage</button>
 </div>
 
 <div class="body">
@@ -221,94 +263,320 @@
     <div id="tab-tables" style="display:none">
         <div class="date-row">
             <span class="date-label">Live Table Status</span>
-            <button class="refresh-btn" onclick="loadTables()"><i class="fas fa-rotate"></i> Refresh</button>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <button onclick="adjustTableCount(-1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid #ddd;background:white;font-size:1rem;cursor:pointer;color:#555;line-height:1;flex-shrink:0;">−</button>
+                <input type="number" id="oi-num-tables" min="1" max="500" value="{{ data.restaurant.num_tables | default(6) }}" style="width:42px;height:26px;border:1.5px solid #ddd;border-radius:8px;font-size:0.85rem;font-weight:700;text-align:center;outline:none;font-family:var(--font-secondary);">
+                <button onclick="adjustTableCount(1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid #ddd;background:white;font-size:1rem;cursor:pointer;color:#555;line-height:1;flex-shrink:0;">+</button>
+                <button onclick="saveTableCount()" style="padding:4px 10px;height:26px;border-radius:7px;border:none;background:var(--primary);color:var(--secondary);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:var(--font-secondary);white-space:nowrap;">Save</button>
+                <button class="refresh-btn" onclick="loadTables()" style="margin-left:2px;"><i class="fas fa-rotate"></i> Refresh</button>
+            </div>
         </div>
+        <div style="font-size:0.7rem;color:#bbb;margin-bottom:12px;margin-top:2px;">⚠️ Naye tables ke QR mein 3D tracking issue aa sakta hai — ZenTable ko inform karein.</div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <button onclick="activateAll()" style="padding:6px 14px;height:32px;border-radius:8px;border:1.5px solid #81c784;background:white;color:#388e3c;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--font-secondary);display:flex;align-items:center;gap:5px;"><i class="fas fa-play-circle"></i> Activate All</button>
+            <button onclick="closeAll()" style="padding:6px 14px;height:32px;border-radius:8px;border:1.5px solid #ef9a9a;background:white;color:#c62828;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--font-secondary);display:flex;align-items:center;gap:5px;"><i class="fas fa-stop-circle"></i> Close All</button>
+            <button id="dl-all-qr-btn" onclick="downloadAllQRs()" style="padding:6px 14px;height:32px;border-radius:8px;border:1.5px solid #ddd;background:white;color:#555;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--font-secondary);display:flex;align-items:center;gap:5px;"><i class="fas fa-download"></i> All QR (ZIP)</button>
+        </div>
+
         <div class="tables-grid" id="tables-grid">
             <div style="grid-column:span 3;text-align:center;padding:30px;color:#bbb">Loading...</div>
         </div>
     </div>
 
-</div>
+    <!-- MANAGE -->
+    <div id="tab-manage" style="display:none">
 
-    <!-- STAFF -->
+        <!-- Sub-tabs -->
+        <div class="manage-subnav">
+            <button class="manage-sub-btn active" onclick="switchManageSub('dishes',this)">🍽️ Dishes</button>
+            <button class="manage-sub-btn" onclick="switchManageSub('info',this)">🏪 Info</button>
+        </div>
+
+        <!-- ── DISHES ── -->
+        <div id="msub-dishes">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <span class="date-label">Menu Dishes</span>
+                <button class="refresh-btn" onclick="openOwnerAddDish()">+ Add Dish</button>
+            </div>
+            <div id="owner-items-list">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+
+        <!-- ── RESTAURANT INFO ── -->
+        <div id="msub-info" style="display:none">
+            <div class="manage-card">
+                <div class="manage-card-title">🏪 Basic Info</div>
+                <div class="owner-form-group">
+                    <label>Restaurant Name</label>
+                    <input type="text" id="oi-name" placeholder="My Restaurant">
+                </div>
+                <div class="owner-form-group">
+                    <label>Tagline</label>
+                    <input type="text" id="oi-tagline" placeholder="Taste that speaks...">
+                </div>
+                <div class="owner-form-group">
+                    <label>Description</label>
+                    <textarea id="oi-desc" rows="3" placeholder="About your restaurant..."></textarea>
+                </div>
+                <div class="owner-form-group">
+                    <label>Phone</label>
+                    <input type="text" id="oi-phone" placeholder="+91 98765 43210">
+                </div>
+                <div class="owner-form-group">
+                    <label>Email</label>
+                    <input type="email" id="oi-email" placeholder="contact@restaurant.com">
+                </div>
+                <div class="owner-form-group">
+                    <label>Address</label>
+                    <input type="text" id="oi-address" placeholder="123 Main Road, City">
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-title">🕐 Timings</div>
+                <div class="owner-form-group">
+                    <label>Lunch Hours</label>
+                    <input type="text" id="oi-lunch" placeholder="12:00 PM – 3:30 PM">
+                </div>
+                <div class="owner-form-group">
+                    <label>Dinner Hours</label>
+                    <input type="text" id="oi-dinner" placeholder="7:00 PM – 11:00 PM">
+                </div>
+                <div class="owner-form-group">
+                    <label>Closed On</label>
+                    <input type="text" id="oi-closed" placeholder="Monday">
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-title">📱 Social Links</div>
+                <div class="owner-form-group">
+                    <label>Instagram</label>
+                    <input type="text" id="oi-instagram" placeholder="https://instagram.com/yourpage">
+                </div>
+                <div class="owner-form-group">
+                    <label>Facebook</label>
+                    <input type="text" id="oi-facebook" placeholder="https://facebook.com/yourpage">
+                </div>
+                <div class="owner-form-group">
+                    <label>Twitter / X</label>
+                    <input type="text" id="oi-twitter" placeholder="https://twitter.com/yourhandle">
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-title">🖼️ Logo &amp; Banner</div>
+                <div class="owner-form-group">
+                    <label>Logo</label>
+                    <div class="owner-upload-box" id="oi-logo-box" onclick="document.getElementById('oi-logo-file').click()">
+                        <img id="oi-logo-preview" src="" alt="" style="display:none;width:60px;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+                        <div id="oi-logo-icon">🖼️</div>
+                        <div id="oi-logo-hint" style="font-size:0.75rem;color:#aaa;margin-top:4px;">Click to upload logo</div>
+                        <div class="owner-upload-progress" id="oi-logo-progress" style="display:none"><div class="owner-upload-bar" id="oi-logo-bar"></div></div>
+                    </div>
+                    <input type="file" id="oi-logo-file" accept="image/*" style="display:none" onchange="handleOwnerUpload(this,'oi-logo','oi-logo-box','oi-logo-preview','oi-logo-hint','oi-logo-icon','oi-logo-progress','oi-logo-bar','image')">
+                    <input type="hidden" id="oi-logo">
+                </div>
+                <div class="owner-form-group">
+                    <label>Banner</label>
+                    <div class="owner-upload-box" id="oi-banner-box" onclick="document.getElementById('oi-banner-file').click()">
+                        <img id="oi-banner-preview" src="" alt="" style="display:none;width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+                        <div id="oi-banner-icon">🌄</div>
+                        <div id="oi-banner-hint" style="font-size:0.75rem;color:#aaa;margin-top:4px;">Click to upload banner</div>
+                        <div class="owner-upload-progress" id="oi-banner-progress" style="display:none"><div class="owner-upload-bar" id="oi-banner-bar"></div></div>
+                    </div>
+                    <input type="file" id="oi-banner-file" accept="image/*" style="display:none" onchange="handleOwnerUpload(this,'oi-banner','oi-banner-box','oi-banner-preview','oi-banner-hint','oi-banner-icon','oi-banner-progress','oi-banner-bar','image')">
+                    <input type="hidden" id="oi-banner">
+                </div>
+            </div>
+
+            <button class="owner-save-btn" onclick="saveRestaurantInfo()">💾 Save Info</button>
+        </div>
+
+        <!-- ── TABLES MANAGEMENT section removed — managed via Tables tab directly ── -->
+        
+
+    </div>
+
+
+    <!-- STAFF (was accidentally outside .body — fixed) -->
     <div id="tab-staff" style="display:none">
         <div class="date-row">
             <span class="date-label">Staff Management</span>
             <button class="refresh-btn" onclick="loadStaff()"><i class="fas fa-rotate"></i> Refresh</button>
         </div>
-
-        <!-- Add Staff Button -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
             <button class="refresh-btn" style="background:var(--primary);color:white;border:none;padding:9px 18px;border-radius:10px;font-weight:600;cursor:pointer;" onclick="openAddStaff()">+ Add Staff</button>
         </div>
-
-        <!-- Staff List -->
         <div id="staff-list">
             <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
         </div>
+    </div>
 
-        <!-- Add Staff Modal -->
-        <div id="staff-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
-            <div style="background:white;border-radius:20px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
-                <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-family:var(--font-primary);font-size:1rem;font-weight:600;color:var(--secondary)" id="staff-modal-title">Staff Add Karo</div>
-                    <button onclick="closeStaffModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;">✕</button>
+</div><!-- /.body -->
+
+<!-- ══ STAFF MODALS (outside .body, fine for fixed-position) ══ -->
+<div id="staff-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-family:var(--font-primary);font-size:1rem;font-weight:600;color:var(--secondary)" id="staff-modal-title">Staff Add Karo</div>
+            <button onclick="closeStaffModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;">✕</button>
+        </div>
+        <div style="padding:20px;">
+            <div class="form-group-owner">
+                <label>Name</label>
+                <input type="text" id="sm-name" placeholder="Full name">
+            </div>
+            <div class="form-group-owner">
+                <label>Username</label>
+                <input type="text" id="sm-username" placeholder="username" autocapitalize="none">
+            </div>
+            <div class="form-group-owner" id="sm-password-group">
+                <label>Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="sm-password" placeholder="••••••••" style="width:100%;padding-right:44px;">
+                    <button type="button" onclick="toggleSmPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;" id="sm-eye">👁</button>
                 </div>
-                <div style="padding:20px;">
-                    <div class="form-group-owner">
-                        <label>Name</label>
-                        <input type="text" id="sm-name" placeholder="Full name">
-                    </div>
-                    <div class="form-group-owner">
-                        <label>Username</label>
-                        <input type="text" id="sm-username" placeholder="username" autocapitalize="none">
-                    </div>
-                    <div class="form-group-owner" id="sm-password-group">
-                        <label>Password</label>
-                        <div style="position:relative;">
-                            <input type="password" id="sm-password" placeholder="••••••••" style="width:100%;padding-right:44px;">
-                            <button type="button" onclick="toggleSmPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;" id="sm-eye">👁</button>
-                        </div>
-                    </div>
-                    <div class="form-group-owner">
-                        <label>Role</label>
-                        <select id="sm-role">
-                            <option value="kitchen">Kitchen</option>
-                            <option value="waiter">Waiter</option>
-                            <option value="counter">Counter</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;">
-                    <button onclick="closeStaffModal()" style="padding:9px 18px;border-radius:10px;border:1px solid #eee;background:white;cursor:pointer;font-size:0.85rem;">Cancel</button>
-                    <button onclick="saveStaff()" id="sm-save-btn" style="padding:9px 18px;border-radius:10px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.85rem;">Add Staff</button>
-                </div>
+            </div>
+            <div class="form-group-owner">
+                <label>Role</label>
+                <select id="sm-role">
+                    <option value="kitchen">Kitchen</option>
+                    <option value="waiter">Waiter</option>
+                    <option value="counter">Counter</option>
+                </select>
             </div>
         </div>
-
-        <!-- Change Password Modal -->
-        <div id="pass-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
-            <div style="background:white;border-radius:20px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
-                <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-family:var(--font-primary);font-size:1rem;font-weight:600;color:var(--secondary)">Password Change Karo</div>
-                    <button onclick="closePassModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;">✕</button>
-                </div>
-                <div style="padding:20px;">
-                    <div class="form-group-owner">
-                        <label>New Password</label>
-                        <div style="position:relative;">
-                            <input type="password" id="pm-password" placeholder="••••••••" style="width:100%;padding-right:44px;">
-                            <button type="button" onclick="togglePmPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;" id="pm-eye">👁</button>
-                        </div>
-                    </div>
-                </div>
-                <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;">
-                    <button onclick="closePassModal()" style="padding:9px 18px;border-radius:10px;border:1px solid #eee;background:white;cursor:pointer;font-size:0.85rem;">Cancel</button>
-                    <button onclick="changePassword()" style="padding:9px 18px;border-radius:10px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.85rem;">Update</button>
-                </div>
-            </div>
+        <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="closeStaffModal()" style="padding:9px 18px;border-radius:10px;border:1px solid #eee;background:white;cursor:pointer;font-size:0.85rem;">Cancel</button>
+            <button onclick="saveStaff()" id="sm-save-btn" style="padding:9px 18px;border-radius:10px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.85rem;">Add Staff</button>
         </div>
     </div>
+</div>
+
+<div id="pass-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;width:100%;max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-family:var(--font-primary);font-size:1rem;font-weight:600;color:var(--secondary)">Password Change Karo</div>
+            <button onclick="closePassModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;">✕</button>
+        </div>
+        <div style="padding:20px;">
+            <div class="form-group-owner">
+                <label>New Password</label>
+                <div style="position:relative;">
+                    <input type="password" id="pm-password" placeholder="••••••••" style="width:100%;padding-right:44px;">
+                    <button type="button" onclick="togglePmPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;" id="pm-eye">👁</button>
+                </div>
+            </div>
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="closePassModal()" style="padding:9px 18px;border-radius:10px;border:1px solid #eee;background:white;cursor:pointer;font-size:0.85rem;">Cancel</button>
+            <button onclick="changePassword()" style="padding:9px 18px;border-radius:10px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.85rem;">Update</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ OWNER DISH MODAL ══ -->
+<div id="owner-dish-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;padding:0;">
+    <div style="background:white;border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(0,0,0,0.2);">
+        <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:1;">
+            <div style="font-family:var(--font-primary);font-size:1rem;font-weight:700;color:var(--secondary)" id="odm-title">Dish Add Karo</div>
+            <button onclick="closeOwnerDishModal()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;flex-shrink:0;">✕</button>
+        </div>
+        <div style="padding:18px 20px;">
+
+            <div class="owner-form-group">
+                <label>Dish Name *</label>
+                <input type="text" id="odm-name" placeholder="Butter Chicken">
+            </div>
+
+            <div class="owner-form-group">
+                <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <span>Price *</span>
+                    <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:#888;cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;">
+                        <input type="checkbox" id="odm-multisize" onchange="toggleOwnerSizeMode()" style="accent-color:var(--primary);width:13px;height:13px;cursor:pointer;">
+                        Multiple sizes
+                    </label>
+                </label>
+                <div id="odm-price-single">
+                    <input type="text" id="odm-price" placeholder="₹ 450">
+                </div>
+                <div id="odm-price-multi" style="display:none;">
+                    <div id="odm-sizes-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+                    <button type="button" onclick="addOwnerSizeRow()" style="width:100%;padding:7px;border-radius:8px;border:1.5px dashed #ddd;background:transparent;color:#aaa;font-size:0.78rem;cursor:pointer;">+ Add Size</button>
+                </div>
+            </div>
+
+            <div class="owner-form-group">
+                <label>Category</label>
+                <input type="text" id="odm-category" placeholder="Main Course">
+            </div>
+
+            <div class="owner-form-group">
+                <label>Veg / Non-Veg</label>
+                <select id="odm-veg" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none;font-family:var(--font-secondary);">
+                    <option value="true">Veg ✅</option>
+                    <option value="false">Non-Veg 🍗</option>
+                </select>
+            </div>
+
+            <div class="owner-form-group">
+                <label>Description</label>
+                <textarea id="odm-desc" rows="2" placeholder="Dish ki description..." style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none;font-family:var(--font-secondary);resize:vertical;"></textarea>
+            </div>
+
+            <div class="owner-form-group">
+                <label>Ingredients</label>
+                <input type="text" id="odm-ingredients" placeholder="Chicken, Tomatoes, Butter...">
+            </div>
+
+            <div class="owner-form-group">
+                <label>Dish Photo</label>
+                <div class="owner-upload-box" id="odm-image-box" onclick="document.getElementById('odm-image-file').click()">
+                    <img id="odm-image-preview" src="" alt="" style="display:none;width:80px;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px;">
+                    <div id="odm-image-icon">🍽️</div>
+                    <div id="odm-image-hint" style="font-size:0.75rem;color:#aaa;margin-top:4px;">Click to upload photo</div>
+                    <div class="owner-upload-progress" id="odm-image-progress" style="display:none"><div class="owner-upload-bar" id="odm-image-bar"></div></div>
+                </div>
+                <input type="file" id="odm-image-file" accept="image/*" style="display:none" onchange="handleOwnerUpload(this,'odm-image','odm-image-box','odm-image-preview','odm-image-hint','odm-image-icon','odm-image-progress','odm-image-bar','image')">
+                <input type="hidden" id="odm-image">
+            </div>
+
+            <div class="owner-form-group">
+                <label>3D Model</label>
+                <div style="background:#f8f7ff;border:1.5px solid #e8e4ff;border-radius:10px;padding:12px;font-size:0.8rem;color:#888;display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:1.2rem;">📦</span>
+                    <div>
+                        <div id="odm-model-display" style="font-weight:600;color:var(--secondary);font-size:0.82rem;">No 3D model</div>
+                        <div style="font-size:0.7rem;margin-top:2px;color:#aaa;">3D Model add karne ke liye ZenTable team se contact karo</div>
+                    </div>
+                </div>
+                <input type="hidden" id="odm-model">
+            </div>
+
+            <div class="owner-form-group">
+                <label>Featured</label>
+                <select id="odm-featured" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none;font-family:var(--font-secondary);">
+                    <option value="true">Yes ⭐</option>
+                    <option value="false">No</option>
+                </select>
+            </div>
+
+            <input type="hidden" id="odm-position">
+            <input type="hidden" id="odm-scale">
+            <input type="hidden" id="odm-rotation">
+            <input type="hidden" id="odm-rotate-speed">
+            <input type="hidden" id="odm-auto-rotate">
+
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:10px;position:sticky;bottom:0;background:white;">
+            <button onclick="closeOwnerDishModal()" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid #eee;background:white;cursor:pointer;font-size:0.86rem;font-family:var(--font-secondary);">Cancel</button>
+            <button onclick="saveOwnerDish()" style="flex:2;padding:11px;border-radius:12px;border:none;background:var(--primary);color:var(--secondary);font-weight:700;cursor:pointer;font-size:0.86rem;font-family:var(--font-secondary);">Save Dish</button>
+        </div>
+    </div>
+</div>
 
 
 <div id="toast"></div>
@@ -324,6 +592,11 @@
 <!-- Static JS -->
 <script src="/static/js/staff_owner.js?v={{ static_v('js/staff_owner.js') }}"></script>
 <script>
+function adjustTableCount(delta) {
+    const el = document.getElementById('oi-num-tables');
+    const val = parseInt(el.value) || 1;
+    el.value = Math.min(500, Math.max(1, val + delta));
+}
 async function doLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.replace('/login');

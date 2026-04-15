@@ -14,11 +14,6 @@ Staff (auth required):
   GET /{client_id}/staff/kitchen
   GET /{client_id}/staff/waiter
   GET /{client_id}/staff/counter
-
-Admin:
-  GET /admin
-  GET /api/admin/summary/{client_id}
-  GET /api/admin/analytics/{client_id}
 """
 
 from typing import Optional

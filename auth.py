@@ -28,7 +28,7 @@ ROLE_REDIRECT = {
     "kitchen": "/{restaurant_id}/staff/kitchen",
     "waiter":  "/{restaurant_id}/staff/waiter",
     "counter": "/{restaurant_id}/staff/counter",
-    "admin":   "/",
+    "admin":   "/admin",
 }
 
 def create_token(payload: dict, role: str) -> str:

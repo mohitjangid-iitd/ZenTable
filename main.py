@@ -16,6 +16,7 @@ from routers.orders import router as orders_router
 from routers.login  import router as login_router
 from routers.admin  import router as admin_router
 from routers.pages  import router as pages_router
+from routers.owner import router as owner_router
 from templates_env import templates
 
 # ════════════════════════════════
@@ -126,6 +127,7 @@ app.include_router(tables_router)
 app.include_router(orders_router)
 app.include_router(login_router)
 app.include_router(admin_router)
+app.include_router(owner_router)
 app.include_router(pages_router)
 
 if __name__ == "__main__":

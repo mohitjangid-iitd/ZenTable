@@ -18,7 +18,7 @@ document.getElementById('today-label').textContent =
 
 // ── TABS ──
 function switchTab(tab, btn) {
-    ['overview','analytics','orders','tables','staff'].forEach(t => {
+    ['overview','analytics','orders','tables','staff','manage'].forEach(t => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
     });
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -26,8 +26,9 @@ function switchTab(tab, btn) {
     if (tab === 'overview')  { loadAll(); }
     if (tab === 'analytics') { if (!analyticsData) loadAll(); else renderAnalyticsTab(); }
     if (tab === 'orders')    loadOrders();
-    if (tab === 'tables')    loadTables();
+    if (tab === 'tables')    { loadTables(); if (!ownerRestData) loadOwnerRestData(); }
     if (tab === 'staff')     loadStaff();
+    if (tab === 'manage')    initManageTab();
 }
 
 // ── LOAD ALL ──
@@ -286,7 +287,7 @@ async function loadTables() {
     // f-table removed
 
     const maxTable = tables.length ? Math.max(...tables.map(t => t.table_no)) : 0;
-    const count = numTables;
+    const count = parseInt(document.getElementById('oi-num-tables')?.value) || numTables;
     const labels = { inactive:'Inactive', active:'Active', occupied:'Occupied',
                      ready:'Ready', done:'Done', billed:'Billed', paid:'Paid' };
 
@@ -304,98 +305,131 @@ async function loadTables() {
 }
 
 function downloadTableQR(tableNo) {
-    const SCALE  = 4;
-    const qrSize = 280;
-    const pad    = 32;
-    const textH  = 60;
+    _renderTableQRBlob(tableNo).then(blob => {
+        const link = document.createElement('a');
+        link.download = 'table_' + tableNo + '_qr.png';
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+    });
+}
 
-    const url = `${window.location.origin}/${clientId}/table/${tableNo}/ar-menu`;
+// ── Activate / Close All ──
+async function activateAll() {
+    const res = await fetch(`/api/table/${clientId}/activate-all`, { method: 'POST' });
+    if (res.ok) { toast('✅ Saari tables activate ho gayi!'); loadTables(); }
+    else toast('❌ Failed');
+}
 
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
-    document.body.appendChild(wrap);
-    new QRCode(wrap, { text: url, width: qrSize, height: qrSize, correctLevel: QRCode.CorrectLevel.H });
+async function closeAll() {
+    if (!confirm('Saari tables close karna chahte ho?')) return;
+    const res = await fetch(`/api/table/${clientId}/close-all`, { method: 'POST' });
+    if (res.ok) { toast('✅ Saari tables band ho gayi'); loadTables(); }
+    else toast('❌ Failed');
+}
 
-    setTimeout(() => {
-        const qrEl = wrap.querySelector('canvas') || wrap.querySelector('img');
+// ── Download All QR (ZIP) ──
+async function downloadAllQRs() {
+    const count = parseInt(document.getElementById('oi-num-tables')?.value) || numTables;
+    const btn = document.getElementById('dl-all-qr-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; }
 
+    try {
+        const zip = new JSZip();
+        for (let n = 1; n <= count; n++) {
+            const blob = await _renderTableQRBlob(n);
+            zip.file(`table_${n}_qr.png`, blob);
+            await new Promise(r => setTimeout(r, 100));
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.download = `${clientId}_qr_codes.zip`;
+        link.href = URL.createObjectURL(zipBlob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+        toast('✅ All QR downloaded!');
+    } catch(e) {
+        toast('❌ Download failed');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download"></i> All QR (ZIP)'; }
+    }
+}
+
+// ── Single QR → Blob (shared by single + bulk download) ──
+function _renderTableQRBlob(tableNo) {
+    return new Promise(resolve => {
+        const SCALE  = 4;
+        const qrSize = 280;
+        const pad    = 32;
+        const textH  = 60;
         const W = qrSize + pad * 2;
         const H = textH + qrSize + pad * 2;
 
-        const canvas = document.createElement('canvas');
-        canvas.width  = W * SCALE;
-        canvas.height = H * SCALE;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(SCALE, SCALE);
+        const url = `${window.location.origin}/${clientId}/table/${tableNo}/ar-menu`;
 
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, W, H);
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+        document.body.appendChild(wrap);
+        new QRCode(wrap, { text: url, width: qrSize, height: qrSize, correctLevel: QRCode.CorrectLevel.H });
 
-        ctx.fillStyle = '#1a1a1a';
-        ctx.font = 'bold 28px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Table ' + tableNo, W / 2, pad + textH / 2);
+        setTimeout(() => {
+            const qrEl = wrap.querySelector('canvas') || wrap.querySelector('img');
 
-        const drawQR = (src) => {
-            const qrImg = new Image();
-            qrImg.onload = () => {
-                ctx.drawImage(qrImg, pad, pad + textH, qrSize, qrSize);
+            const canvas = document.createElement('canvas');
+            canvas.width  = W * SCALE;
+            canvas.height = H * SCALE;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(SCALE, SCALE);
 
-                const circleR = qrSize * 0.06;  // circle radius
-                const cx = pad + qrSize / 2;
-                const cy = pad + textH + qrSize / 2;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, W, H);
 
-                // White circle background
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.arc(cx, cy, circleR + 5, 0, Math.PI * 2);
-                ctx.fill();
+            ctx.fillStyle = '#1a1a1a';
+            ctx.font = 'bold 28px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Table ' + tableNo, W / 2, pad + textH / 2);
 
-                // Logo — aspect ratio maintain karte hue circle mein fit karo
-                const logoImg = new Image();
-                logoImg.onload = () => {
-                    const iw = logoImg.naturalWidth;
-                    const ih = logoImg.naturalHeight;
-                    const aspect = iw / ih;
+            const drawQR = (src) => {
+                const qrImg = new Image();
+                qrImg.onload = () => {
+                    ctx.drawImage(qrImg, pad, pad + textH, qrSize, qrSize);
 
-                    // contain fit — dono dimensions circle diameter se chhoti rahein
-                    const diameter = circleR * 2;
-                    let dw, dh;
-                    if (aspect > 1) {
-                        dw = diameter;
-                        dh = diameter / aspect;
-                    } else {
-                        dh = diameter;
-                        dw = diameter * aspect;
-                    }
+                    const circleR = qrSize * 0.06;
+                    const cx = pad + qrSize / 2;
+                    const cy = pad + textH + qrSize / 2;
 
-                    const dx = cx - dw / 2;
-                    const dy = cy - dh / 2 + 3;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, circleR + 5, 0, Math.PI * 2);
+                    ctx.fill();
 
-                    ctx.drawImage(logoImg, dx, dy, dw, dh);
-
-                    const link = document.createElement('a');
-                    link.download = 'table_' + tableNo + '_qr.png';
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                    document.body.removeChild(wrap);
+                    const logoImg = new Image();
+                    const finish = () => {
+                        canvas.toBlob(blob => {
+                            document.body.removeChild(wrap);
+                            resolve(blob);
+                        }, 'image/png');
+                    };
+                    logoImg.onload = () => {
+                        const iw = logoImg.naturalWidth, ih = logoImg.naturalHeight;
+                        const aspect = iw / ih;
+                        const diameter = circleR * 2;
+                        const dw = aspect > 1 ? diameter : diameter * aspect;
+                        const dh = aspect > 1 ? diameter / aspect : diameter;
+                        ctx.drawImage(logoImg, cx - dw/2, cy - dh/2 + 3, dw, dh);
+                        finish();
+                    };
+                    logoImg.onerror = finish;
+                    logoImg.src = '/static/assets/zentable/logo_golden_192.png';
                 };
-                logoImg.onerror = () => {
-                    const link = document.createElement('a');
-                    link.download = 'table_' + tableNo + '_qr.png';
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                    document.body.removeChild(wrap);
-                };
-                logoImg.src = '/static/assets/zentable/logo_golden_192.png';
+                qrImg.src = src;
             };
-            qrImg.src = src;
-        };
 
-        if (qrEl.tagName === 'CANVAS') drawQR(qrEl.toDataURL());
-        else drawQR(qrEl.src);
-    }, 100);
+            if (qrEl.tagName === 'CANVAS') drawQR(qrEl.toDataURL());
+            else drawQR(qrEl.src);
+        }, 100);
+    });
 }
 
 function toast(msg) {
@@ -507,7 +541,7 @@ function closePassModal() {
 async function changePassword() {
     const password = document.getElementById('pm-password').value;
     if (!password) { toast('❌ Password required'); return; }
-    const res = await fetch(`/api/staff/${changingPasswordId}/password`, {
+    const res = await fetch(`/api/staff/${clientId}/${changingPasswordId}/password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_password: password })
@@ -517,7 +551,7 @@ async function changePassword() {
 }
 
 async function toggleStaff(staff_id, currentlyActive) {
-    const res = await fetch(`/api/staff/${staff_id}/toggle`, { method: 'PATCH' });
+    const res = await fetch(`/api/staff/${clientId}/${staff_id}/toggle`, { method: 'PATCH' });
     const d = await res.json();
     if (res.ok) {
         toast(d.is_active ? '✅ Staff activated' : '🔴 Staff deactivated');
@@ -527,7 +561,7 @@ async function toggleStaff(staff_id, currentlyActive) {
 
 async function deleteStaff(staff_id, name) {
     if (!confirm(`'${name}' ko permanently delete karna hai?`)) return;
-    const res = await fetch(`/api/staff/${staff_id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/staff/${clientId}/${staff_id}`, { method: 'DELETE' });
     if (res.ok) { toast('🗑 Staff deleted'); loadStaff(); }
     else { toast('❌ Failed'); }
 }
@@ -544,4 +578,384 @@ function togglePmPass() {
     const btn = document.getElementById('pm-eye');
     inp.type = inp.type === 'password' ? 'text' : 'password';
     btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+
+// ════════════════════════════════
+// MANAGE TAB
+// ════════════════════════════════
+let ownerRestData    = null;   // full restaurant JSON
+let ownerEditIndex   = -1;     // dish index being edited
+let manageInitDone   = false;
+
+function switchManageSub(sub, btn) {
+    ['dishes','info'].forEach(s => {
+        document.getElementById(`msub-${s}`).style.display = s === sub ? 'block' : 'none';
+    });
+    document.querySelectorAll('.manage-sub-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+async function initManageTab() {
+    if (!ownerRestData) await loadOwnerRestData();
+    renderOwnerDishes();
+}
+
+async function loadOwnerRestData() {
+    try {
+        const res = await fetch(`/api/owner/${clientId}/json`);
+        if (!res.ok) throw new Error();
+        ownerRestData = await res.json();
+        populateInfoFields();
+        populateTableCount();
+    } catch(e) {
+        toast('❌ Restaurant data load nahi hua');
+    }
+}
+
+// ── Dishes ──
+function renderOwnerDishes() {
+    const items = ownerRestData?.items || [];
+    const el = document.getElementById('owner-items-list');
+    if (!items.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fas fa-utensils"></i><p>Koi dish nahi — Add karo!</p></div>';
+        return;
+    }
+    el.innerHTML = items.map((item, i) => {
+        const priceText = item.sizes
+            ? item.sizes.map(s => s.label + ': ₹' + s.price).join(' / ')
+            : (item.price ? '₹' + item.price : '');
+        const vegColor = item.veg ? '#4caf50' : '#ef5350';
+        const imgHtml = item.image
+            ? `<img class="owner-dish-img" src="${item.image}" alt="" onerror="this.style.display='none'">`
+            : `<div class="owner-dish-img" style="display:flex;align-items:center;justify-content:center;font-size:1.4rem;">🍽️</div>`;
+        return `<div class="owner-dish-row">
+            ${imgHtml}
+            <div class="owner-dish-info">
+                <div class="owner-dish-name">
+                    <span class="owner-dish-veg" style="background:${vegColor};display:inline-block;margin-right:5px;"></span>
+                    ${item.name}
+                </div>
+                <div class="owner-dish-meta">${item.category || ''} ${priceText ? '· ' + priceText : ''}</div>
+            </div>
+            <div class="owner-dish-actions">
+                <button class="owner-dish-btn owner-dish-edit" onclick="openOwnerEditDish(${i})">✏️</button>
+                <button class="owner-dish-btn owner-dish-delete" onclick="deleteOwnerDish(${i})">🗑</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openOwnerAddDish() {
+    ownerEditIndex = -1;
+    document.getElementById('odm-title').textContent = 'Dish Add Karo';
+    ['odm-name','odm-price','odm-category','odm-desc','odm-ingredients','odm-image'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('odm-model').value = '';
+    document.getElementById('odm-model-display').textContent = 'No 3D model';
+    document.getElementById('odm-veg').value = 'true';
+    document.getElementById('odm-featured').value = 'true';
+    document.getElementById('odm-position').value = '';
+    document.getElementById('odm-scale').value = '';
+    document.getElementById('odm-rotation').value = '';
+    document.getElementById('odm-rotate-speed').value = '';
+    document.getElementById('odm-auto-rotate').value = '';
+    document.getElementById('odm-multisize').checked = false;
+    document.getElementById('odm-sizes-list').innerHTML = '';
+    document.getElementById('odm-price-single').style.display = '';
+    document.getElementById('odm-price-multi').style.display = 'none';
+    // Reset image box
+    resetOwnerUploadBox('odm-image-box','odm-image-preview','odm-image-hint','odm-image-icon');
+    document.getElementById('owner-dish-modal').style.display = 'flex';
+}
+
+function openOwnerEditDish(index) {
+    ownerEditIndex = index;
+    const item = ownerRestData.items[index];
+    document.getElementById('odm-title').textContent = 'Dish Edit Karo';
+    document.getElementById('odm-name').value         = item.name || '';
+    document.getElementById('odm-category').value     = item.category || '';
+    document.getElementById('odm-desc').value         = item.description || '';
+    document.getElementById('odm-ingredients').value  = item.ingredients || '';
+    document.getElementById('odm-image').value        = item.image || '';
+    document.getElementById('odm-model').value        = item.model || '';
+    document.getElementById('odm-model-display').textContent = item.model
+        ? item.model.split('/').pop() + ' (contact ZenTable to change)'
+        : 'No 3D model — contact ZenTable to add';
+    document.getElementById('odm-veg').value          = String(item.veg ?? true);
+    document.getElementById('odm-featured').value     = String(item.featured ?? true);
+    document.getElementById('odm-position').value     = item.position || '';
+    document.getElementById('odm-scale').value        = item.scale || '';
+    document.getElementById('odm-rotation').value     = item.rotation || '';
+    document.getElementById('odm-rotate-speed').value = item.rotate_speed || '';
+    document.getElementById('odm-auto-rotate').value  = String(item.auto_rotate ?? true);
+
+    // Image
+    resetOwnerUploadBox('odm-image-box','odm-image-preview','odm-image-hint','odm-image-icon');
+    if (item.image) {
+        const prev = document.getElementById('odm-image-preview');
+        prev.src = item.image; prev.style.display = '';
+        document.getElementById('odm-image-icon').style.display = 'none';
+        document.getElementById('odm-image-hint').textContent = '✓ ' + item.image.split('/').pop();
+        document.getElementById('odm-image-box').classList.add('upload-success');
+    }
+
+    // Sizes
+    if (item.sizes && item.sizes.length > 0) {
+        document.getElementById('odm-multisize').checked = true;
+        document.getElementById('odm-price-single').style.display = 'none';
+        document.getElementById('odm-price-multi').style.display = '';
+        document.getElementById('odm-sizes-list').innerHTML = '';
+        item.sizes.forEach(s => addOwnerSizeRow(s.label, s.price));
+        document.getElementById('odm-price').value = '';
+    } else {
+        document.getElementById('odm-multisize').checked = false;
+        document.getElementById('odm-price-single').style.display = '';
+        document.getElementById('odm-price-multi').style.display = 'none';
+        document.getElementById('odm-sizes-list').innerHTML = '';
+        document.getElementById('odm-price').value = item.price || '';
+    }
+
+    document.getElementById('owner-dish-modal').style.display = 'flex';
+}
+
+function closeOwnerDishModal() {
+    document.getElementById('owner-dish-modal').style.display = 'none';
+}
+
+function toggleOwnerSizeMode() {
+    const on = document.getElementById('odm-multisize').checked;
+    document.getElementById('odm-price-single').style.display = on ? 'none' : '';
+    document.getElementById('odm-price-multi').style.display  = on ? '' : 'none';
+    if (on && document.getElementById('odm-sizes-list').children.length === 0) {
+        addOwnerSizeRow(); addOwnerSizeRow();
+    }
+}
+
+function addOwnerSizeRow(label = '', price = '') {
+    const list = document.getElementById('odm-sizes-list');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    row.innerHTML = `
+        <input type="text" placeholder="e.g. Half" value="${label}"
+            style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid #eee;font-size:0.84rem;outline:none;font-family:var(--font-secondary);">
+        <input type="text" placeholder="₹ 180" value="${price}"
+            style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid #eee;font-size:0.84rem;outline:none;font-family:var(--font-secondary);">
+        <button type="button" onclick="this.parentElement.remove()"
+            style="background:none;border:none;cursor:pointer;color:#aaa;font-size:1rem;padding:4px;">✕</button>
+    `;
+    list.appendChild(row);
+}
+
+async function saveOwnerDish() {
+    const isMulti = document.getElementById('odm-multisize').checked;
+    let priceField = {};
+    if (isMulti) {
+        const rows = document.getElementById('odm-sizes-list').querySelectorAll('div');
+        const sizes = [];
+        rows.forEach(row => {
+            const inputs = row.querySelectorAll('input[type=text]');
+            if (inputs.length >= 2) {
+                const lbl = inputs[0].value.trim(), prc = inputs[1].value.trim();
+                if (lbl && prc) sizes.push({ label: lbl, price: prc });
+            }
+        });
+        if (sizes.length === 0) { toast('❌ At least one size required'); return; }
+        priceField = { sizes };
+    } else {
+        const p = document.getElementById('odm-price').value.trim();
+        if (!p) { toast('❌ Price required'); return; }
+        priceField = { price: p };
+    }
+
+    const name = document.getElementById('odm-name').value.trim();
+    if (!name) { toast('❌ Dish name required'); return; }
+
+    const item = {
+        name,
+        ...priceField,
+        category:     document.getElementById('odm-category').value.trim(),
+        description:  document.getElementById('odm-desc').value.trim(),
+        ingredients:  document.getElementById('odm-ingredients').value.trim(),
+        image:        document.getElementById('odm-image').value.trim(),
+        model:        document.getElementById('odm-model').value.trim(),
+        position:     document.getElementById('odm-position').value.trim(),
+        scale:        document.getElementById('odm-scale').value.trim(),
+        rotation:     document.getElementById('odm-rotation').value.trim(),
+        rotate_speed: parseInt(document.getElementById('odm-rotate-speed').value) || 10000,
+        auto_rotate:  document.getElementById('odm-auto-rotate').value !== 'false',
+        veg:          document.getElementById('odm-veg').value === 'true',
+        featured:     document.getElementById('odm-featured').value === 'true',
+    };
+
+    if (!ownerRestData.items) ownerRestData.items = [];
+    if (ownerEditIndex === -1) ownerRestData.items.push(item);
+    else ownerRestData.items[ownerEditIndex] = item;
+
+    const ok = await pushOwnerRestData();
+    if (ok) {
+        toast('✅ Dish saved!');
+        closeOwnerDishModal();
+        renderOwnerDishes();
+    }
+}
+
+async function deleteOwnerDish(index) {
+    if (!confirm(`"${ownerRestData.items[index]?.name}" delete karna hai?`)) return;
+    ownerRestData.items.splice(index, 1);
+    const ok = await pushOwnerRestData();
+    if (ok) { toast('🗑 Dish deleted'); renderOwnerDishes(); }
+}
+
+// ── Restaurant Info ──
+function populateInfoFields() {
+    const r = ownerRestData?.restaurant || {};
+    document.getElementById('oi-name').value      = r.name || '';
+    document.getElementById('oi-tagline').value   = r.tagline || '';
+    document.getElementById('oi-desc').value      = r.description || '';
+    document.getElementById('oi-phone').value     = r.phone || '';
+    document.getElementById('oi-email').value     = r.email || '';
+    document.getElementById('oi-address').value   = r.address || '';
+    document.getElementById('oi-lunch').value     = r.timings?.lunch || '';
+    document.getElementById('oi-dinner').value    = r.timings?.dinner || '';
+    document.getElementById('oi-closed').value    = r.timings?.closed || '';
+    document.getElementById('oi-instagram').value = r.social?.instagram || '';
+    document.getElementById('oi-facebook').value  = r.social?.facebook || '';
+    document.getElementById('oi-twitter').value   = r.social?.twitter || '';
+    document.getElementById('oi-logo').value      = r.logo || '';
+    document.getElementById('oi-banner').value    = r.banner || '';
+
+    resetOwnerUploadBox('oi-logo-box','oi-logo-preview','oi-logo-hint','oi-logo-icon');
+    if (r.logo) {
+        const prev = document.getElementById('oi-logo-preview');
+        prev.src = r.logo; prev.style.display = '';
+        document.getElementById('oi-logo-icon').style.display = 'none';
+        document.getElementById('oi-logo-hint').textContent = '✓ ' + r.logo.split('/').pop();
+        document.getElementById('oi-logo-box').classList.add('upload-success');
+    }
+    resetOwnerUploadBox('oi-banner-box','oi-banner-preview','oi-banner-hint','oi-banner-icon');
+    if (r.banner) {
+        const prev = document.getElementById('oi-banner-preview');
+        prev.src = r.banner; prev.style.display = '';
+        document.getElementById('oi-banner-icon').style.display = 'none';
+        document.getElementById('oi-banner-hint').textContent = '✓ ' + r.banner.split('/').pop();
+        document.getElementById('oi-banner-box').classList.add('upload-success');
+    }
+}
+
+async function saveRestaurantInfo() {
+    const r = ownerRestData.restaurant;
+    r.name        = document.getElementById('oi-name').value.trim();
+    r.tagline     = document.getElementById('oi-tagline').value.trim();
+    r.description = document.getElementById('oi-desc').value.trim();
+    r.phone       = document.getElementById('oi-phone').value.trim();
+    r.email       = document.getElementById('oi-email').value.trim();
+    r.address     = document.getElementById('oi-address').value.trim();
+    r.timings     = {
+        lunch:  document.getElementById('oi-lunch').value.trim(),
+        dinner: document.getElementById('oi-dinner').value.trim(),
+        closed: document.getElementById('oi-closed').value.trim(),
+    };
+    r.social = {
+        instagram: document.getElementById('oi-instagram').value.trim(),
+        facebook:  document.getElementById('oi-facebook').value.trim(),
+        twitter:   document.getElementById('oi-twitter').value.trim(),
+    };
+    const logoVal   = document.getElementById('oi-logo').value.trim();
+    const bannerVal = document.getElementById('oi-banner').value.trim();
+    if (logoVal)   r.logo   = logoVal;
+    if (bannerVal) r.banner = bannerVal;
+
+    const ok = await pushOwnerRestData();
+    if (ok) toast('✅ Info saved!');
+}
+
+// ── Table Count ──
+function populateTableCount() {
+    document.getElementById('oi-num-tables').value = ownerRestData?.restaurant?.num_tables || 6;
+}
+
+async function saveTableCount() {
+    const val = parseInt(document.getElementById('oi-num-tables').value);
+    if (!val || val < 1 || val > 500) { toast('❌ 1–500 ke beech hona chahiye'); return; }
+    if (!ownerRestData) await loadOwnerRestData();
+    if (!ownerRestData?.restaurant) { toast('❌ Data load nahi hua, dobara try karo'); return; }
+    ownerRestData.restaurant.num_tables = val;
+    const ok = await pushOwnerRestData();
+    if (ok) { toast('✅ Table count saved!'); loadTables(); }
+}
+
+// ── Push data to server ──
+async function pushOwnerRestData() {
+    try {
+        const res = await fetch(`/api/owner/${clientId}/json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: ownerRestData }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || 'Error');
+        return true;
+    } catch(e) {
+        toast('❌ Save failed: ' + e.message);
+        return false;
+    }
+}
+
+// ── Upload helper for owner panel ──
+async function handleOwnerUpload(input, hiddenId, boxId, previewId, hintId, iconId, progressId, barId, type) {
+    const file = input.files[0];
+    if (!file) return;
+    const box = document.getElementById(boxId);
+    box.classList.remove('upload-success','upload-error');
+    const progressEl = document.getElementById(progressId);
+    const barEl      = document.getElementById(barId);
+    progressEl.style.display = '';
+    barEl.style.width = '10%';
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('type', type);
+
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = e => {
+            if (e.lengthComputable) barEl.style.width = Math.round(e.loaded/e.total*90) + '%';
+        };
+        await new Promise((resolve, reject) => {
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+                else reject(new Error(xhr.responseText));
+            };
+            xhr.onerror = reject;
+            xhr.open('POST', `/api/owner/upload/${clientId}`);
+            xhr.send(fd);
+        }).then(data => {
+            barEl.style.width = '100%';
+            setTimeout(() => progressEl.style.display = 'none', 500);
+            document.getElementById(hiddenId).value = data.path;
+            if (previewId) {
+                const prev = document.getElementById(previewId);
+                if (prev) { prev.src = data.path; prev.style.display = ''; }
+            }
+            if (iconId) document.getElementById(iconId).style.display = 'none';
+            document.getElementById(hintId).textContent = '✓ ' + file.name;
+            box.classList.add('upload-success');
+            toast('✅ ' + file.name + ' uploaded!');
+        });
+    } catch(e) {
+        barEl.style.width = '100%';
+        progressEl.style.display = 'none';
+        box.classList.add('upload-error');
+        toast('❌ Upload failed');
+    }
+    input.value = '';
+}
+
+function resetOwnerUploadBox(boxId, previewId, hintId, iconId) {
+    const box = document.getElementById(boxId);
+    if (box) box.classList.remove('upload-success','upload-error');
+    if (previewId) { const p = document.getElementById(previewId); if (p) { p.src=''; p.style.display='none'; } }
+    if (hintId)  { const h = document.getElementById(hintId); if (h) h.textContent = 'Click to upload'; }
+    if (iconId)  { const ic = document.getElementById(iconId); if (ic) ic.style.display = ''; }
 }
