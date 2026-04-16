@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/landing.css') }}" />
+  <link rel="stylesheet" href="/static/css/chatbot.css?v={{ static_v('css/chatbot.css') }}">
 </head>
 <body>
 
@@ -984,5 +985,6 @@
 
 })(); // ← IIFE close
 </script>
+<script src="/static/js/help_widget.js?v={{ static_v('js/help_widget.js') }}" defer></script>
 </body>
 </html>

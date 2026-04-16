@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Owner — {{ data.restaurant.name }}</title>
@@ -102,6 +102,7 @@
 
     <!-- Static CSS -->
     <link rel="stylesheet" href="/static/css/staff_owner.css?v={{ static_v('css/staff_owner.css') }}">
+    <link rel="stylesheet" href="/static/css/chatbot.css?v={{ static_v('css/chatbot.css') }}">
 </head>
 <body>
 
@@ -123,6 +124,7 @@
     <button class="tab-btn" onclick="switchTab('tables',this)">🪑 Tables</button>
     <button class="tab-btn" onclick="switchTab('staff',this)">👥 Staff</button>
     <button class="tab-btn" onclick="switchTab('manage',this)">✏️ Manage</button>
+    <button class="tab-btn" onclick="switchTab('chatbot',this)">🤖 AI</button>
 </div>
 
 <div class="body">
@@ -415,6 +417,32 @@
         </div>
     </div>
 
+    <div id="tab-chatbot">
+        <div class="chat-wrap">
+            <div class="chat-header">
+                <div class="chat-header-avatar">🤖</div>
+                <div class="chat-header-info">
+                    <div class="chat-header-name">ZenTable AI</div>
+                    <div class="chat-header-status">
+                        <span class="status-dot"></span> Online
+                    </div>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-error-banner" id="chat-error-banner"></div>
+            <div class="chat-suggestions" id="chat-suggestions"></div>
+            <div class="chat-input-row">
+                <textarea
+                    class="chat-input"
+                    id="chat-input"
+                    placeholder="Kuch bhi poochho..."
+                    rows="1"
+                ></textarea>
+                <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
 </div><!-- /.body -->
 
 <!-- ══ STAFF MODALS (outside .body, fine for fixed-position) ══ -->
@@ -591,6 +619,7 @@
 
 <!-- Static JS -->
 <script src="/static/js/staff_owner.js?v={{ static_v('js/staff_owner.js') }}"></script>
+<script src="/static/js/chatbot.js?v={{ static_v('js/chatbot.js') }}"></script>
 <script>
 function adjustTableCount(delta) {
     const el = document.getElementById('oi-num-tables');
