@@ -29,6 +29,13 @@
     let _initialized = false;
     let _msgCount   = 0;
 
+    // ── TOGGLE ─────────────────────────────────────────────
+    window.toggleWidget = function () {
+        _open ? _closeWidget() : _openWidget();
+    };
+
+    window._hwClose = function () { _closeWidget(); };
+
     // ── MOUNT ──────────────────────────────────────────────
     // DOM ready pe inject karo
     if (document.readyState === 'loading') {
@@ -43,8 +50,9 @@
         fab.className  = 'help-widget-fab';
         fab.id         = 'hw-fab';
         fab.setAttribute('aria-label', 'Help chat kholo');
-        fab.innerHTML  = `<span id="hw-fab-icon">💬</span><span class="fab-badge" id="hw-badge">1</span>`;
-        fab.onclick    = toggleWidget;
+        fab.innerHTML  = `<span id="hw-fab-icon">🤖</span><span class="fab-badge" id="hw-badge">1</span>`;
+        fab.onclick    = window.toggleWidget;
+        console.log('FAB mounted, toggleWidget:', window.toggleWidget);
 
         // Widget panel
         const panel = document.createElement('div');
@@ -86,14 +94,8 @@
         }, 3000);
     }
 
-    // ── TOGGLE ─────────────────────────────────────────────
-    window.toggleWidget = function () {
-        _open ? _closeWidget() : _openWidget();
-    };
-
-    window._hwClose = function () { _closeWidget(); };
-
     function _openWidget() {
+        console.log('open called', _open);
         _open = true;
         const panel = document.getElementById('hw-panel');
         const fab   = document.getElementById('hw-fab');
@@ -117,7 +119,7 @@
         const panel = document.getElementById('hw-panel');
         const fabIcon = document.getElementById('hw-fab-icon');
         if (panel)   panel.classList.remove('open');
-        if (fabIcon) fabIcon.textContent = '💬';
+        if (fabIcon) fabIcon.textContent = '🤖';
     }
 
     // ── INIT (first open) ──────────────────────────────────

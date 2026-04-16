@@ -247,6 +247,15 @@ def _detect_intents(message: str) -> list[str]:
     except Exception:
         return []
 
+def _detect_period(message: str) -> str:
+    msg = message.lower()
+    if any(w in msg for w in ["week", "hafte", "7 din", "weekly"]):
+        return "week"
+    if any(w in msg for w in ["month", "mahine", "30 din", "monthly"]):
+        return "month"
+    if any(w in msg for w in ["alltime", "ever", "sab", "total"]):
+        return "alltime"
+    return "today"  # default
 
 # ════════════════════════════════════════════════════════
 # PATH HANDLERS
@@ -267,7 +276,11 @@ def _handle_analytics(message: str, restaurant_id: str) -> str:
         fn = INTENT_MAP.get(intent)
         if fn:
             try:
-                combined_data[intent] = fn(restaurant_id)
+                if intent in ("TOP_SELLING_ITEMS", "LOWEST_SELLING_ITEMS"):
+                    period = _detect_period(message)  # "today"/"week"/"month"
+                    combined_data[intent] = fn(restaurant_id, period=period)
+                else:
+                    combined_data[intent] = fn(restaurant_id)
             except Exception as e:
                 combined_data[intent] = {"error": str(e)}
 
