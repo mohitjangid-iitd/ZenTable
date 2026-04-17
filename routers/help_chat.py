@@ -49,13 +49,11 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Same fallback order as chatbot.py
 MODELS_TO_TRY = [
-    "gemini-3.1-flash-lite",  # Priority 1: 15 RPM, 500 RPD — sabse zyada headroom
-    "gemini-2.5-flash",       # Priority 2: Best quality, 5 RPM
-    "gemini-3-flash",         # Priority 3: Latest, 5 RPM
-    "gemma-4-26b",            # Priority 4: Stability fallback (Unlimited TPM)
-    "gemini-3-flash-live"     # Priority 5: Emergency traffic net (Unlimited RPD)
+    "gemini-3.1-flash-lite-preview",  # Priority 1: 15 RPM, 500 RPD
+    "gemini-2.5-flash",               # Priority 2: 5 RPM, best quality
+    "gemini-3-flash-preview",         # Priority 3: 5 RPM, latest
+    "gemma-4-26b-it",                 # Priority 4: 15 RPM, 1.5K RPD fallback
 ]
-
 
 # ════════════════════════════════════════════════════════
 # RATE LIMITER — in-memory, per IP
