@@ -19,6 +19,7 @@ from routers.pages import router as pages_router
 from routers.owner import router as owner_router
 from routers.chatbot import router as chatbot_router
 from routers.help_chat import router as help_chat_router
+from routers.image_to_menu import router as image_to_menu_router
 from templates_env import templates
 
 # ════════════════════════════════
@@ -132,6 +133,7 @@ app.include_router(admin_router)
 app.include_router(owner_router)
 app.include_router(chatbot_router)
 app.include_router(help_chat_router)
+app.include_router(image_to_menu_router)
 app.include_router(pages_router)
 
 if __name__ == "__main__":
