@@ -17,13 +17,18 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 - **Waiter** — Table management, order placement, billing, payments
 - **Kitchen** — Live order queue, mark items ready
 - **Counter** — Table activation/deactivation, payment collection
-- **Owner** — Full analytics, QR generator, staff management, order history
+- **Owner** — Analytics, QR generator, staff management, order history, full menu control (add/edit/delete items, categories), restaurant info management (name, logo, banner, social links, contact, tables), AI-powered photo-to-menu import, platform help bot
 
 ### For Platform Admins (ZenTable)
+> Accessible at [admin.zentable.in](https://admin.zentable.in)
+
 - **Admin Panel** — Manage all restaurants from one place
 - **Per-restaurant stats** — Revenue, orders, top dishes
-- **Staff management** — Create, edit, deactivate staff accounts
-- **Restaurant onboarding** — Admin panel se instant setup
+- **Menu management** — Add/edit/delete items and categories for any restaurant
+- **Photo to menu** — AI-powered menu extraction from image, for any restaurant
+- **3D model management** — Upload/manage `.glb` models per dish (owners cannot upload GLBs)
+- **Staff management** — Create, edit, deactivate staff accounts across all restaurants
+- **Restaurant onboarding** — Instant setup via admin panel; activate, deactivate, or delete restaurants
 - **File management** — Upload images/models, trash + restore system
 - **DB export** — Full PostgreSQL export as ZIP
 
@@ -146,7 +151,7 @@ R2_PUBLIC_URL=
 | `http://localhost:8000/{client_id}/menu` | Digital menu |
 | `http://localhost:8000/{client_id}/ar-menu` | AR menu |
 | `http://localhost:8000/login` | Staff login |
-| `http://localhost:8000/admin` | ZenTable admin panel |
+| `http://localhost:8000/admin` | ZenTable admin panel (prod: `admin.zentable.in`) |
 
 ---
 
@@ -220,7 +225,7 @@ Config structure jo DB mein store hoti hai:
 
 | Role | Access |
 |---|---|
-| `owner` | Analytics, QR generator, staff management, full order history |
+| `owner` | Analytics, QR generator, staff management, order history, menu control, restaurant info management, photo-to-menu (AI), platform help bot |
 | `waiter` | Table management, order placement, order lifecycle, billing |
 | `kitchen` | Live order queue, mark items as ready |
 | `counter` | Table activate/deactivate, payment collection |
