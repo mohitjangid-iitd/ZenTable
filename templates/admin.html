@@ -331,7 +331,7 @@
                 <div class="json-tabs">
                     <button class="json-tab active" onclick="switchEditTab('info',this)">Info</button>
                     <button class="json-tab" onclick="switchEditTab('theme',this)">Theme</button>
-                    <button class="json-tab" onclick="switchEditTab('items',this)">Dishes</button>
+                    <button class="json-tab" onclick="switchEditTab('items',this); setTimeout(function(){ if(window.ImageToMenu && !document.getElementById('itm-trigger-btn')) window.ImageToMenu.init(); }, 50);">Dishes</button>
                 </div>
 
                 <!-- INFO -->
@@ -579,7 +579,7 @@
                 <!-- ITEMS / DISHES -->
                 <div class="section-editor" id="edit-items">
                     <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-                        <button class="btn btn-primary btn-sm" onclick="openAddItem()">+ Add Dish</button>
+                        <button class="btn btn-primary btn-sm" id="add-dish-btn" onclick="openAddItem()">+ Add Dish</button>
                     </div>
                     <div id="items-list">
                         <div class="empty">No dishes yet</div>
@@ -1005,6 +1005,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="/static/js/admin.js?v={{ static_v('js/admin.js') }}"></script>
+    <script src="/static/js/image_to_menu.js?v={{ static_v('js/image_to_menu.js') }}"></script>
     <script>
     // ════════════════════════════════
     // OLD_PATH PATCH

@@ -10,13 +10,16 @@ from r2 import USE_R2, r2_public_url, IS_PROD
 from helpers import get_client_data
 from trash_utils import purge_expired_trash
 
-from routers.menu   import router as menu_router
+from routers.menu import router as menu_router
 from routers.tables import router as tables_router
 from routers.orders import router as orders_router
-from routers.login  import router as login_router
-from routers.admin  import router as admin_router
-from routers.pages  import router as pages_router
+from routers.login import router as login_router
+from routers.admin import router as admin_router
+from routers.pages import router as pages_router
 from routers.owner import router as owner_router
+from routers.chatbot import router as chatbot_router
+from routers.help_chat import router as help_chat_router
+from routers.image_to_menu import router as image_to_menu_router
 from templates_env import templates
 
 # ════════════════════════════════
@@ -128,6 +131,9 @@ app.include_router(orders_router)
 app.include_router(login_router)
 app.include_router(admin_router)
 app.include_router(owner_router)
+app.include_router(chatbot_router)
+app.include_router(help_chat_router)
+app.include_router(image_to_menu_router)
 app.include_router(pages_router)
 
 if __name__ == "__main__":

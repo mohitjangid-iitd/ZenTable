@@ -28,6 +28,7 @@ Create a `.env` file in the project root:
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 SECRET_KEY=your-secret-key-here
 GLB_SECRET=your-glb-secret-here
+GEMINI_API_KEY=your-gemini-api-key
 
 # R2 (optional — USE_R2=false pe local storage use hogi)
 USE_R2=false

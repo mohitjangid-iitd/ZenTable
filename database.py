@@ -1247,3 +1247,260 @@ def trash_remove_expired(before_datetime_str: str) -> list:
         conn.commit()
     conn.close()
     return expired
+
+# ════════════════════════════════════════════════════════
+# CHATBOT ANALYTICS FUNCTIONS
+# ════════════════════════════════════════════════════════
+
+def get_today_sales(client_id: str) -> dict:
+    """
+    Aaj ka total revenue aur paid bills count.
+    Intent: GET_TODAY_SALES
+    Example: "Aaj ki sales?", "Aaj kitna revenue hua?"
+    Returns: { "date": "2025-04-15", "total_revenue": 12500, "bills_paid": 8, "avg_bill": 1562 }
+    """
+    conn = get_db()
+    raw = conn._conn.cursor()
+    today = date.today().isoformat()
+
+    raw.execute(
+        "SELECT COALESCE(SUM(total), 0), COUNT(*) FROM bills "
+        "WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
+        (client_id, today)
+    )
+    row = raw.fetchone()
+    total_revenue = int(row[0])
+    bills_paid    = int(row[1])
+    avg_bill      = round(total_revenue / bills_paid) if bills_paid > 0 else 0
+
+    conn.close()
+    return {
+        "date":         today,
+        "total_revenue": total_revenue,
+        "bills_paid":   bills_paid,
+        "avg_bill":     avg_bill,
+    }
+
+def get_total_orders_today(client_id: str) -> dict:
+    """
+    Aaj ke orders — total, pending, done, cancelled breakdown.
+    Intent: GET_TOTAL_ORDERS
+    Example: "Aaj kitne orders aaye?", "Orders count?"
+    Returns: { "date": "...", "total": 32, "pending": 3, "done": 27, "cancelled": 2 }
+    """
+    conn = get_db()
+    raw = conn._conn.cursor()
+    today = date.today().isoformat()
+
+    raw.execute(
+        "SELECT status, COUNT(*) FROM orders "
+        "WHERE client_id=%s AND DATE(created_at::timestamp)=%s "
+        "GROUP BY status",
+        (client_id, today)
+    )
+    rows = raw.fetchall()
+    conn.close()
+
+    counts = {r[0]: int(r[1]) for r in rows}
+    total  = sum(counts.values())
+
+    return {
+        "date":      today,
+        "total":     total,
+        "pending":   counts.get("pending",   0),
+        "done":      counts.get("done",      0),
+        "cancelled": counts.get("cancelled", 0),
+        "ready":     counts.get("ready",     0),
+    }
+
+def get_top_selling_items(client_id: str, limit: int = 5, period: str = "today") -> dict:
+    """
+    Sabse zyada bikne wale items — qty aur revenue ke saath.
+    Intent: TOP_SELLING_ITEMS
+    Example: "Sabse zyada kya bika?", "Top dishes?", "Best sellers?"
+    period: "today" | "week" | "month" | "alltime"
+    Returns: { "period": "today", "items": [ {"name": "Paneer Tikka", "qty": 18, "revenue": 5400}, ... ] }
+    """
+    conn = get_db()
+    raw = conn._conn.cursor()
+    today = date.today().isoformat()
+
+    if period == "today":
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            "AND DATE(created_at::timestamp)=%s",
+            (client_id, today)
+        )
+    elif period == "week":
+        week_start = (date.today() - timedelta(days=6)).isoformat()
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            "AND DATE(created_at::timestamp) >= %s",
+            (client_id, week_start)
+        )
+    elif period == "month":
+        month_start = (date.today() - timedelta(days=29)).isoformat()
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            "AND DATE(created_at::timestamp) >= %s",
+            (client_id, month_start)
+        )
+    else:  # alltime
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled'",
+            (client_id,)
+        )
+
+    rows = raw.fetchall()
+    conn.close()
+
+    item_qty     = {}
+    item_revenue = {}
+    for row in rows:
+        try:
+            items = json.loads(row[0])
+            for it in items:
+                name  = it.get("name", "")
+                qty   = it.get("qty",   0)
+                price = it.get("price", 0)
+                item_qty[name]     = item_qty.get(name, 0)     + qty
+                item_revenue[name] = item_revenue.get(name, 0) + qty * price
+        except Exception:
+            pass
+
+    sorted_items = sorted(
+        [{"name": k, "qty": v, "revenue": item_revenue.get(k, 0)}
+         for k, v in item_qty.items()],
+        key=lambda x: x["qty"], reverse=True
+    )[:limit]
+
+    return {
+        "period": period,
+        "items":  sorted_items,
+    }
+
+def get_lowest_selling_items(client_id: str, limit: int = 5, period: str = "week") -> dict:
+    """
+    Sabse kam bikne wale items — kaunsi dish nahi chal rahi.
+    Intent: LOWEST_SELLING_ITEMS
+    Example: "Kaunsi dish nahi chal rahi?", "Slow items?", "Worst sellers?"
+    period: "today" | "week" | "month" | "alltime"
+    Returns: { "period": "week", "items": [ {"name": "Dal Makhani", "qty": 1, "revenue": 180}, ... ] }
+    """
+    conn = get_db()
+    raw = conn._conn.cursor()
+    today = date.today().isoformat()
+
+    if period == "today":
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            "AND DATE(created_at::timestamp)=%s",
+            (client_id, today)
+        )
+    elif period == "week":
+        week_start = (date.today() - timedelta(days=6)).isoformat()
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            "AND DATE(created_at::timestamp) >= %s",
+            (client_id, week_start)
+        )
+    elif period == "month":
+        month_start = (date.today() - timedelta(days=29)).isoformat()
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            "AND DATE(created_at::timestamp) >= %s",
+            (client_id, month_start)
+        )
+    else:
+        raw.execute(
+            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled'",
+            (client_id,)
+        )
+
+    rows = raw.fetchall()
+    conn.close()
+
+    item_qty     = {}
+    item_revenue = {}
+    for row in rows:
+        try:
+            items = json.loads(row[0])
+            for it in items:
+                name  = it.get("name", "")
+                qty   = it.get("qty",   0)
+                price = it.get("price", 0)
+                item_qty[name]     = item_qty.get(name, 0)     + qty
+                item_revenue[name] = item_revenue.get(name, 0) + qty * price
+        except Exception:
+            pass
+
+    if not item_qty:
+        return {"period": period, "items": []}
+
+    sorted_items = sorted(
+        [{"name": k, "qty": v, "revenue": item_revenue.get(k, 0)}
+         for k, v in item_qty.items()],
+        key=lambda x: x["qty"]   # ascending — lowest first
+    )[:limit]
+
+    return {
+        "period": period,
+        "items":  sorted_items,
+    }
+
+def get_revenue_summary(client_id: str, days: int = 7) -> dict:
+    """
+    Last N din ka daily revenue breakdown + total.
+    Intent: GET_REVENUE_SUMMARY
+    Example: "Last 7 din ka summary?", "Is hafte ki sales?", "Weekly report?"
+    days: 1-30 (default 7)
+    Returns: {
+        "days": 7,
+        "total_revenue": 87500,
+        "total_orders": 210,
+        "daily": [ {"date": "2025-04-09", "label": "Wed", "revenue": 12000, "orders": 28}, ... ]
+    }
+    """
+    conn = get_db()
+    raw = conn._conn.cursor()
+
+    days = max(1, min(days, 30))   # clamp: 1–30
+
+    raw.execute(
+        """
+        SELECT DATE(created_at::timestamp) AS day,
+               COALESCE(SUM(total), 0)     AS rev,
+               COUNT(*)                    AS cnt
+        FROM bills
+        WHERE client_id=%s
+          AND payment_status='paid'
+          AND DATE(created_at::timestamp) >= CURRENT_DATE - INTERVAL '%s days'
+        GROUP BY day
+        ORDER BY day
+        """,
+        (client_id, days - 1)
+    )
+    rows = raw.fetchall()
+    conn.close()
+
+    daily_map = {str(r[0]): {"revenue": int(r[1]), "orders": int(r[2])} for r in rows}
+
+    daily_data = []
+    for i in range(days - 1, -1, -1):
+        d = (date.today() - timedelta(days=i)).isoformat()
+        daily_data.append({
+            "date":    d,
+            "label":  (date.today() - timedelta(days=i)).strftime("%a"),  # Mon, Tue...
+            "revenue": daily_map.get(d, {}).get("revenue", 0),
+            "orders":  daily_map.get(d, {}).get("orders",  0),
+        })
+
+    total_revenue = sum(d["revenue"] for d in daily_data)
+    total_orders  = sum(d["orders"]  for d in daily_data)
+
+    return {
+        "days":          days,
+        "total_revenue": total_revenue,
+        "total_orders":  total_orders,
+        "daily":         daily_data,
+    }

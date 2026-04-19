@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Owner — {{ data.restaurant.name }}</title>
@@ -102,6 +102,7 @@
 
     <!-- Static CSS -->
     <link rel="stylesheet" href="/static/css/staff_owner.css?v={{ static_v('css/staff_owner.css') }}">
+    <link rel="stylesheet" href="/static/css/chatbot.css?v={{ static_v('css/chatbot.css') }}">
 </head>
 <body>
 
@@ -117,18 +118,20 @@
 </div>
 
 <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
-    <button class="tab-btn" onclick="switchTab('analytics',this)">📈 Analytics</button>
+    <button class="tab-btn active" onclick="switchTab('analytics',this)">📈 Analytics</button>
     <button class="tab-btn" onclick="switchTab('orders',this)">🧾 Orders</button>
     <button class="tab-btn" onclick="switchTab('tables',this)">🪑 Tables</button>
     <button class="tab-btn" onclick="switchTab('staff',this)">👥 Staff</button>
-    <button class="tab-btn" onclick="switchTab('manage',this)">✏️ Manage</button>
+    <button class="tab-btn" onclick="switchTab('manage',this)">🏪 My Restaurant</button>
 </div>
+
+<!-- Floating Help Button -->
+<button id="owner-help-fab" onclick="toggleOwnerChat()" style="position:fixed;bottom:24px;right:20px;z-index:9999;width:54px;height:54px;border-radius:50%;background:var(--primary);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:white;transition:transform 0.2s;" title="AI Help">🤖</button>
 
 <div class="body">
 
-    <!-- OVERVIEW -->
-    <div id="tab-overview">
+    <!-- ANALYTICS (Overview + Analytics merged) -->
+    <div id="tab-analytics">
         <div class="date-row">
             <span class="date-label" id="today-label"></span>
             <button class="refresh-btn" onclick="loadAll()"><i class="fas fa-rotate"></i> Refresh</button>
@@ -192,14 +195,6 @@
                 <span><span class="legend-dot" style="background:#2196f3"></span><span id="split-c-lbl">Customer: —</span></span>
                 <span><span class="legend-dot" style="background:#9c27b0"></span><span id="split-w-lbl">Waiter: —</span></span>
             </div>
-        </div>
-    </div>
-
-    <!-- ANALYTICS -->
-    <div id="tab-analytics" style="display:none">
-        <div class="date-row">
-            <span class="date-label">Last 7 Days + All Time</span>
-            <button class="refresh-btn" onclick="loadAll()"><i class="fas fa-rotate"></i> Refresh</button>
         </div>
 
         <div class="section-hd">📅 Daily Revenue — Last 7 Days</div>
@@ -417,6 +412,34 @@
 
 </div><!-- /.body -->
 
+<!-- Floating Owner Chat Panel -->
+<div id="owner-chat-panel" style="display:none;position:fixed;bottom:88px;right:16px;z-index:9998;width:340px;max-height:500px;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.16);overflow:hidden;flex-direction:column;background:white;">
+    <div class="chat-wrap" style="height:500px;">
+        <div class="chat-header">
+            <div class="chat-header-avatar">🤖</div>
+            <div class="chat-header-info">
+                <div class="chat-header-name">ZenTable AI</div>
+                <div class="chat-header-status">
+                    <span class="status-dot"></span> Online
+                </div>
+            </div>
+            <button onclick="toggleOwnerChat()" style="background:rgba(255,255,255,0.12);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;margin-left:auto;">✕</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-error-banner" id="chat-error-banner"></div>
+        <div class="chat-suggestions" id="chat-suggestions"></div>
+        <div class="chat-input-row">
+            <textarea
+                class="chat-input"
+                id="chat-input"
+                placeholder="Kuch bhi poochho..."
+                rows="1"
+            ></textarea>
+            <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ STAFF MODALS (outside .body, fine for fixed-position) ══ -->
 <div id="staff-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:20px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
@@ -591,6 +614,20 @@
 
 <!-- Static JS -->
 <script src="/static/js/staff_owner.js?v={{ static_v('js/staff_owner.js') }}"></script>
+<script src="/static/js/chatbot.js?v={{ static_v('js/chatbot.js') }}"></script>
+<script src="/static/js/image_to_menu.js?v={{ static_v('js/image_to_menu.js') }}"></script>
+<script>
+(function() {
+    var _chatOpen = false;
+    window.toggleOwnerChat = function() {
+        _chatOpen = !_chatOpen;
+        var panel = document.getElementById('owner-chat-panel');
+        var fab   = document.getElementById('owner-help-fab');
+        if (panel) panel.style.display = _chatOpen ? 'flex' : 'none';
+        if (fab)   fab.style.transform  = _chatOpen ? 'scale(0.9)' : 'scale(1)';
+    };
+})();
+</script>
 <script>
 function adjustTableCount(delta) {
     const el = document.getElementById('oi-num-tables');

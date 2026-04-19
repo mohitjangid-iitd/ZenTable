@@ -18,7 +18,7 @@ document.getElementById('today-label').textContent =
 
 // ── TABS ──
 function switchTab(tab, btn) {
-    ['overview','analytics','orders','tables','staff','manage'].forEach(t => {
+    ['analytics','orders','tables','staff','manage'].forEach(t => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
     });
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
