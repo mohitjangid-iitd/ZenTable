@@ -4,6 +4,55 @@
    Response: { response: "...", category: "ANALYTICS|PLATFORM_HELP|UNKNOWN" }
    ═══════════════════════════════════════════════════════════ */
 
+(function() {
+    function _inject() {
+        const fab = document.createElement('button');
+        fab.id = 'owner-help-fab';
+        fab.title = 'AI Help';
+        fab.innerHTML = '🤖';
+        fab.setAttribute('onclick', 'toggleOwnerChat()');
+        fab.style.cssText = 'position:fixed;bottom:24px;right:20px;z-index:9999;width:54px;height:54px;border-radius:50%;background:var(--primary);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:white;transition:transform 0.2s;';
+        document.body.appendChild(fab);
+
+        const panel = document.createElement('div');
+        panel.id = 'owner-chat-panel';
+        panel.style.cssText = 'display:none;position:fixed;bottom:88px;right:16px;z-index:9998;width:340px;max-height:500px;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.16);overflow:hidden;flex-direction:column;background:white;';
+        panel.innerHTML = `
+            <div class="chat-wrap" style="height:500px;">
+                <div class="chat-header">
+                    <div class="chat-header-avatar">🤖</div>
+                    <div class="chat-header-info">
+                        <div class="chat-header-name">ZenTable AI</div>
+                        <div class="chat-header-status"><span class="status-dot"></span> Online</div>
+                    </div>
+                    <button onclick="toggleOwnerChat()" style="background:rgba(255,255,255,0.12);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;margin-left:auto;">✕</button>
+                </div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-error-banner" id="chat-error-banner"></div>
+                <div class="chat-suggestions" id="chat-suggestions"></div>
+                <div class="chat-input-row">
+                    <textarea class="chat-input" id="chat-input" placeholder="Kuch bhi poochho..." rows="1"></textarea>
+                    <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()">➤</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+
+        var _chatOpen = false;
+        window.toggleOwnerChat = function() {
+            _chatOpen = !_chatOpen;
+            panel.style.display = _chatOpen ? 'flex' : 'none';
+            fab.style.transform = _chatOpen ? 'scale(0.9)' : 'scale(1)';
+        };
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _inject);
+    } else {
+        _inject();
+    }
+})();
+
 (function () {
     'use strict';
 

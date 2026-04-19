@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from site_config import SITE_CONFIG
-from database import init_db, seed_tables, get_all_restaurants_info
+from database import get_db,init_db, seed_tables, get_all_restaurants_info, get_all_site_settings
 from r2 import USE_R2, r2_public_url, IS_PROD
 from helpers import get_client_data
 from trash_utils import purge_expired_trash
@@ -37,6 +37,7 @@ async def lifespan(app):
     templates.env.globals["static_v"] = lambda path: \
         int(os.path.getmtime(f"static/{path}")) if os.path.exists(f"static/{path}") else 0
     templates.env.globals["site"] = SITE_CONFIG
+    templates.env.globals["site_settings"] = get_all_site_settings()
     yield
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -74,6 +75,12 @@ async def serve_asset(request: Request, client_id: str, filename: str):
 
 @app.api_route("/ping", methods=["GET", "HEAD"])
 def ping():
+    try:
+        conn = get_db()
+        conn.execute("SELECT 1")
+        conn.close()
+    except:
+        pass
     return {"status": "ok"}
 
 @app.get("/google67ff8e4e4bb9c2ef.html")
