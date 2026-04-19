@@ -64,6 +64,7 @@ from database import (
     create_admin, export_full_db_zip,
     trash_get_all, trash_get_one,
     trash_remove, trash_remove_by_client, trash_remove_all, trash_remove_expired,
+    get_all_site_settings, set_site_setting,
 )
 from helpers import get_client_data, require_auth, require_feature
 from r2 import (
@@ -609,3 +610,26 @@ async def api_export_db_zip(auth_token: Optional[str] = Cookie(None)):
         filename=filename,
         background=BackgroundTask(os.remove, zip_path),
     )
+
+
+# ════════════════════════════════
+# SITE SETTINGS
+# ════════════════════════════════
+
+@router.get("/api/admin/site-settings")
+async def api_get_site_settings(auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    return get_all_site_settings()
+
+@router.patch("/api/admin/site-settings/{key}")
+async def api_set_site_setting(key: str, body: dict, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    ALLOWED_KEYS = {"image_to_menu_enabled", "chatbot_enabled"}
+    if key not in ALLOWED_KEYS:
+        raise HTTPException(status_code=400, detail="Invalid setting key")
+    value = body.get("value")
+    set_site_setting(key, value)
+    # Jinja2 global live update — restart ki zaroorat nahi
+    from templates_env import templates
+    templates.env.globals["site_settings"][key] = value
+    return {"key": key, "value": value}

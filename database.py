@@ -227,9 +227,76 @@ def init_db():
     except Exception:
         conn._conn.rollback()
 
+    # ── Site settings table (platform-level feature flags) ──
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS site_settings (
+            key        TEXT PRIMARY KEY,
+            value      TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
+    # ── Default values (insert only if not exists) ──
+    cur.execute("""
+        INSERT INTO site_settings (key, value)
+        VALUES ('image_to_menu_enabled', 'true')
+        ON CONFLICT (key) DO NOTHING
+    """)
+
+        # ── Default values (insert only if not exists) ──
+    cur.execute("""
+        INSERT INTO site_settings (key, value)
+        VALUES ('image_to_menu_enabled', 'true'),
+               ('chatbot_enabled', 'true')
+        ON CONFLICT (key) DO NOTHING
+    """)
+
     conn.commit()
     conn.close()
     print("✅ Database initialized")
+
+
+# ════════════════════════════════
+# SITE SETTINGS
+# ════════════════════════════════
+
+def get_site_setting(key: str, default=None):
+    """Site-level setting fetch karo"""
+    conn = get_db()
+    cur = conn.execute("SELECT value FROM site_settings WHERE key=%s", (key,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return default
+    val = row["value"]
+    if val == "true":  return True
+    if val == "false": return False
+    return val
+
+def set_site_setting(key: str, value):
+    """Site-level setting save karo"""
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO site_settings (key, value, updated_at)
+        VALUES (%s, %s, NOW())
+        ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()
+    """, (key, str(value).lower() if isinstance(value, bool) else str(value)))
+    conn.commit()
+    conn.close()
+
+def get_all_site_settings() -> dict:
+    """Saari site settings ek saath"""
+    conn = get_db()
+    cur = conn.execute("SELECT key, value FROM site_settings ORDER BY key")
+    rows = cur.fetchall()
+    conn.close()
+    result = {}
+    for r in rows:
+        val = r["value"]
+        if val == "true":  result[r["key"]] = True
+        elif val == "false": result[r["key"]] = False
+        else: result[r["key"]] = val
+    return result
 
 
 # ════════════════════════════════

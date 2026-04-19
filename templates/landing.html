@@ -9,7 +9,9 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/landing.css') }}" />
+{% if site_settings.get('chatbot_enabled', true) %}
   <link rel="stylesheet" href="/static/css/chatbot.css?v={{ static_v('css/chatbot.css') }}">
+{% endif %}
 </head>
 <body>
 
@@ -985,6 +987,8 @@
 
 })(); // ← IIFE close
 </script>
+{% if site_settings.get('chatbot_enabled', true) %}
 <script src="/static/js/help_widget.js?v={{ static_v('js/help_widget.js') }}" defer></script>
+{% endif %}
 </body>
 </html>

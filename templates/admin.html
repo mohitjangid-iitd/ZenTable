@@ -43,6 +43,7 @@
         <button class="tab-btn" onclick="switchTab('restaurants', this)">Restaurants</button>
         <button class="tab-btn" onclick="switchTab('staff', this)">Staff</button>
         <button class="tab-btn" onclick="switchTab('trash', this); loadTrash()">🗑️ Trash</button>
+        <button class="tab-btn" onclick="switchTab('settings', this); loadSiteSettings()">⚙️ Settings</button>
         <button class="tab-btn" onclick="window.open('https://hiukim.github.io/mind-ar-js-doc/tools/compile', '_blank')"
             style="margin-left:auto; background:var(--primary); color:#fff; border:none; padding:8px 15px; border-radius:6px;">
             🧠 Target Compiler
@@ -168,6 +169,64 @@
             <div id="trash-stats" style="margin-bottom:14px;padding:10px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;font-size:0.78rem;color:var(--muted);display:none;flex-wrap:wrap;gap:20px;"></div>
             <div id="trash-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;">
                 <div style="color:var(--muted);font-size:0.85rem;padding:24px;">Tab open hone par load hoga...</div>
+            </div>
+        </div>
+
+        <!-- ══ SETTINGS TAB ══ -->
+        <div class="tab-pane" id="tab-settings">
+            <div class="section-head" style="margin-bottom:16px;">
+                <div class="section-title" style="margin:0;">⚙️ Platform Settings</div>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:16px;">
+                        Ye settings saari restaurants pe apply hoti hain.
+                    </div>
+
+                    <!-- AI Features -->
+                    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px;opacity:0.6;">AI Features</div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);">
+                        <div>
+                            <div style="font-size:0.9rem;font-weight:600;color:var(--text);">📷 Add from Photo</div>
+                            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">Owner panel aur landing page pe AI menu scan feature</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                            <input type="checkbox" id="toggle-image-to-menu" onchange="saveSiteSetting('image_to_menu_enabled', this.checked)"
+                                   style="opacity:0;width:0;height:0;">
+                            <span id="toggle-image-to-menu-track" style="
+                                position:absolute;inset:0;border-radius:24px;cursor:pointer;
+                                background:rgba(255,255,255,0.1);border:1px solid var(--border);
+                                transition:background 0.2s;
+                            "></span>
+                            <span id="toggle-image-to-menu-thumb" style="
+                                position:absolute;top:3px;left:3px;width:16px;height:16px;
+                                border-radius:50%;background:#888;transition:transform 0.2s,background 0.2s;
+                            "></span>
+                        </label>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;">
+                        <div>
+                            <div style="font-size:0.9rem;font-weight:600;color:var(--text);">🤖 Chatbot</div>
+                            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">Owner panel aur landing page pe chatbot widget</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                            <input type="checkbox" id="toggle-chatbot" onchange="saveSiteSetting('chatbot_enabled', this.checked)"
+                                   style="opacity:0;width:0;height:0;">
+                            <span id="toggle-chatbot-track" style="
+                                position:absolute;inset:0;border-radius:24px;cursor:pointer;
+                                background:rgba(255,255,255,0.1);border:1px solid var(--border);
+                                transition:background 0.2s;
+                            "></span>
+                            <span id="toggle-chatbot-thumb" style="
+                                position:absolute;top:3px;left:3px;width:16px;height:16px;
+                                border-radius:50%;background:#888;transition:transform 0.2s,background 0.2s;
+                            "></span>
+                        </label>
+                    </div>
+
+                </div>
             </div>
         </div>
 
@@ -1377,6 +1436,50 @@
             return response;
         };
     })();
+
+// ── Site Settings ──
+    async function loadSiteSettings() {
+        const res = await fetch('/api/admin/site-settings', { credentials: 'include' });
+        const data = await res.json();
+
+        const toggles = {
+            'image_to_menu_enabled': 'toggle-image-to-menu',
+            'chatbot_enabled':       'toggle-chatbot',
+        };
+
+        for (const [key, id] of Object.entries(toggles)) {
+            const cb    = document.getElementById(id);
+            const track = document.getElementById(id + '-track');
+            const thumb = document.getElementById(id + '-thumb');
+            if (!cb) continue;
+            const on = data[key] !== false;
+            cb.checked = on;
+            track.style.background = on ? 'rgba(108,99,255,0.5)' : 'rgba(255,255,255,0.1)';
+            thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+            thumb.style.background = on ? '#a78bfa' : '#888';
+        }
+    }
+
+    async function saveSiteSetting(key, value) {
+        const idMap = {
+            'image_to_menu_enabled': 'toggle-image-to-menu',
+            'chatbot_enabled':       'toggle-chatbot',
+        };
+        const id    = idMap[key];
+        const track = document.getElementById(id + '-track');
+        const thumb = document.getElementById(id + '-thumb');
+        if (track) {
+            track.style.background = value ? 'rgba(108,99,255,0.5)' : 'rgba(255,255,255,0.1)';
+            thumb.style.transform  = value ? 'translateX(20px)' : 'translateX(0)';
+            thumb.style.background = value ? '#a78bfa' : '#888';
+        }
+        await fetch(`/api/admin/site-settings/${key}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ value }),
+        });
+    }
     </script>
 
     <style>
