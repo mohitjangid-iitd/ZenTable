@@ -92,19 +92,18 @@ def ping(response: Response):
 
     try:
         conn = get_db()
-        cur = conn.cursor()
 
         # Neon wake-up query
-        cur.execute("SELECT 1;")
+        cur = conn.execute("SELECT 1;")
         cur.fetchone()
 
-        cur.close()
         conn.close()
 
         return {"status": "ok"}
 
     except Exception as e:
         # monitor ko failure dikhega
+        response.status_code = 500
         return {
             "status": "error",
             "message": str(e)
