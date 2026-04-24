@@ -58,13 +58,17 @@ from database import (
     get_db,
     get_analytics, get_summary,
     get_all_restaurants_info, get_overall_stats, get_top_dishes_overall,
-    save_restaurant_json, delete_restaurant_full,
+    save_restaurant_json, delete_restaurant_full, get_restaurant_branches,
     create_staff, get_staff_list, update_staff_password,
     toggle_staff_active, delete_staff,
     create_admin, export_full_db_zip,
     trash_get_all, trash_get_one,
     trash_remove, trash_remove_by_client, trash_remove_all, trash_remove_expired,
     get_all_site_settings, set_site_setting,
+    get_signup_requests, get_signup_request,
+    approve_signup_request, reject_signup_request,
+    create_owner, get_owner_by_client_id, toggle_owner_active, update_owner_password,
+    seed_tables,
 )
 from helpers import get_client_data, require_auth, require_feature
 from r2 import (
@@ -127,6 +131,7 @@ class CreateStaffRequest(BaseModel):
     password: str
     name: str
     role: str
+    branch_id: str = "__default__"
 
 class UpdatePasswordRequest(BaseModel):
     new_password: str
@@ -135,6 +140,27 @@ class CreateAdminRequest(BaseModel):
     name: str
     username: str
     password: str
+
+class ApproveSignupRequest(BaseModel):
+    client_id: str
+    password: str
+    num_tables: int = 6
+
+class RejectSignupRequest(BaseModel):
+    reason: str
+
+class CreateBranchRequest(BaseModel):
+    branch_id: str
+    name: str
+    num_tables: int = 6
+    address: str = ""
+    phone: str = ""
+    copy_menu_from: str = "__default__"
+    client_id: str
+    password: str
+
+class RejectSignupRequest(BaseModel):
+    reason: str
 
 
 # ════════════════════════════════
@@ -157,10 +183,30 @@ async def admin_dashboard(request: Request, auth_token: Optional[str] = Cookie(N
 @router.get("/api/admin/overview")
 async def api_admin_overview(period: str = "alltime", auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
-    restaurants = get_all_restaurants_info()
-    for r in restaurants:
-        rdata = get_client_data(r["client_id"]) or {}
+    all_rows = get_all_restaurants_info()
+    # Sirf __default__ branch wale unique restaurants — branches alag row nahi banegi
+    seen, restaurants = set(), []
+    for r in all_rows:
+        cid = r.get("client_id")
+        bid = r.get("branch_id", "__default__") or "__default__"
+        if cid in seen or bid != "__default__":
+            continue
+        seen.add(cid)
+        rdata = get_client_data(cid) or {}
         r["active"] = rdata.get("subscription", {}).get("active", True)
+        # Branches list attach karo
+        branches = get_restaurant_branches(cid)
+        r["branches"] = [
+            {
+                "branch_id": b["branch_id"],
+                "name": "Main" if b["branch_id"] == "__default__" else
+                         (b["config"] if isinstance(b["config"], dict) else {})
+                         .get("restaurant", {}).get("name", b["branch_id"]),
+            }
+            for b in branches
+        ]
+        r["branch_count"] = len(branches)
+        restaurants.append(r)
     return {
         "stats":      get_overall_stats(),
         "restaurants": restaurants,
@@ -174,12 +220,12 @@ async def api_summary(client_id: str):
 
 
 @router.get("/api/admin/analytics/{client_id}")
-async def api_analytics(client_id: str):
+async def api_analytics(client_id: str, branch_id: str = None):  # ← add karo
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     require_feature(data, "analytics")
-    return get_analytics(client_id)
+    return get_analytics(client_id, branch_id=branch_id)  # ← pass karo
 
 
 @router.get("/api/admin/restaurant/{client_id}/analytics")
@@ -195,9 +241,10 @@ async def api_admin_restaurant_analytics(client_id: str, auth_token: Optional[st
 # ════════════════════════════════
 
 @router.get("/api/admin/restaurant/{client_id}/json")
-async def api_get_restaurant_json(client_id: str, auth_token: Optional[str] = Cookie(None)):
+async def api_get_restaurant_json(client_id: str, branch_id: str = "__default__",
+                                   auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
-    data = get_client_data(client_id)
+    data = get_client_data(client_id, branch_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     return data
@@ -205,11 +252,16 @@ async def api_get_restaurant_json(client_id: str, auth_token: Optional[str] = Co
 
 @router.put("/api/admin/restaurant/{client_id}/json")
 async def api_save_restaurant_json(client_id: str, body: SaveRestaurantRequest,
+                                    branch_id: str = "__default__",
                                     auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
     if not get_client_data(client_id):
         raise HTTPException(status_code=404, detail="Restaurant not found")
-    save_restaurant_json(client_id, body.data)
+    save_restaurant_json(client_id, body.data, branch_id)
+    # Agar branch save hai toh tables bhi sync karo
+    num = body.data.get("restaurant", {}).get("num_tables")
+    if num and isinstance(num, int):
+        seed_tables(client_id, num, branch_id)
     return {"message": "Saved"}
 
 
@@ -250,7 +302,6 @@ async def api_create_restaurant(body: CreateRestaurantRequest,
         data["restaurant"]["banner"] = r2_public_url(f"{client_id}/banner.png")
 
     save_restaurant_json(client_id, data)
-    from database import seed_tables
     seed_tables(client_id, body.num_tables)
     return {"message": f"Restaurant {client_id} created", "client_id": client_id}
 
@@ -295,7 +346,117 @@ async def api_toggle_restaurant(client_id: str, auth_token: Optional[str] = Cook
 
 
 # ════════════════════════════════
-# STAFF MANAGEMENT
+# BRANCH MANAGEMENT
+# ════════════════════════════════
+
+@router.get("/api/admin/restaurant/{client_id}/branches")
+async def api_get_branches(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    """Ek brand ki saari branches list"""
+    require_auth(auth_token, ["admin"])
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    branches = get_restaurant_branches(client_id)
+    # Config se naam aur tables nikalo
+    result = []
+    for b in branches:
+        cfg = b["config"] if isinstance(b["config"], dict) else {}
+        result.append({
+            "branch_id":  b["branch_id"],
+            "name":       cfg.get("restaurant", {}).get("name", b["branch_id"]),
+            "num_tables": cfg.get("restaurant", {}).get("num_tables", 0),
+            "address":    cfg.get("restaurant", {}).get("address", ""),
+        })
+    return result
+
+
+@router.post("/api/admin/restaurant/{client_id}/branch")
+async def api_add_branch(client_id: str, body: CreateBranchRequest,
+                          auth_token: Optional[str] = Cookie(None)):
+    """Naya branch add karo — menu copy from existing branch"""
+    require_auth(auth_token, ["admin"])
+
+    if not get_client_data(client_id):
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    branch_id = body.branch_id.lower().strip().replace(" ", "_")
+    if not branch_id:
+        raise HTTPException(status_code=400, detail="branch_id required")
+
+    # Already exists check
+    existing = get_restaurant_branches(client_id)
+    if any(b["branch_id"] == branch_id for b in existing):
+        raise HTTPException(status_code=409, detail=f"Branch '{branch_id}' already exists")
+
+    # Source branch se sirf items copy karo — config alag banao
+    import copy as _copy
+    source_data = get_client_data(client_id, body.copy_menu_from) or {}
+    source_items = _copy.deepcopy(source_data.get("items", []))
+    source_rest  = source_data.get("restaurant", {})
+
+    # Bilkul naya branch config banao — source ko touch mat karo
+    branch_config = {
+        "restaurant": {
+            "name":        body.name,
+            "num_tables":  body.num_tables,
+            "address":     body.address,
+            "phone":       body.phone,
+            "logo":        source_rest.get("logo", ""),
+            "banner":      source_rest.get("banner", ""),
+            "tagline":     source_rest.get("tagline", ""),
+            "description": source_rest.get("description", ""),
+            "cuisine_type": source_rest.get("cuisine_type", ""),
+            "email":       source_rest.get("email", ""),
+            "timings":     source_rest.get("timings", {"lunch": "", "dinner": "", "closed": ""}),
+            "social":      source_rest.get("social", {"instagram": "", "facebook": "", "twitter": ""}),
+        },
+        "items": source_items,
+    }
+
+    save_restaurant_json(client_id, branch_config, branch_id)
+    seed_tables(client_id, body.num_tables, branch_id)
+
+    if not USE_R2:
+        os.makedirs(f"static/assets/{client_id}", exist_ok=True)
+        os.makedirs(f"private/assets/{client_id}", exist_ok=True)
+
+    return {
+        "message":   f"Branch '{branch_id}' created for {client_id}",
+        "branch_id": branch_id,
+    }
+
+
+@router.put("/api/admin/restaurant/{client_id}/branch/{branch_id}/json")
+async def api_save_branch_json(client_id: str, branch_id: str,
+                                body: SaveRestaurantRequest,
+                                auth_token: Optional[str] = Cookie(None)):
+    """Branch config save karo"""
+    require_auth(auth_token, ["admin"])
+    if not get_client_data(client_id, branch_id):
+        raise HTTPException(status_code=404, detail="Branch not found")
+    save_restaurant_json(client_id, body.data, branch_id)
+    # Table count change hone pe seed karo
+    num = body.data.get("restaurant", {}).get("num_tables")
+    if num and isinstance(num, int):
+        seed_tables(client_id, num, branch_id)
+    return {"message": "Branch saved"}
+
+
+@router.delete("/api/admin/restaurant/{client_id}/branch/{branch_id}")
+async def api_delete_branch(client_id: str, branch_id: str,
+                             auth_token: Optional[str] = Cookie(None)):
+    """Branch delete karo — __default__ branch delete nahi hogi"""
+    require_auth(auth_token, ["admin"])
+    if branch_id == "__default__":
+        raise HTTPException(status_code=400, detail="Default branch delete nahi kar sakte")
+    conn = get_db()
+    conn.execute("DELETE FROM orders WHERE client_id=%s AND branch_id=%s", (client_id, branch_id))
+    conn.execute("DELETE FROM bills  WHERE client_id=%s AND branch_id=%s", (client_id, branch_id))
+    conn.execute("DELETE FROM tables WHERE client_id=%s AND branch_id=%s", (client_id, branch_id))
+    conn.execute("DELETE FROM staff  WHERE client_id=%s AND branch_id=%s", (client_id, branch_id))
+    conn.execute("DELETE FROM restaurants WHERE client_id=%s AND branch_id=%s", (client_id, branch_id))
+    conn.commit()
+    conn.close()
+    return {"message": f"Branch '{branch_id}' deleted"}
 # ════════════════════════════════
 
 @router.get("/api/admin/staff/{client_id}")
@@ -308,10 +469,10 @@ async def api_admin_get_staff(client_id: str, auth_token: Optional[str] = Cookie
 async def api_admin_create_staff(client_id: str, body: CreateStaffRequest,
                                   auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
-    valid_roles = {"owner", "kitchen", "waiter", "counter"}
+    valid_roles = {"owner", "kitchen", "waiter", "counter", "blogger"}
     if body.role not in valid_roles:
         raise HTTPException(status_code=400, detail="Invalid role")
-    ok = create_staff(client_id, body.username, body.password, body.name, body.role)
+    ok = create_staff(client_id, body.username, body.password, body.name, body.role, body.branch_id)
     if not ok:
         raise HTTPException(status_code=409, detail="Username already exists")
     return {"message": "Staff created"}
@@ -333,7 +494,7 @@ async def api_admin_toggle_staff(staff_id: int, auth_token: Optional[str] = Cook
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Staff not found")
-    new_state = not bool(row[0])
+    new_state = not bool(row["is_active"])
     toggle_staff_active(staff_id, new_state)
     return {"message": "Updated", "is_active": new_state}
 
@@ -613,6 +774,266 @@ async def api_export_db_zip(auth_token: Optional[str] = Cookie(None)):
 
 
 # ════════════════════════════════
+# SIGNUP REQUESTS
+# ════════════════════════════════
+
+@router.get("/api/admin/signup-requests")
+async def api_get_signup_requests(status: str = None,
+                                   auth_token: Optional[str] = Cookie(None)):
+    """Saari signup requests — status filter: pending | approved | rejected"""
+    require_auth(auth_token, ["admin"])
+    return get_signup_requests(status)
+
+
+@router.get("/api/admin/signup-requests/{req_id}")
+async def api_get_signup_request(req_id: int, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    req = get_signup_request(req_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request nahi mila")
+    return req
+
+
+@router.post("/api/admin/signup-requests/{req_id}/approve")
+async def api_approve_signup(req_id: int, body: ApproveSignupRequest,
+                              auth_token: Optional[str] = Cookie(None)):
+    """
+    Signup request approve karo:
+    1. client_id already exist nahi karna chahiye
+    2. Restaurant create karo (default config)
+    3. owners table mein entry karo
+    4. Request status approved mark karo
+    5. Owner ko approval email bhejo
+    """
+    user = require_auth(auth_token, ["admin"])
+
+    req = get_signup_request(req_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request nahi mila")
+    if req["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Request already {req['status']} hai")
+
+    client_id = body.client_id.lower().strip().replace(" ", "_")
+
+    # client_id unique hona chahiye
+    if get_client_data(client_id):
+        raise HTTPException(status_code=409, detail=f"'{client_id}' already exists — dusra ID use karo")
+
+    # Restaurant create karo (default config)
+    restaurant_data = {
+        "restaurant": {
+            "name":        req["restaurant_name"],
+            "num_tables":  body.num_tables,
+            "tagline":     f"Welcome to {req['restaurant_name']}",
+            "logo":        f"/static/assets/{client_id}/logo.png",
+            "banner":      f"/static/assets/{client_id}/banner.png",
+            "description": "",
+            "cuisine_type": "",
+            "phone":       req["phone"],
+            "email":       req["email"],
+            "address":     "",
+            "timings":     {"lunch": "", "dinner": "", "closed": ""},
+            "social":      {"instagram": "", "facebook": "", "twitter": ""},
+        },
+        "theme": {
+            "primary_color": "#D4AF37", "secondary_color": "#1a1a1a",
+            "accent_color":  "#8B4513", "text_color": "#333333",
+            "background":    "#ffffff", "font_primary": "Playfair Display",
+            "font_secondary": "Poppins",
+        },
+        "subscription": {"active": True, "features": ["basic", "ordering", "analytics"]},
+        "items": [],
+    }
+
+    if not USE_R2:
+        os.makedirs(f"static/assets/{client_id}", exist_ok=True)
+        os.makedirs(f"private/assets/{client_id}", exist_ok=True)
+    else:
+        restaurant_data["restaurant"]["logo"]   = r2_public_url(f"{client_id}/logo.png")
+        restaurant_data["restaurant"]["banner"] = r2_public_url(f"{client_id}/banner.png")
+
+    save_restaurant_json(client_id, restaurant_data)
+    seed_tables(client_id, body.num_tables)
+
+    # Owner account banao
+    ok = create_owner(
+        name       = req["name"],
+        phone      = req["phone"],
+        email      = req["email"],
+        client_id  = client_id,
+        password   = body.password,
+        request_id = req_id,
+    )
+    if not ok:
+        raise HTTPException(status_code=409, detail="Owner account create nahi hua — email ya client_id already exists")
+
+    # Request approved mark karo
+    approve_signup_request(req_id, client_id, reviewed_by=user["name"])
+
+    # Approval email bhejo (fire-and-forget)
+    import threading
+    def _send_approval_email():
+        try:
+            import smtplib, os as _os
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            smtp_user = _os.environ.get("SMTP_USER")
+            smtp_pass = _os.environ.get("SMTP_PASS")
+            if not smtp_user or not smtp_pass:
+                return
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = f"ZenTable — Aapka account ready hai! 🎉"
+            msg["From"]    = f"ZenTable <{smtp_user}>"
+            msg["To"]      = req["email"]
+            body_text = f"""Namaste {req['name']}!
+
+Aapka ZenTable account approve ho gaya hai.
+
+Restaurant ID : {client_id}
+Login URL     : https://zentable.in/login
+
+Password apne admin se prapt karein ya seedha login karne ki koshish karein.
+
+Shukriya,
+ZenTable Team
+zentable.in
+"""
+            msg.attach(MIMEText(body_text, "plain", "utf-8"))
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, req["email"], msg.as_string())
+            print(f"✅ Approval email sent to {req['email']}")
+        except Exception as e:
+            print(f"❌ Approval email failed: {e}")
+
+    threading.Thread(target=_send_approval_email, daemon=True).start()
+
+    return {
+        "message":   f"Request approved — restaurant '{client_id}' created",
+        "client_id": client_id,
+    }
+
+
+@router.post("/api/admin/signup-requests/{req_id}/reject")
+async def api_reject_signup(req_id: int, body: RejectSignupRequest,
+                             auth_token: Optional[str] = Cookie(None)):
+    """Request reject karo + rejection email bhejo"""
+    user = require_auth(auth_token, ["admin"])
+
+    req = get_signup_request(req_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request nahi mila")
+    if req["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Request already {req['status']} hai")
+
+    reject_signup_request(req_id, body.reason, reviewed_by=user["name"])
+
+    # Rejection email (fire-and-forget)
+    import threading
+    def _send_rejection_email():
+        try:
+            import smtplib, os as _os
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            smtp_user = _os.environ.get("SMTP_USER")
+            smtp_pass = _os.environ.get("SMTP_PASS")
+            if not smtp_user or not smtp_pass:
+                return
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = "ZenTable — Aapki request ke baare mein update"
+            msg["From"]    = f"ZenTable <{smtp_user}>"
+            msg["To"]      = req["email"]
+            body_text = f"""Namaste {req['name']},
+
+Aapki ZenTable signup request is baar approve nahi ho saki.
+
+Reason: {body.reason}
+
+Agar aapko lagta hai yeh galti se hua hai ya aur jaankari deni hai,
+toh humse reply karein.
+
+Shukriya,
+ZenTable Team
+zentable.in
+"""
+            msg.attach(MIMEText(body_text, "plain", "utf-8"))
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, req["email"], msg.as_string())
+            print(f"✅ Rejection email sent to {req['email']}")
+        except Exception as e:
+            print(f"❌ Rejection email failed: {e}")
+
+    threading.Thread(target=_send_rejection_email, daemon=True).start()
+
+    return {"message": "Request rejected"}
+
+
+
+
+# ════════════════════════════════
+# ONE-TIME REPAIR: Corrupt __default__ branch fix
+# ════════════════════════════════
+
+@router.post("/api/admin/restaurant/{client_id}/repair-default-name")
+async def api_repair_default_name(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    """
+    Agar __default__ branch ka naam kisi aur branch ka naam ho gaya ho,
+    toh is endpoint se fix karo. Body mein correct_name bhejo.
+    """
+    from fastapi import Request as FRequest
+    require_auth(auth_token, ["admin"])
+    branches = get_restaurant_branches(client_id)
+    default_branch = next((b for b in branches if b["branch_id"] == "__default__"), None)
+    if not default_branch:
+        raise HTTPException(status_code=404, detail="Default branch nahi mili")
+    cfg = default_branch["config"] if isinstance(default_branch["config"], dict) else {}
+    return {
+        "client_id": client_id,
+        "current_default_name": cfg.get("restaurant", {}).get("name", ""),
+        "all_branches": [
+            {"branch_id": b["branch_id"],
+             "name": (b["config"] if isinstance(b["config"], dict) else {}).get("restaurant", {}).get("name", "")}
+            for b in branches
+        ],
+        "hint": "Use PUT /api/admin/restaurant/{client_id}/json?branch_id=__default__ to fix the name"
+    }
+
+# ════════════════════════════════
+# OWNER MANAGEMENT
+# ════════════════════════════════
+
+@router.get("/api/admin/owner/{client_id}")
+async def api_get_owner(client_id: str, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    owner = get_owner_by_client_id(client_id)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner nahi mila")
+    return owner
+
+
+@router.patch("/api/admin/owner/{owner_id}/toggle")
+async def api_toggle_owner(owner_id: int, auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    conn = get_db()
+    row  = conn.execute("SELECT is_active FROM owners WHERE id=%s", (owner_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Owner nahi mila")
+    new_state = not bool(row["is_active"])
+    toggle_owner_active(owner_id, new_state)
+    return {"is_active": new_state}
+
+
+@router.patch("/api/admin/owner/{owner_id}/password")
+async def api_update_owner_password(owner_id: int, body: UpdatePasswordRequest,
+                                     auth_token: Optional[str] = Cookie(None)):
+    require_auth(auth_token, ["admin"])
+    update_owner_password(owner_id, body.new_password)
+    return {"message": "Owner password updated"}
+
+
+# ════════════════════════════════
 # SITE SETTINGS
 # ════════════════════════════════
 
@@ -624,7 +1045,7 @@ async def api_get_site_settings(auth_token: Optional[str] = Cookie(None)):
 @router.patch("/api/admin/site-settings/{key}")
 async def api_set_site_setting(key: str, body: dict, auth_token: Optional[str] = Cookie(None)):
     require_auth(auth_token, ["admin"])
-    ALLOWED_KEYS = {"image_to_menu_enabled", "chatbot_enabled"}
+    ALLOWED_KEYS = {"image_to_menu_enabled", "chatbot_enabled", "blog_owner_enabled", "blog_blogger_enabled"}
     if key not in ALLOWED_KEYS:
         raise HTTPException(status_code=400, detail="Invalid setting key")
     value = body.get("value")

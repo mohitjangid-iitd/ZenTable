@@ -30,6 +30,7 @@ from database import (
     toggle_staff_active,
     delete_staff,
     save_restaurant_json,
+    get_restaurant_branches,
     seed_tables,
 )
 from helpers import require_auth, get_client_data
@@ -60,6 +61,7 @@ class CreateStaffRequest(BaseModel):
     password: str
     name: str
     role: str
+    branch_id: Optional[str] = None
 
 class UpdatePasswordRequest(BaseModel):
     new_password: str
@@ -70,34 +72,44 @@ class UpdatePasswordRequest(BaseModel):
 # ════════════════════════════════
 
 @router.get("/api/owner/{client_id}/json")
-async def owner_get_json(client_id: str, auth_token: Optional[str] = Cookie(None)):
+async def owner_get_json(client_id: str, branch_id: Optional[str] = None,
+                          auth_token: Optional[str] = Cookie(None)):
     """Owner apna restaurant config padh sake"""
     require_auth(auth_token, client_id=client_id, allowed_roles=["owner", "admin"])
-    data = get_client_data(client_id)
-    if not data:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
-    return data
+    from database import get_restaurant_branches
+    branches = get_restaurant_branches(client_id)
+    target = branch_id or "__default__"
+    for b in branches:
+        if b["branch_id"] == target:
+            cfg = b["config"] if isinstance(b["config"], dict) else __import__('json').loads(b["config"])
+            return cfg
+    raise HTTPException(status_code=404, detail="Branch not found")
 
 
 @router.put("/api/owner/{client_id}/json")
 async def owner_save_json(client_id: str, body: SaveRestaurantRequest,
+                           branch_id: Optional[str] = None,
                            auth_token: Optional[str] = Cookie(None)):
     """Owner apna restaurant config save kare — theme/subscription protected"""
     require_auth(auth_token, client_id=client_id, allowed_roles=["owner", "admin"])
-    existing = get_client_data(client_id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
+    target_branch = branch_id or "__default__"
+    # Us branch ka existing data fetch karo
+    branches = get_restaurant_branches(client_id)
+    existing_branch = next((b for b in branches if b["branch_id"] == target_branch), None)
+    if not existing_branch:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    import json as _json
+    existing = existing_branch["config"] if isinstance(existing_branch["config"], dict) else _json.loads(existing_branch["config"])
     data = body.data
     # Owner theme aur subscription nahi badal sakta
     data["subscription"] = existing.get("subscription", {})
     data["theme"]        = existing.get("theme", {})
-    save_restaurant_json(client_id, data)
-    # Table count change hone par seed_tables call karo
+    save_restaurant_json(client_id, data, branch_id=target_branch)
+    # Sirf is branch ke tables seed karo
     num = data.get("restaurant", {}).get("num_tables")
     if num and isinstance(num, int) and 1 <= num <= 500:
-        seed_tables(client_id, num)
+        seed_tables(client_id, num, target_branch)
     return {"ok": True}
-
 
 # ════════════════════════════════
 # STAFF MANAGEMENT
@@ -114,11 +126,12 @@ async def owner_get_staff(client_id: str, auth_token: Optional[str] = Cookie(Non
 async def owner_create_staff(client_id: str, body: CreateStaffRequest,
                               auth_token: Optional[str] = Cookie(None)):
     """Naya staff member add karo"""
-    require_auth(auth_token, client_id=client_id, allowed_roles=["owner", "admin"])
-    valid_roles = {"kitchen", "waiter", "counter"}
+    user = require_auth(auth_token, client_id=client_id, allowed_roles=["owner", "admin"])
+    valid_roles = {"kitchen", "waiter", "counter", "blogger"}
     if body.role not in valid_roles:
-        raise HTTPException(status_code=400, detail="Invalid role. Allowed: kitchen, waiter, counter")
-    ok = create_staff(client_id, body.username, body.password, body.name, body.role)
+        raise HTTPException(status_code=400, detail="Invalid role. Allowed: kitchen, waiter, counter, blogger")
+    branch_id = body.branch_id or user.get("branch_id") or "__default__"
+    ok = create_staff(client_id, body.username, body.password, body.name, body.role, branch_id)
     if not ok:
         raise HTTPException(status_code=409, detail="Username already exists")
     return {"message": "Staff created"}
@@ -154,7 +167,7 @@ async def owner_toggle_staff(client_id: str, staff_id: int,
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Staff not found")
-    new_state = not bool(row[0])
+    new_state = not bool(row["is_active"])
     toggle_staff_active(staff_id, new_state)
     return {"message": "Updated", "is_active": new_state}
 

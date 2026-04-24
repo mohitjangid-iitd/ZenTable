@@ -24,7 +24,7 @@ function toast(msg) {
 async function loadBilling() {
     const list = document.getElementById('billing-list');
     try {
-        const summary = await fetch(`/api/tables/${clientId}/summary`).then(r => r.json());
+        const summary = await fetch(`/api/tables/${clientId}/summary?branch_id=${branchId}`).then(r => r.json());
         const billed = summary.filter(t => t.display_status === 'billed' && t.bill_id);
 
         if (!billed.length) {
@@ -99,7 +99,7 @@ async function markPaid(billId, tableNo) {
 async function loadTables() {
     const grid = document.getElementById('tables-grid');
     try {
-        const summary = await fetch(`/api/tables/${clientId}/summary`).then(r => r.json());
+        const summary = await fetch(`/api/tables/${clientId}/summary?branch_id=${branchId}`).then(r => r.json());
         const map = {};
         summary.forEach(t => map[t.table_no] = t);
 
@@ -134,26 +134,26 @@ async function loadTables() {
 }
 
 async function activateTable(tableNo) {
-    const res = await fetch(`/api/table/${clientId}/${tableNo}/activate`, { method: 'POST' });
+    const res = await fetch(`/api/table/${clientId}/${tableNo}/activate?branch_id=${branchId}`, { method: 'POST' });
     if (res.ok) { toast('Table ' + tableNo + ' activated'); loadTables(); }
     else toast('Failed');
 }
 
 async function closeTable(tableNo) {
-    const res = await fetch(`/api/table/${clientId}/${tableNo}/close`, { method: 'POST' });
+    const res = await fetch(`/api/table/${clientId}/${tableNo}/close?branch_id=${branchId}`, { method: 'POST' });
     if (res.ok) { toast('Table ' + tableNo + ' closed'); loadTables(); }
     else toast('Failed');
 }
 
 async function activateAll() {
-    const res = await fetch(`/api/table/${clientId}/activate-all`, { method: 'POST' });
+    const res = await fetch(`/api/table/${clientId}/activate-all?branch_id=${branchId}`, { method: 'POST' });
     if (res.ok) { toast('Saari tables activate ho gayi!'); loadTables(); }
     else toast('Failed');
 }
 
 async function closeAll() {
     if (!confirm('Saari tables close karna chahte ho?')) return;
-    const res = await fetch(`/api/table/${clientId}/close-all`, { method: 'POST' });
+    const res = await fetch(`/api/table/${clientId}/close-all?branch_id=${branchId}`, { method: 'POST' });
     if (res.ok) { toast('Saari tables band ho gayi'); loadTables(); }
     else toast('Failed');
 }

@@ -172,18 +172,18 @@ def register_restaurant():
 
 def _add_staff_for(client_id):
     """Staff add karo — internal helper"""
-    print(f"\n  Roles: owner | kitchen | waiter | counter")
+    print(f"\n  Roles: owner | kitchen | waiter | counter | blogger")
     line()
     while True:
         print("\n  Staff details:")
         name     = ask("Name")
         username = ask("Username").lower()
         password = ask("Password")
-        role     = ask("Role (owner/kitchen/waiter/counter)").lower()
+        role     = ask("Role (owner/kitchen/waiter/counter/blogger)").lower()
 
         if not all([name, username, password, role]):
             error("Sab fields required hain"); continue
-        if role not in ["owner", "kitchen", "waiter", "counter"]:
+        if role not in ["owner", "kitchen", "waiter", "counter", "blogger"]:
             error("Invalid role"); continue
 
         if create_staff(client_id, username, password, name, role):

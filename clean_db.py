@@ -55,11 +55,11 @@ def delete_restaurant_orders(client_id):
 def delete_restaurant_staff(client_id):
     """Ek restaurant ki saari staff delete"""
     conn = get_db()
-    count = conn.execute("SELECT COUNT(*) FROM staff WHERE restaurant_id=?", (client_id,)).fetchone()[0]
+    count = conn.execute("SELECT COUNT(*) FROM staff WHERE client_id=?", (client_id,)).fetchone()[0]
     info(f"Found: {count} staff members")
     if not confirm(f"'{client_id}' ki saari staff delete karna hai?"):
         conn.close(); info("Cancelled"); return
-    conn.execute("DELETE FROM staff WHERE restaurant_id=?", (client_id,))
+    conn.execute("DELETE FROM staff WHERE client_id=?", (client_id,))
     conn.commit(); conn.close()
     success(f"'{client_id}' ke {count} staff members delete ho gaye!")
 
@@ -86,7 +86,7 @@ def delete_full_restaurant(client_id):
     conn.execute("DELETE FROM orders WHERE client_id=?", (client_id,))
     conn.execute("DELETE FROM bills WHERE client_id=?", (client_id,))
     conn.execute("DELETE FROM tables WHERE client_id=?", (client_id,))
-    conn.execute("DELETE FROM staff WHERE restaurant_id=?", (client_id,))
+    conn.execute("DELETE FROM staff WHERE client_id=?", (client_id,))
     conn.commit(); conn.close()
 
     # JSON delete

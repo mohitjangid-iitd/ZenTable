@@ -104,8 +104,8 @@
         <div class="card-sub">Sign in to your restaurant dashboard</div>
         <form onsubmit="event.preventDefault(); doLogin()">
         <div class="form-group">
-            <label>Restaurant ID</label>
-            <input type="text" id="restaurant_id" placeholder="e.g. golden_spoon" autocomplete="off" autocapitalize="none">
+            <label>Client ID</label>
+            <input type="text" id="client_id" placeholder="e.g. golden_spoon" autocomplete="off" autocapitalize="none">
         </div>
         <div class="form-group">
             <label>Username</label>
@@ -128,6 +128,8 @@
         <div class="error-msg" id="error-msg"></div>
         <div class="card-footer">
             Powered by <span>{{ site.name }}</span> &nbsp;·&nbsp; v{{ site.version }}
+            <br><br>
+            <a href="/signup" style="color:rgba(108,99,255,0.7);text-decoration:none;font-size:0.72rem;">New restaurant? Request access →</a>
         </div>
     </div>
 </div>
@@ -152,10 +154,10 @@
     }
     async function doLogin() {
         document.getElementById('error-msg').classList.remove('show');
-        const restaurant_id = document.getElementById('restaurant_id').value.trim();
+        const client_id = document.getElementById('client_id').value.trim();
         const username      = document.getElementById('username').value.trim();
         const password      = document.getElementById('password').value;
-        if (!restaurant_id) { showError('Restaurant ID required'); return; }
+        if (!client_id) { showError('Client ID required'); return; }
         if (!username)      { showError('Username required'); return; }
         if (!password)      { showError('Password required'); return; }
         setLoading(true);
@@ -163,7 +165,7 @@
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, restaurant_id })
+                body: JSON.stringify({ username, password, client_id })
             });
             const data = await res.json();
             if (res.ok) { window.location.replace(data.redirect); }

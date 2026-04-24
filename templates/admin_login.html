@@ -421,7 +421,7 @@
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, restaurant_id: null })
+                    body: JSON.stringify({ username, password, client_id: null })
                 });
                 const data = await res.json();
                 if (res.ok) { window.location.replace(data.redirect); }

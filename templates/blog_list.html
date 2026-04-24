@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog Management — ZenTable</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #F7F5F2;
+      --surface:   #FFFFFF;
+      --border:    #E5E1DA;
+      --text:      #1A1814;
+      --muted:     #7A7570;
+      --accent:    #C8832A;
+      --accent-bg: #FDF3E7;
+      --danger:    #C0392B;
+      --success:   #2E7D55;
+      --pending:   #7B5EA7;
+      --pending-bg:#F3EEFF;
+
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body:    'DM Sans', sans-serif;
+      --radius:       8px;
+      --shadow:       0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+    }
+
+    body {
+      background: var(--bg);
+      font-family: var(--font-body);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── TOP NAV ── */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-brand {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .topbar-brand span { color: var(--accent); }
+    .topbar-nav { display: flex; align-items: center; gap: 20px; }
+    .topbar-nav a {
+      font-size: .875rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color .15s;
+    }
+    .topbar-nav a:hover { color: var(--text); }
+    .topbar-user {
+      font-size: .8rem;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── LAYOUT ── */
+    .wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 36px;
+      padding-bottom: 28px;
+      border-bottom: 2px solid var(--border);
+    }
+    .page-header-left h1 {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 400;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .page-header-left h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+    .page-header-left p {
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .btn-new {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--text);
+      color: #fff;
+      font-family: var(--font-body);
+      font-size: .875rem;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-new:hover { background: #2d2a25; transform: translateY(-1px); }
+    .btn-new svg { width: 16px; height: 16px; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px;
+      width: fit-content;
+    }
+    .tab-btn {
+      padding: 7px 18px;
+      border-radius: calc(var(--radius) - 2px);
+      font-family: var(--font-body);
+      font-size: .85rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      transition: all .15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn.active {
+      background: var(--text);
+      color: #fff;
+    }
+    .tab-btn .badge {
+      background: var(--pending);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 10px;
+      min-width: 18px;
+      text-align: center;
+    }
+    .tab-btn.active .badge { background: rgba(255,255,255,.25); }
+
+    /* ── SECTION ── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 64px 24px;
+      color: var(--muted);
+    }
+    .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      opacity: .4;
+    }
+    .empty p { font-size: .95rem; margin-top: 8px; }
+
+    /* ── POSTS GRID ── */
+    .posts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    /* ── POST CARD ── */
+    .post-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: transform .2s, box-shadow .2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .post-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+
+    .post-card-cover {
+      height: 160px;
+      background: var(--bg);
+      overflow: hidden;
+      position: relative;
+    }
+    .post-card-cover img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .post-card-cover-placeholder {
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      opacity: .2;
+      background: linear-gradient(135deg, #f0ece4 0%, #e8e3d8 100%);
+    }
+
+    .status-chip {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 12px;
+    }
+    .status-draft    { background: #EEE; color: var(--muted); }
+    .status-pending_review { background: var(--pending-bg); color: var(--pending); }
+    .status-published { background: #E6F4ED; color: var(--success); }
+    .status-archived  { background: #F0F0F0; color: #999; }
+
+    .post-card-body { padding: 18px 20px 14px; flex: 1; display: flex; flex-direction: column; }
+    .post-card-meta {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .post-card-meta .dot { opacity: .4; }
+    .post-card-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 400;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .post-card-desc {
+      font-size: .82rem;
+      color: var(--muted);
+      line-height: 1.5;
+      flex: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .post-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 10px;
+    }
+    .tag {
+      font-size: .7rem;
+      padding: 2px 8px;
+      background: var(--accent-bg);
+      color: var(--accent);
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .post-card-actions {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: var(--bg);
+    }
+    .action-btn {
+      font-size: .78rem;
+      font-weight: 500;
+      font-family: var(--font-body);
+      padding: 5px 12px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .action-btn:hover { background: var(--border); }
+    .action-btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+    .action-btn.primary:hover { background: #2d2a25; }
+    .action-btn.danger { color: var(--danger); border-color: #f5c5c1; }
+    .action-btn.danger:hover { background: #fdecea; }
+    .action-btn.publish { color: var(--success); border-color: #b2d9c5; }
+    .action-btn.publish:hover { background: #E6F4ED; }
+    .spacer { flex: 1; }
+
+    /* ── PENDING REVIEW SECTION ── */
+    .review-list { display: flex; flex-direction: column; gap: 14px; }
+    .review-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--pending);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+    .review-card-info { flex: 1; }
+    .review-card-info h3 {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 400;
+      margin-bottom: 4px;
+    }
+    .review-card-info p {
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    .review-card-actions { display: flex; gap: 8px; }
+
+    /* ── REJECT MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 28px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .modal h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+    }
+    .modal textarea {
+      width: 100%;
+      height: 100px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-family: var(--font-body);
+      font-size: .875rem;
+      resize: none;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .modal textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+    .btn-cancel {
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-family: var(--font-body);
+      font-size: .875rem;
+      cursor: pointer;
+    }
+    .btn-reject-confirm {
+      padding: 8px 18px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--danger);
+      color: #fff;
+      font-family: var(--font-body);
+      font-size: .875rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--text);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      font-size: .875rem;
+      font-weight: 500;
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: var(--success); }
+    .toast.error   { background: var(--danger); }
+
+    /* ── ADMIN FILTER BAR ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      font-size: .8rem;
+      font-weight: 500;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .15s;
+    }
+    .filter-chip.active, .filter-chip:hover {
+      background: var(--text);
+      color: #fff;
+      border-color: var(--text);
+    }
+
+    @media (max-width: 640px) {
+      .wrapper { padding: 24px 16px 60px; }
+      .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .topbar { padding: 0 16px; }
+      .posts-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── TOP BAR ── -->
+<nav class="topbar">
+  <a class="topbar-brand" href="/">Zen<span>Table</span> <span style="font-size:.9rem;color:var(--muted);font-family:var(--font-body);font-weight:400;">/ Blog</span></a>
+  <div class="topbar-nav">
+    {% if user.role == 'admin' %}
+      <a href="/admin">← Admin Panel</a>
+    {% elif user.role == 'owner' %}
+      <a href="/{{ client_id }}/staff/owner">← Dashboard</a>
+    {% else %}
+      <a href="/">← Home</a>
+    {% endif %}
+    <span class="topbar-user">{{ user.name }} · {{ user.role }}</span>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<div class="wrapper">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>Blog <em>Management</em></h1>
+      <p>
+        {% if view == 'admin' %}All restaurants — {{ posts | length }} posts total
+        {% else %}{{ client_id }} — {{ posts | length }} posts
+        {% endif %}
+      </p>
+    </div>
+    <a href="/blog/editor" class="btn-new">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Post
+    </a>
+  </div>
+
+  <!-- Admin status filter -->
+  {% if view == 'admin' %}
+  <div class="filter-bar">
+    <a href="/admin/blog" class="filter-chip {% if not active_status %}active{% endif %}">All</a>
+    <a href="/admin/blog?status=published"      class="filter-chip {% if active_status == 'published' %}active{% endif %}">Published</a>
+    <a href="/admin/blog?status=draft"           class="filter-chip {% if active_status == 'draft' %}active{% endif %}">Drafts</a>
+    <a href="/admin/blog?status=pending_review"  class="filter-chip {% if active_status == 'pending_review' %}active{% endif %}">Pending Review {% if pending %}({{ pending | length }}){% endif %}</a>
+    <a href="/admin/blog?status=archived"        class="filter-chip {% if active_status == 'archived' %}active{% endif %}">Archived</a>
+  </div>
+  {% endif %}
+
+  <!-- Tabs (non-admin) -->
+  {% if view != 'admin' %}
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('all', this)">All Posts</button>
+    <button class="tab-btn" onclick="switchTab('review', this)">
+      Pending Review
+      {% if pending %}
+        <span class="badge">{{ pending | length }}</span>
+      {% endif %}
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- ── ALL POSTS TAB ── -->
+  <div class="section active" id="tab-all">
+    {% if posts %}
+    <div class="posts-grid">
+      {% for post in posts %}
+      <div class="post-card">
+        <div class="post-card-cover">
+          {% if post.cover_image %}
+            <img src="{{ post.cover_image }}" alt="{{ post.title }}" loading="lazy" />
+          {% else %}
+            <div class="post-card-cover-placeholder">✍</div>
+          {% endif %}
+          <span class="status-chip status-{{ post.status }}">{{ post.status | replace('_', ' ') }}</span>
+        </div>
+
+        <div class="post-card-body">
+          <div class="post-card-meta">
+            <span>{{ post.author_name }}</span>
+            {% if view == 'admin' and post.client_id %}
+              <span class="dot">·</span>
+              <span>{{ post.client_id }}</span>
+            {% endif %}
+            <span class="dot">·</span>
+            <span>{{ post.created_at[:10] }}</span>
+          </div>
+          <div class="post-card-title">{{ post.title }}</div>
+          {% if post.meta_desc %}
+            <div class="post-card-desc">{{ post.meta_desc }}</div>
+          {% endif %}
+          {% if post.tags %}
+          <div class="post-card-tags">
+            {% for tag in post.tags[:3] %}
+              <span class="tag">{{ tag }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="post-card-actions">
+          <a href="/blog/editor/{{ post.id }}" class="action-btn">Edit</a>
+
+          {% if post.status == 'draft' and user.role in ('blogger', 'owner') %}
+            <button class="action-btn" onclick="submitForReview({{ post.id }})">Submit</button>
+          {% endif %}
+
+          {% if post.status == 'published' %}
+            <a href="/blog/{{ post.slug }}" target="_blank" class="action-btn">View ↗</a>
+          {% endif %}
+
+          {% if user.role == 'admin' %}
+            {% if post.status == 'pending_review' or post.status == 'draft' %}
+              <button class="action-btn publish" onclick="publishPost({{ post.id }})">Publish</button>
+            {% endif %}
+            {% if post.status == 'published' %}
+              <button class="action-btn" onclick="archivePost({{ post.id }})">Archive</button>
+            {% endif %}
+            {% if post.status == 'archived' %}
+              <button class="action-btn publish" onclick="unarchivePost({{ post.id }})">Restore</button>
+            {% endif %}
+            <span class="spacer"></span>
+            <button class="action-btn danger" onclick="deletePost({{ post.id }})">Delete</button>
+          {% endif %}
+
+          {% if post.reject_note %}
+            <span style="font-size:.72rem;color:var(--danger);flex:1;text-align:right;" title="{{ post.reject_note }}">⚠ Rejected</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <div class="empty-icon">📝</div>
+      <strong>No posts yet</strong>
+      <p>Click "New Post" to write your first blog post.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── PENDING REVIEW TAB ── -->
+  <div class="section" id="tab-review">
+    {% if pending %}
+    <div class="review-list">
+      {% for post in pending %}
+      <div class="review-card" id="review-{{ post.id }}">
+        <div class="review-card-info">
+          <h3>{{ post.title }}</h3>
+          <p>By {{ post.author_name }} · {{ post.created_at[:10] }}
+            {% if view == 'admin' and post.client_id %} · {{ post.client_id }}{% endif %}
+          </p>
+        </div>
+        <div class="review-card-actions">
+          <a href="/blog/editor/{{ post.id }}" class="action-btn">Preview</a>
+          {% if user.role == 'admin' %}
+            <button class="action-btn publish" onclick="publishPost({{ post.id }}, true)">Publish</button>
+            <button class="action-btn danger" onclick="openRejectModal({{ post.id }})">Reject</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <div class="empty-icon">✅</div>
+      <strong>All clear</strong>
+      <p>No posts pending review right now.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- /wrapper -->
+
+<!-- ── REJECT MODAL ── -->
+<div class="modal-overlay" id="rejectModal">
+  <div class="modal">
+    <h3>Reject Post</h3>
+    <textarea id="rejectNote" placeholder="Tell the author what needs to change..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRejectModal()">Cancel</button>
+      <button class="btn-reject-confirm" onclick="confirmReject()">Send Rejection</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+  let rejectTargetId = null;
+
+  // ── Tab switching ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // ── Toast ──
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  // ── API call helper ──
+  async function apiPost(url, body = null) {
+    const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return res.json();
+  }
+
+  // ── Actions ──
+  async function submitForReview(id) {
+    const r = await apiPost(`/api/blog/submit/${id}`);
+    if (r.success) { showToast('Submitted for review!', 'success'); setTimeout(() => location.reload(), 1000); }
+    else showToast('Error submitting', 'error');
+  }
+
+  async function publishPost(id, fromReview = false) {
+    const r = await apiPost(`/api/blog/publish/${id}`);
+    if (r.success) {
+      showToast('Published! ✓', 'success');
+      if (fromReview) document.getElementById('review-' + id)?.remove();
+      setTimeout(() => location.reload(), 1200);
+    } else showToast('Error publishing', 'error');
+  }
+
+  async function archivePost(id) {
+    if (!confirm('Archive this post?')) return;
+    const r = await apiPost(`/api/blog/archive/${id}`);
+    if (r.success) { showToast('Archived', ''); setTimeout(() => location.reload(), 800); }
+  }
+
+  async function unarchivePost(id) {
+    const r = await apiPost(`/api/blog/unarchive/${id}`);
+    if (r.success) { showToast('Restored to published', 'success'); setTimeout(() => location.reload(), 800); }
+  }
+
+  async function deletePost(id) {
+    if (!confirm('Delete this post permanently? This cannot be undone.')) return;
+    const res = await fetch(`/api/blog/${id}`, { method: 'DELETE' });
+    const r = await res.json();
+    if (r.success) { showToast('Deleted', ''); setTimeout(() => location.reload(), 800); }
+    else showToast('Error deleting', 'error');
+  }
+
+  // ── Reject modal ──
+  function openRejectModal(id) {
+    rejectTargetId = id;
+    document.getElementById('rejectNote').value = '';
+    document.getElementById('rejectModal').classList.add('open');
+  }
+  function closeRejectModal() {
+    rejectTargetId = null;
+    document.getElementById('rejectModal').classList.remove('open');
+  }
+  async function confirmReject() {
+    const note = document.getElementById('rejectNote').value.trim();
+    if (!note) { showToast('Please add a rejection reason', 'error'); return; }
+    const r = await apiPost(`/api/blog/reject/${rejectTargetId}`, { note });
+    if (r.success) {
+      closeRejectModal();
+      showToast('Rejection sent', '');
+      document.getElementById('review-' + rejectTargetId)?.remove();
+    } else showToast('Error', 'error');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('rejectModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+  });
+
+  // Auto-switch to review tab if URL has ?tab=review
+  if (new URLSearchParams(location.search).get('tab') === 'review') {
+    document.querySelectorAll('.tab-btn')[1]?.click();
+  }
+</script>
+</body>
+</html>

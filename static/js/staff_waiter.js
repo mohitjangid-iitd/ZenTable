@@ -59,8 +59,8 @@ function switchTab(tab, btn) {
 // ── TABLES ──
 async function loadTables() {
     const [tabRes, callRes] = await Promise.all([
-        fetch(`/api/tables/${clientId}/summary`),
-        fetch(`/api/tables/${clientId}/calls`).catch(() => null)
+        fetch(`/api/tables/${clientId}/summary?branch_id=${branchId}`).catch(() => null),
+        fetch(`/api/tables/${clientId}/calls?branch_id=${branchId}`).catch(() => null)
     ]);
     const tables = await tabRes.json();
 
@@ -125,8 +125,8 @@ async function loadOrders() {
     }
 
     const [ordersRes, summaryRes] = await Promise.all([
-        fetch(`/api/orders/${clientId}`),
-        fetch(`/api/tables/${clientId}/summary`)
+        fetch(`/api/orders/${clientId}?branch_id=${branchId}`).catch(() => null),
+        fetch(`/api/tables/${clientId}/summary?branch_id=${branchId}`).catch(() => null)
     ]);
     const all = await ordersRes.json();
     const summary = await summaryRes.json();
@@ -364,8 +364,8 @@ async function openModal(tableNo) {
     document.getElementById('modal').classList.add('open');
 
     const [summaryRes, detailRes] = await Promise.all([
-        fetch(`/api/tables/${clientId}/summary`),
-        fetch(`/api/table/${clientId}/${tableNo}/detail`)
+        fetch(`/api/tables/${clientId}/summary?branch_id=${branchId}`),
+        fetch(`/api/table/${clientId}/${tableNo}/detail?branch_id=${branchId}`)
     ]);
     const summary = await summaryRes.json();
     const detail = await detailRes.json();
@@ -503,7 +503,7 @@ function closeModal() {
 }
 
 async function resolveCall(tableNo) {
-    await fetch(`/api/table/${clientId}/${tableNo}/call/resolve`, { method: 'POST' });
+    await fetch(`/api/table/${clientId}/${tableNo}/call/resolve?branch_id=${branchId}`, { method: 'POST' });
     _activeCalls.delete(tableNo);
     toast(`✅ Table ${tableNo} — Ja raha hoon!`);
     closeModal();
@@ -511,7 +511,7 @@ async function resolveCall(tableNo) {
 }
 
 async function activateTable(tableNo) {
-    await fetch(`/api/table/${clientId}/${tableNo}/activate`, { method: 'POST' });
+    await fetch(`/api/table/${clientId}/${tableNo}/activate?branch_id=${branchId}`, { method: 'POST' });
     toast(`✅ Table ${tableNo} activated`);
     loadTables();
     openModal(tableNo); // Modal refresh ho jayega "Add Items" button ke saath
@@ -519,14 +519,14 @@ async function activateTable(tableNo) {
 
 async function closeTable(tableNo) {
     if (!confirm(`Close Table ${tableNo}?`)) return;
-    await fetch(`/api/table/${clientId}/${tableNo}/close`, { method: 'POST' });
+    await fetch(`/api/table/${clientId}/${tableNo}/close?branch_id=${branchId}`, { method: 'POST' });
     toast(`Table ${tableNo} closed`);
     closeModal(); loadTables();
 }
 
 async function clearTable(tableNo) {
     if (!confirm(`Clear Table ${tableNo} and mark as Active?`)) return;
-    await fetch(`/api/table/${clientId}/${tableNo}/activate`, { method: 'POST' });
+    await fetch(`/api/table/${clientId}/${tableNo}/activate?branch_id=${branchId}`, { method: 'POST' });
     toast(`✅ Table ${tableNo} cleared and active!`);
     closeModal();
     await loadTables();
@@ -623,7 +623,7 @@ async function generateBill(tableNo) {
         discount: parseInt(document.getElementById('bf-discount').value) || 0,
         payment_mode: document.getElementById('bf-mode').value
     };
-    const res = await fetch(`/api/bill/${clientId}/${tableNo}`, {
+    const res = await fetch(`/api/bill/${clientId}/${tableNo}?branch_id=${branchId}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
     if (!res.ok) {
@@ -867,7 +867,7 @@ async function placeOrderFromOverlay() {
     }));
     const total = items.reduce((s, i) => s + i.qty * i.price, 0);
 
-    const res = await fetch(`/api/order/${clientId}/${overlayTableNo}`, {
+    const res = await fetch(`/api/order/${clientId}/${overlayTableNo}?branch_id=${branchId}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, total, source: 'Staff' })
     });
@@ -912,7 +912,7 @@ let editOrderId = null;
 let editOrderData = null;
 
 async function openEditOrder(orderId) {
-    const allRes = await fetch(`/api/orders/${clientId}`);
+    const allRes = await fetch(`/api/orders/${clientId}?branch_id=${branchId}`);
     const all = await allRes.json();
     const order = all.find(o => o.id === orderId);
     if (!order) return;

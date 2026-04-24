@@ -44,9 +44,20 @@
         <button class="tab-btn" onclick="switchTab('staff', this)">Staff</button>
         <button class="tab-btn" onclick="switchTab('trash', this); loadTrash()">🗑️ Trash</button>
         <button class="tab-btn" onclick="switchTab('settings', this); loadSiteSettings()">⚙️ Settings</button>
-        <button class="tab-btn" onclick="window.open('https://hiukim.github.io/mind-ar-js-doc/tools/compile', '_blank')"
+        <button class="tab-btn" onclick="switchTab('signups', this); loadSignupRequests()" id="tab-btn-signups">
+            📋 Signup Requests
+            <span id="signup-pending-badge" style="display:none;margin-left:5px;background:#ff4757;color:white;font-size:0.6rem;padding:1px 6px;border-radius:10px;font-weight:700;"></span>
+        </button>
+        <button class="tab-btn" 
+            onclick="window.open('https://hiukim.github.io/mind-ar-js-doc/tools/compile', '_blank')"
             style="margin-left:auto; background:var(--primary); color:#fff; border:none; padding:8px 15px; border-radius:6px;">
             🧠 Target Compiler
+        </button>
+
+        <button class="tab-btn" 
+            onclick="window.open('/admin/blog', '_self')"
+            style="background:var(--primary); color:#fff; border:none; padding:8px 15px; border-radius:6px;">
+            ✍️ Blog
         </button>
     </div>
 
@@ -206,7 +217,7 @@
                         </label>
                     </div>
 
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);">
                         <div>
                             <div style="font-size:0.9rem;font-weight:600;color:var(--text);">🤖 Chatbot</div>
                             <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">Owner panel aur landing page pe chatbot widget</div>
@@ -226,6 +237,49 @@
                         </label>
                     </div>
 
+                    <!-- Blog System -->
+                    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px;margin-top:20px;opacity:0.6;">Blog System</div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);">
+                        <div>
+                            <div style="font-size:0.9rem;font-weight:600;color:var(--text);">✍️ Blog — Owner Access</div>
+                            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">Owner apne restaurant ke liye blog posts likh aur manage kar sakta hai</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                            <input type="checkbox" id="toggle-blog-owner" onchange="saveSiteSetting('blog_owner_enabled', this.checked)"
+                                   style="opacity:0;width:0;height:0;">
+                            <span id="toggle-blog-owner-track" style="
+                                position:absolute;inset:0;border-radius:24px;cursor:pointer;
+                                background:rgba(255,255,255,0.1);border:1px solid var(--border);
+                                transition:background 0.2s;
+                            "></span>
+                            <span id="toggle-blog-owner-thumb" style="
+                                position:absolute;top:3px;left:3px;width:16px;height:16px;
+                                border-radius:50%;background:#888;transition:transform 0.2s,background 0.2s;
+                            "></span>
+                        </label>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;">
+                        <div>
+                            <div style="font-size:0.9rem;font-weight:600;color:var(--text);">✍️ Blog — Blogger Access</div>
+                            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">Blogger role ke staff apne drafts likh aur review ke liye submit kar sakte hain</div>
+                        </div>
+                        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                            <input type="checkbox" id="toggle-blog-blogger" onchange="saveSiteSetting('blog_blogger_enabled', this.checked)"
+                                   style="opacity:0;width:0;height:0;">
+                            <span id="toggle-blog-blogger-track" style="
+                                position:absolute;inset:0;border-radius:24px;cursor:pointer;
+                                background:rgba(255,255,255,0.1);border:1px solid var(--border);
+                                transition:background 0.2s;
+                            "></span>
+                            <span id="toggle-blog-blogger-thumb" style="
+                                position:absolute;top:3px;left:3px;width:16px;height:16px;
+                                border-radius:50%;background:#888;transition:transform 0.2s,background 0.2s;
+                            "></span>
+                        </label>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -233,11 +287,16 @@
         <!-- ══ STAFF TAB ══ -->
         <div class="tab-pane" id="tab-staff">
             <div class="card" style="margin-bottom:18px;">
-                <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+                <div class="card-body" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                     <select id="staff-rest-select"
                         style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;padding:9px 12px;border-radius:8px;font-size:0.84rem;outline:none;min-width:200px;"
-                        onchange="loadStaff()">
+                        onchange="onStaffRestChange(this.value)">
                         <option value="">-- Restaurant Select Karo --</option>
+                    </select>
+                    <select id="staff-branch-filter"
+                        style="display:none;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;padding:9px 12px;border-radius:8px;font-size:0.84rem;outline:none;min-width:160px;"
+                        onchange="loadStaff()">
+                        <option value="">Saari Branches</option>
                     </select>
                     <button class="btn btn-primary" onclick="openAddStaff()">+ Add Staff</button>
                 </div>
@@ -251,17 +310,36 @@
                                 <th>Name</th>
                                 <th>Username</th>
                                 <th>Role</th>
+                                <th>Branch</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="staff-table-body">
                             <tr>
-                                <td colspan="6" class="empty">Restaurant select karo</td>
+                            <td colspan="7" class="empty">Restaurant select karo</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- ══ SIGNUP REQUESTS TAB ══ -->
+        <div class="tab-pane" id="tab-signups">
+            <div class="section-head" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div class="section-title" style="margin:0;">📋 Signup Requests</div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="filter-pill active" onclick="setSignupFilter('pending',this)">Pending</button>
+                    <button class="filter-pill" onclick="setSignupFilter('approved',this)">Approved</button>
+                    <button class="filter-pill" onclick="setSignupFilter('rejected',this)">Rejected</button>
+                    <button class="filter-pill" onclick="setSignupFilter('',this)">All</button>
+                </div>
+            </div>
+            <div id="signups-list">
+                <div class="loading">Loading...</div>
             </div>
         </div>
 
@@ -383,7 +461,13 @@
     <div class="modal-overlay" id="modal-edit-rest">
         <div class="modal" style="max-width:640px;">
             <div class="modal-head">
-                <div class="modal-title" id="edit-rest-title">Restaurant Edit</div>
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                    <div class="modal-title" id="edit-rest-title" style="margin:0;">Restaurant Edit</div>
+                    <select id="edit-branch-select"
+                        style="display:none;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:white;padding:5px 10px;border-radius:7px;font-size:0.78rem;outline:none;max-width:180px;"
+                        onchange="onEditBranchChange()">
+                    </select>
+                </div>
                 <button class="modal-close" onclick="closeModal('modal-edit-rest')">✕</button>
             </div>
             <div class="modal-body">
@@ -932,6 +1016,13 @@
                             <option value="kitchen">Kitchen</option>
                             <option value="waiter">Waiter</option>
                             <option value="counter">Counter</option>
+                            <option value="blogger">Blogger</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="ns-branch-group">
+                        <label>Branch</label>
+                        <select id="ns-branch">
+                            <option value="__default__">__default__ (Single outlet)</option>
                         </select>
                     </div>
                 </div>
@@ -1058,6 +1149,132 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="tp-meta"></div>
             </div>
             <div class="modal-foot" id="tp-actions"></div>
+        </div>
+    </div>
+
+    <!-- Approve Signup Modal -->
+    <div class="modal-overlay" id="modal-approve-signup">
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-head">
+                <div class="modal-title">✅ Signup Approve Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-approve-signup')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="approve-req-info" style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:0.82rem;color:var(--muted);line-height:1.7;"></div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Restaurant ID (client_id)</label>
+                        <input type="text" id="approve-client-id" placeholder="e.g. golden_spoon" autocapitalize="none">
+                        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">Lowercase, underscores. Ye URL mein aayega.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Number of Tables</label>
+                        <input type="number" id="approve-tables" value="6" min="1" max="200">
+                    </div>
+                    <div class="form-group full">
+                        <label>Owner ka Initial Password</label>
+                        <div style="position:relative;">
+                            <input type="password" id="approve-password" placeholder="••••••••" style="padding-right:44px;width:100%;">
+                            <button type="button" onclick="togglePass('approve-password','approve-eye')"
+                                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;" id="approve-eye">
+                                <svg id="approve-eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg id="approve-eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><line x1="1" y1="1" x2="23" y2="23"/><path d="M17 17H3l-2-2m0 0C1 12 5 4 12 4c2.3 0 4.4.8 6 2M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-approve-signup')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitApproval()">✅ Approve & Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Signup Modal -->
+    <div class="modal-overlay" id="modal-reject-signup">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-head">
+                <div class="modal-title">❌ Signup Reject Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-reject-signup')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="reject-req-info" style="background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:0.82rem;color:var(--muted);line-height:1.7;"></div>
+                <div class="form-grid one">
+                    <div class="form-group">
+                        <label>Rejection Reason</label>
+                        <textarea id="reject-reason" placeholder="e.g. Area mein already ek restaurant hai, baad mein apply karein..." style="height:80px;resize:none;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-reject-signup')">Cancel</button>
+                <button class="btn" style="background:rgba(255,71,87,0.15);color:#ff4757;border:1px solid rgba(255,71,87,0.3);" onclick="submitRejection()">❌ Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Branch Modal -->
+    <div class="modal-overlay" id="modal-add-branch">
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-head">
+                <div class="modal-title">🏪 Naya Branch Add Karo</div>
+                <button class="modal-close" onclick="closeModal('modal-add-branch')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="add-branch-rest-info" style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:var(--muted);"></div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Branch ID</label>
+                        <input type="text" id="ab-id" placeholder="e.g. branch_2" autocapitalize="none">
+                        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">Auto-assigned: branch_1, branch_2...</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Branch Name</label>
+                        <input type="text" id="ab-name" placeholder="e.g. Vaishali Outlet">
+                    </div>
+                    <div class="form-group">
+                        <label>Tables</label>
+                        <input type="number" id="ab-tables" value="6" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" id="ab-phone" placeholder="+91 XXXXX XXXXX">
+                    </div>
+                    <div class="form-group full">
+                        <label>Address</label>
+                        <input type="text" id="ab-address" placeholder="Branch address">
+                    </div>
+                    <div class="form-group full">
+                        <label>Menu Copy From</label>
+                        <select id="ab-copy-from">
+                            <option value="__default__">Main branch (default)</option>
+                        </select>
+                        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">Is branch ka menu copy hoga naye branch mein</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-add-branch')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitAddBranch()">🏪 Create Branch</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branches List Modal -->
+    <div class="modal-overlay" id="modal-branches">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-head">
+                <div class="modal-title" id="branches-modal-title">Branches</div>
+                <button class="modal-close" onclick="closeModal('modal-branches')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="branches-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeModal('modal-branches')">Close</button>
+                <button class="btn btn-primary" onclick="openAddBranch(_branchesClientId)">+ Add Branch</button>
+            </div>
         </div>
     </div>
 
@@ -1445,6 +1662,8 @@
         const toggles = {
             'image_to_menu_enabled': 'toggle-image-to-menu',
             'chatbot_enabled':       'toggle-chatbot',
+            'blog_owner_enabled':    'toggle-blog-owner',
+            'blog_blogger_enabled':  'toggle-blog-blogger',
         };
 
         for (const [key, id] of Object.entries(toggles)) {
@@ -1464,6 +1683,8 @@
         const idMap = {
             'image_to_menu_enabled': 'toggle-image-to-menu',
             'chatbot_enabled':       'toggle-chatbot',
+            'blog_owner_enabled':    'toggle-blog-owner',
+            'blog_blogger_enabled':  'toggle-blog-blogger',
         };
         const id    = idMap[key];
         const track = document.getElementById(id + '-track');
@@ -1480,6 +1701,265 @@
             body: JSON.stringify({ value }),
         });
     }
+
+// ── Branch Management ──
+    let _branchesClientId = null;
+
+    async function openBranchesModal(clientId, restName) {
+        _branchesClientId = clientId;
+        document.getElementById('branches-modal-title').textContent = `🏪 ${restName} — Branches`;
+        const list = document.getElementById('branches-list');
+        list.innerHTML = '<div class="loading">Loading...</div>';
+        openModal('modal-branches');
+        try {
+            const res    = await fetch(`/api/admin/restaurant/${clientId}/branches`, { credentials: 'include' });
+            const data   = await res.json();
+            if (!data.length) {
+                list.innerHTML = '<div style="color:var(--muted);padding:16px;">Koi branch nahi mili</div>';
+                return;
+            }
+            list.innerHTML = data.map(b => `
+                <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                    <div>
+                        <div style="font-weight:600;color:white;font-size:0.88rem;">${b.name}</div>
+                        <div style="font-size:0.72rem;color:var(--muted);margin-top:3px;">
+                            <span style="font-family:var(--font-m);">${b.branch_id}</span>
+                            &nbsp;·&nbsp; ${b.num_tables} tables
+                            ${b.address ? `&nbsp;·&nbsp; ${b.address}` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        ${b.branch_id !== '__default__' ? `
+                        <button class="btn btn-ghost" style="font-size:0.72rem;padding:5px 10px;color:#ff4757;border-color:rgba(255,71,87,0.3);"
+                            onclick="deleteBranch('${clientId}','${b.branch_id}','${b.name}')">🗑</button>
+                        ` : '<span style="font-size:0.7rem;color:var(--muted);">Main</span>'}
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            list.innerHTML = '<div style="color:#ff4757;padding:16px;">Load failed</div>';
+        }
+    }
+
+    async function openAddBranch(clientId) {
+        if (!clientId) return;
+        _branchesClientId = clientId;
+        // Existing branches fetch karo — branch_id suggest karein
+        try {
+            const res  = await fetch(`/api/admin/restaurant/${clientId}/branches`, { credentials: 'include' });
+            const data = await res.json();
+            const nextNum = data.length + 1;
+            document.getElementById('ab-id').value = `branch_${nextNum}`;
+            // copy-from dropdown populate karo
+            const sel = document.getElementById('ab-copy-from');
+            const options = data.map(b =>
+                `<option value="${b.branch_id}">${b.name} (${b.branch_id})</option>`
+            ).join('');
+            sel.innerHTML = `<option value="__default__">Main branch (default)</option>` + options;
+        } catch(e) {
+            document.getElementById('ab-id').value = 'branch_2';
+            document.getElementById('ab-copy-from').innerHTML =
+                '<option value="__default__">Main branch (default)</option>';
+        }
+        document.getElementById('ab-name').value    = '';
+        document.getElementById('ab-tables').value  = '6';
+        document.getElementById('ab-phone').value   = '';
+        document.getElementById('ab-address').value = '';
+        document.getElementById('add-branch-rest-info').textContent = `Restaurant: ${clientId}`;
+        closeModal('modal-branches');
+        openModal('modal-add-branch');
+    }
+
+    async function submitAddBranch() {
+        const branch_id     = document.getElementById('ab-id').value.trim().toLowerCase();
+        const name          = document.getElementById('ab-name').value.trim();
+        const num_tables    = parseInt(document.getElementById('ab-tables').value) || 6;
+        const phone         = document.getElementById('ab-phone').value.trim();
+        const address       = document.getElementById('ab-address').value.trim();
+        const copy_menu_from = document.getElementById('ab-copy-from').value;
+
+        if (!branch_id) { toast('Branch ID required', 'error'); return; }
+        if (!name)      { toast('Branch name required', 'error'); return; }
+
+        try {
+            const res  = await fetch(`/api/admin/restaurant/${_branchesClientId}/branch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ client_id: _branchesClientId, branch_id, name, num_tables, phone, address, copy_menu_from, password: branch_id }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeModal('modal-add-branch');
+                toast(`✅ ${data.message}`, 'success');
+            } else {
+                toast(data.detail || 'Error', 'error');
+            }
+        } catch(e) { toast('Network error', 'error'); }
+    }
+
+    async function deleteBranch(clientId, branchId, branchName) {
+        if (!confirm(`'${branchName}' branch delete karna chahte ho?\nIs branch ke saare orders, bills aur tables delete ho jaayenge.`)) return;
+        try {
+            const res  = await fetch(`/api/admin/restaurant/${clientId}/branch/${branchId}`, {
+                method: 'DELETE', credentials: 'include',
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast(`✅ ${data.message}`, 'success');
+                openBranchesModal(clientId, clientId);
+            } else {
+                toast(data.detail || 'Error', 'error');
+            }
+        } catch(e) { toast('Network error', 'error'); }
+    }
+
+    // Staff modal mein branches load karo jab restaurant select ho
+    async function loadBranchesForStaff(clientId) {
+        const sel = document.getElementById('ns-branch');
+        if (!sel || !clientId) return;
+        try {
+            const res  = await fetch(`/api/admin/restaurant/${clientId}/branches`, { credentials: 'include' });
+            const data = await res.json();
+            sel.innerHTML = data.map(b =>
+                `<option value="${b.branch_id}">${b.name} (${b.branch_id})</option>`
+            ).join('');
+        } catch(e) {
+            sel.innerHTML = '<option value="__default__">__default__</option>';
+        }
+    }
+
+// ── Signup Requests ──
+    let _signupFilter  = 'pending';
+    let _currentReqId  = null;
+
+    async function loadSignupRequests() {
+        const list = document.getElementById('signups-list');
+        list.innerHTML = '<div class="loading">Loading...</div>';
+        try {
+            const res  = await fetch('/api/admin/signup-requests', { credentials: 'include' });
+            const data = await res.json();
+            renderSignupRequests(data);
+            const pending = data.filter(r => r.status === 'pending').length;
+            const badge   = document.getElementById('signup-pending-badge');
+            if (pending > 0) { badge.textContent = pending; badge.style.display = 'inline'; }
+            else { badge.style.display = 'none'; }
+        } catch(e) {
+            list.innerHTML = '<div style="color:#ff4757;padding:24px;">Load failed</div>';
+        }
+    }
+
+    function setSignupFilter(status, btn) {
+        _signupFilter = status;
+        document.querySelectorAll('#tab-signups .filter-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadSignupRequests();
+    }
+
+    function renderSignupRequests(allData) {
+        const list = document.getElementById('signups-list');
+        const data = _signupFilter ? allData.filter(r => r.status === _signupFilter) : allData;
+        if (!data.length) {
+            list.innerHTML = `<div style="color:var(--muted);padding:32px;text-align:center;font-size:0.85rem;">Koi ${_signupFilter || ''} request nahi mili</div>`;
+            return;
+        }
+        const statusColor = { pending:'#ffb347', approved:'#43e97b', rejected:'#ff4757' };
+        const statusIcon  = { pending:'⏳', approved:'✅', rejected:'❌' };
+        list.innerHTML = data.map(r => `
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;
+                        padding:16px 18px;margin-bottom:12px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;">
+                <div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        <span style="font-size:0.95rem;font-weight:700;color:white;">${r.name}</span>
+                        <span style="font-size:0.68rem;padding:2px 9px;border-radius:20px;font-weight:600;
+                              background:${statusColor[r.status]}22;color:${statusColor[r.status]};border:1px solid ${statusColor[r.status]}44;">
+                            ${statusIcon[r.status]} ${r.status}
+                        </span>
+                        ${r.client_id ? `<span style="font-size:0.7rem;color:var(--muted);font-family:var(--font-m);">→ ${r.client_id}</span>` : ''}
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;font-size:0.78rem;color:var(--muted);">
+                        <div>🏪 <strong style="color:rgba(255,255,255,0.7);">${r.restaurant_name}</strong></div>
+                        <div>📞 ${r.phone}</div>
+                        <div>📧 ${r.email}</div>
+                        <div>🕐 ${r.created_at}</div>
+                        ${r.comment ? `<div style="grid-column:1/-1;">💬 ${r.comment}</div>` : ''}
+                        ${r.rejection_reason ? `<div style="grid-column:1/-1;color:#ff6b6b;">❌ ${r.rejection_reason}</div>` : ''}
+                        ${r.reviewed_by ? `<div>👤 Reviewed by ${r.reviewed_by} on ${r.reviewed_at}</div>` : ''}
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;min-width:100px;">
+                    ${r.status === 'pending' ? `
+                        <button class="btn btn-primary" style="font-size:0.76rem;padding:6px 12px;"
+                            onclick="openApproveModal(${r.id}, '${r.name}', '${r.restaurant_name}', '${r.email}')">✅ Approve</button>
+                        <button class="btn btn-ghost" style="font-size:0.76rem;padding:6px 12px;color:#ff4757;border-color:rgba(255,71,87,0.3);"
+                            onclick="openRejectModal(${r.id}, '${r.name}', '${r.restaurant_name}')">❌ Reject</button>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openApproveModal(reqId, name, restaurantName, email) {
+        _currentReqId = reqId;
+        const suggested = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+        document.getElementById('approve-client-id').value = suggested;
+        document.getElementById('approve-tables').value    = '6';
+        document.getElementById('approve-password').value  = '';
+        document.getElementById('approve-req-info').innerHTML =
+            `<strong style="color:white;">${name}</strong> &mdash; ${restaurantName}<br><span style="font-size:0.75rem;">${email}</span>`;
+        openModal('modal-approve-signup');
+    }
+
+    async function submitApproval() {
+        const client_id  = document.getElementById('approve-client-id').value.trim().toLowerCase();
+        const num_tables = parseInt(document.getElementById('approve-tables').value) || 6;
+        const password   = document.getElementById('approve-password').value;
+        if (!client_id)       { toast('Restaurant ID required', 'error'); return; }
+        if (!password)        { toast('Password required', 'error'); return; }
+        if (password.length < 6) { toast('Password min 6 characters', 'error'); return; }
+        try {
+            const res  = await fetch(`/api/admin/signup-requests/${_currentReqId}/approve`, {
+                method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                body: JSON.stringify({ client_id, num_tables, password }),
+            });
+            const data = await res.json();
+            if (res.ok) { closeModal('modal-approve-signup'); toast(`✅ ${data.message}`, 'success'); loadSignupRequests(); }
+            else { toast(data.detail || 'Error', 'error'); }
+        } catch(e) { toast('Network error', 'error'); }
+    }
+
+    function openRejectModal(reqId, name, restaurantName) {
+        _currentReqId = reqId;
+        document.getElementById('reject-reason').value = '';
+        document.getElementById('reject-req-info').innerHTML =
+            `<strong style="color:white;">${name}</strong> &mdash; ${restaurantName}`;
+        openModal('modal-reject-signup');
+    }
+
+    async function submitRejection() {
+        const reason = document.getElementById('reject-reason').value.trim();
+        if (!reason) { toast('Reason required', 'error'); return; }
+        try {
+            const res  = await fetch(`/api/admin/signup-requests/${_currentReqId}/reject`, {
+                method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                body: JSON.stringify({ reason }),
+            });
+            const data = await res.json();
+            if (res.ok) { closeModal('modal-reject-signup'); toast('❌ Request rejected', 'success'); loadSignupRequests(); }
+            else { toast(data.detail || 'Error', 'error'); }
+        } catch(e) { toast('Network error', 'error'); }
+    }
+
+    // Page load pe pending badge auto-check
+    (async function() {
+        try {
+            const res  = await fetch('/api/admin/signup-requests', { credentials: 'include' });
+            const data = await res.json();
+            const pending = data.filter(r => r.status === 'pending').length;
+            const badge = document.getElementById('signup-pending-badge');
+            if (pending > 0) { badge.textContent = pending; badge.style.display = 'inline'; }
+        } catch(e) {}
+    })();
     </script>
 
     <style>

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% if post %}Edit — {{ post.title }}{% else %}New Post{% endif %} — ZenTable Blog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <!-- Quill.js rich text editor -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #F7F5F2;
+      --surface:   #FFFFFF;
+      --border:    #E5E1DA;
+      --text:      #1A1814;
+      --muted:     #7A7570;
+      --accent:    #C8832A;
+      --accent-bg: #FDF3E7;
+      --danger:    #C0392B;
+      --success:   #2E7D55;
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body:    'DM Sans', sans-serif;
+      --radius:       8px;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: var(--font-body);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .back-link {
+      font-size: .85rem;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color .15s;
+    }
+    .back-link:hover { color: var(--text); }
+    .topbar-title {
+      font-size: .9rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+    .save-status {
+      font-size: .78rem;
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity .3s;
+    }
+    .save-status.visible { opacity: 1; }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-body);
+      font-size: .85rem;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: var(--border); }
+    .btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+    .btn.primary:hover { background: #2d2a25; }
+    .btn.success { background: var(--success); color: #fff; border-color: var(--success); }
+    .btn.success:hover { background: #256145; }
+    .btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn.accent:hover { background: #b5741f; }
+    .btn:disabled { opacity: .5; pointer-events: none; }
+
+    /* ── TWO-COLUMN LAYOUT ── */
+    .editor-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 0;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* ── MAIN EDITOR AREA ── */
+    .editor-main {
+      padding: 36px 40px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .title-input {
+      width: 100%;
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      font-weight: 400;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      margin-bottom: 20px;
+      line-height: 1.2;
+      resize: none;
+      min-height: 60px;
+    }
+    .title-input::placeholder { color: #C8C3BB; }
+
+    /* Quill editor styling */
+    .ql-toolbar.ql-snow {
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) var(--radius) 0 0 !important;
+      background: var(--bg) !important;
+      font-family: var(--font-body) !important;
+      padding: 10px 12px !important;
+    }
+    .ql-container.ql-snow {
+      border: 1px solid var(--border) !important;
+      border-top: none !important;
+      border-radius: 0 0 var(--radius) var(--radius) !important;
+      font-family: var(--font-body) !important;
+      font-size: 1rem !important;
+    }
+    .ql-editor {
+      min-height: 420px;
+      padding: 20px !important;
+      line-height: 1.75 !important;
+      color: var(--text) !important;
+    }
+    .ql-editor.ql-blank::before {
+      color: #C8C3BB !important;
+      font-style: normal !important;
+    }
+    .ql-editor h1 { font-family: var(--font-display); }
+    .ql-editor h2 { font-family: var(--font-display); }
+    .ql-editor blockquote {
+      border-left: 3px solid var(--accent) !important;
+      color: var(--muted) !important;
+    }
+
+    /* ── SIDEBAR ── */
+    .editor-sidebar {
+      background: var(--bg);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .sidebar-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .sidebar-section-header {
+      padding: 10px 14px;
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section-body { padding: 14px; }
+
+    /* Form fields */
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+      letter-spacing: .03em;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) - 2px);
+      font-family: var(--font-body);
+      font-size: .85rem;
+      color: var(--text);
+      background: var(--surface);
+      transition: border-color .15s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    .field .hint {
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .char-count {
+      font-size: .72rem;
+      color: var(--muted);
+      text-align: right;
+      margin-top: 3px;
+    }
+    .char-count.over { color: var(--danger); }
+
+    /* Slug field */
+    .slug-wrap { display: flex; align-items: center; gap: 0; }
+    .slug-prefix {
+      font-size: .78rem;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-right: none;
+      padding: 7px 8px;
+      border-radius: calc(var(--radius) - 2px) 0 0 calc(var(--radius) - 2px);
+      white-space: nowrap;
+    }
+    .slug-wrap input {
+      border-radius: 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0 !important;
+      flex: 1;
+    }
+
+    /* Tags */
+    .tags-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .75rem;
+      padding: 3px 9px;
+      background: var(--accent-bg);
+      color: var(--accent);
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .tag-chip button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--accent);
+      font-size: .9rem;
+      line-height: 1;
+      padding: 0;
+      opacity: .6;
+    }
+    .tag-chip button:hover { opacity: 1; }
+    .tag-add-row { display: flex; gap: 6px; }
+    .tag-add-row input { flex: 1; font-size: .82rem; }
+    .tag-add-row button {
+      padding: 7px 10px;
+      background: var(--text);
+      color: #fff;
+      border: none;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: .82rem;
+      cursor: pointer;
+      font-family: var(--font-body);
+    }
+
+    /* Cover image preview */
+    .cover-preview {
+      width: 100%;
+      height: 120px;
+      border-radius: calc(var(--radius) - 2px);
+      object-fit: cover;
+      display: none;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+    }
+    .cover-preview.visible { display: block; }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-block;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 12px;
+    }
+    .status-draft    { background: #EEE; color: var(--muted); }
+    .status-pending_review { background: #F3EEFF; color: #7B5EA7; }
+    .status-published { background: #E6F4ED; color: var(--success); }
+    .status-archived  { background: #F0F0F0; color: #999; }
+
+    /* Reject note */
+    .reject-note {
+      background: #FDECEA;
+      border: 1px solid #f5c5c1;
+      border-left: 3px solid var(--danger);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: .82rem;
+      color: var(--danger);
+    }
+    .reject-note strong { display: block; margin-bottom: 4px; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--text);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      font-size: .875rem;
+      font-weight: 500;
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+
+    @media (max-width: 840px) {
+      .editor-layout { grid-template-columns: 1fr; }
+      .editor-main { border-right: none; border-bottom: 1px solid var(--border); padding: 20px; }
+      .editor-sidebar { padding: 16px; }
+      .title-input { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── TOP BAR ── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="{% if user.role == 'admin' %}/admin/blog{% elif user.role == 'owner' %}/{{ post.client_id or client_id }}/staff/blog{% else %}/{{ client_id }}/staff/blog{% endif %}" class="back-link">
+      ← Back
+    </a>
+    <span class="topbar-title">{% if post %}Editing post{% else %}New post{% endif %}</span>
+    {% if post %}
+      <span class="status-badge status-{{ post.status }}">{{ post.status | replace('_', ' ') }}</span>
+    {% endif %}
+  </div>
+  <div class="topbar-actions">
+    <span class="save-status" id="saveStatus">Saved</span>
+
+    <!-- Save Draft -->
+    <button class="btn" id="btnSaveDraft" onclick="saveDraft()">Save Draft</button>
+
+    <!-- Submit for Review (blogger/owner, draft only) -->
+    {% if post and post.status == 'draft' and user.role in ('blogger', 'owner') %}
+      <button class="btn accent" onclick="submitForReview()">Submit for Review</button>
+    {% endif %}
+
+    <!-- Publish (admin only) -->
+    {% if user.role == 'admin' %}
+      {% if post and post.status == 'published' %}
+        <button class="btn success" onclick="saveDraft()">Update</button>
+      {% else %}
+        <button class="btn success" onclick="publishPost()">Publish</button>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── EDITOR LAYOUT ── -->
+<div class="editor-layout">
+
+  <!-- Main Editor -->
+  <div class="editor-main">
+
+    {% if post and post.reject_note %}
+    <div class="reject-note" style="margin-bottom:20px;">
+      <strong>⚠ Rejection Feedback:</strong>
+      {{ post.reject_note }}
+    </div>
+    {% endif %}
+
+    <textarea
+      id="postTitle"
+      class="title-input"
+      placeholder="Post title..."
+      rows="2"
+      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';autoSlug();"
+    >{% if post %}{{ post.title }}{% endif %}</textarea>
+
+    <div id="quill-editor">{% if post %}{{ post.content | safe }}{% endif %}</div>
+
+  </div>
+
+  <!-- Sidebar -->
+  <div class="editor-sidebar">
+
+    <!-- Publish Box -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">Publish</div>
+      <div class="sidebar-section-body">
+        {% if post %}
+        <div class="field">
+          <label>Status</label>
+          <span class="status-badge status-{{ post.status }}">{{ post.status | replace('_', ' ') }}</span>
+        </div>
+        <div class="field">
+          <label>Created</label>
+          <span style="font-size:.82rem;color:var(--muted);">{{ post.created_at[:10] }}</span>
+        </div>
+        {% if post.published_at %}
+        <div class="field">
+          <label>Published</label>
+          <span style="font-size:.82rem;color:var(--muted);">{{ post.published_at[:10] }}</span>
+        </div>
+        {% endif %}
+        {% if post.status == 'published' %}
+          <a href="/blog/{{ post.slug }}" target="_blank" class="btn" style="width:100%;justify-content:center;margin-top:6px;">View Post ↗</a>
+        {% endif %}
+        {% else %}
+        <p style="font-size:.82rem;color:var(--muted);">Save as draft to get started. Submit for review when ready.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SEO -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">SEO</div>
+      <div class="sidebar-section-body">
+        <div class="field">
+          <label>Slug</label>
+          <div class="slug-wrap">
+            <span class="slug-prefix">/blog/</span>
+            <input type="text" id="postSlug" value="{% if post %}{{ post.slug }}{% endif %}" placeholder="my-post-title" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Meta Description</label>
+          <textarea id="postMetaDesc" placeholder="Brief description for search engines..." maxlength="160" oninput="updateCharCount()">{% if post %}{{ post.meta_desc or '' }}{% endif %}</textarea>
+          <div class="char-count" id="charCount">0 / 160</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">Tags</div>
+      <div class="sidebar-section-body">
+        <div class="tags-list" id="tagsList"></div>
+        <div class="tag-add-row">
+          <input type="text" id="tagInput" placeholder="Add tag..." onkeydown="if(event.key==='Enter'){addTag();event.preventDefault();}" />
+          <button onclick="addTag()">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cover Image -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">Cover Image</div>
+      <div class="sidebar-section-body">
+        <img id="coverPreview" class="cover-preview" src="" alt="Cover" />
+        <div class="field">
+          <label>Image URL</label>
+          <input type="text" id="postCoverImage" value="{% if post %}{{ post.cover_image or '' }}{% endif %}" placeholder="https://... or /static/..." oninput="updateCoverPreview()" />
+          <div class="hint">Paste a URL or upload via admin panel then copy the path</div>
+        </div>
+      </div>
+    </div>
+
+    {% if user.role == 'admin' %}
+    <!-- Danger Zone (admin only) -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">Danger Zone</div>
+      <div class="sidebar-section-body">
+        {% if post %}
+          {% if post.status == 'published' %}
+            <button class="btn" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="archivePost()">Archive Post</button>
+          {% elif post.status == 'archived' %}
+            <button class="btn" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="unarchivePost()">Restore Post</button>
+          {% endif %}
+          <button class="btn" style="width:100%;justify-content:center;color:var(--danger);border-color:#f5c5c1;" onclick="deletePost()">Delete Permanently</button>
+        {% else %}
+          <p style="font-size:.78rem;color:var(--muted);">Save post first.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /sidebar -->
+</div><!-- /editor-layout -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<script>
+  // ── State ──
+  const POST_ID   = {{ post.id if post else 'null' }};
+  const USER_ROLE = '{{ user.role }}';
+  const CLIENT_ID = '{{ post.client_id if post and post.client_id else client_id or "" }}';
+
+  // ── Init Quill ──
+  const quill = new Quill('#quill-editor', {
+    theme: 'snow',
+    placeholder: 'Write your story...',
+    modules: {
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        ['blockquote', 'code-block'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['link', 'image'],
+        [{ align: [] }],
+        ['clean']
+      ]
+    }
+  });
+
+  // ── Tags ──
+  let tags = {{ post.tags | tojson if post else '[]' }};
+  renderTags();
+
+  function renderTags() {
+    const el = document.getElementById('tagsList');
+    el.innerHTML = tags.map((t, i) =>
+      `<span class="tag-chip">${t} <button onclick="removeTag(${i})">×</button></span>`
+    ).join('');
+  }
+  function addTag() {
+    const inp = document.getElementById('tagInput');
+    const val = inp.value.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!val || tags.includes(val) || tags.length >= 8) return;
+    tags.push(val);
+    renderTags();
+    inp.value = '';
+  }
+  function removeTag(i) {
+    tags.splice(i, 1);
+    renderTags();
+  }
+
+  // ── Slug auto-generate from title ──
+  let slugEdited = {{ 'true' if post else 'false' }};
+  function autoSlug() {
+    if (slugEdited) return;
+    const title = document.getElementById('postTitle').value;
+    const slug  = title.toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_]+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 80);
+    document.getElementById('postSlug').value = slug;
+  }
+  document.getElementById('postSlug').addEventListener('input', () => { slugEdited = true; });
+
+  // ── Char count ──
+  function updateCharCount() {
+    const val = document.getElementById('postMetaDesc').value.length;
+    const el  = document.getElementById('charCount');
+    el.textContent = `${val} / 160`;
+    el.className = 'char-count' + (val > 155 ? ' over' : '');
+  }
+  updateCharCount();
+
+  // ── Cover image preview ──
+  function updateCoverPreview() {
+    const url = document.getElementById('postCoverImage').value.trim();
+    const img = document.getElementById('coverPreview');
+    if (url) { img.src = url; img.classList.add('visible'); }
+    else      { img.classList.remove('visible'); }
+  }
+  updateCoverPreview();
+
+  // ── Toast ──
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  // ── Save status ──
+  function setSaveStatus(msg) {
+    const el = document.getElementById('saveStatus');
+    el.textContent = msg;
+    el.classList.add('visible');
+    setTimeout(() => el.classList.remove('visible'), 2500);
+  }
+
+  // ── Collect form data ──
+  function getFormData() {
+    return {
+      title:       document.getElementById('postTitle').value.trim(),
+      content:     quill.root.innerHTML,
+      slug:        document.getElementById('postSlug').value.trim(),
+      tags:        tags,
+      cover_image: document.getElementById('postCoverImage').value.trim() || null,
+      meta_desc:   document.getElementById('postMetaDesc').value.trim() || null,
+      client_id:   CLIENT_ID || null,
+    };
+  }
+
+  // ── Save Draft ──
+  async function saveDraft() {
+    const data = getFormData();
+    if (!data.title) { showToast('Title is required', 'error'); return; }
+
+    let res, json;
+    if (POST_ID) {
+      res  = await fetch(`/api/blog/update/${POST_ID}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      json = await res.json();
+      if (json.success) setSaveStatus('Saved ✓');
+      else showToast(json.detail || 'Error saving', 'error');
+    } else {
+      res  = await fetch('/api/blog/create', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      json = await res.json();
+      if (json.success) {
+        setSaveStatus('Saved ✓');
+        window.location.href = `/blog/editor/${json.post_id}`;
+      } else showToast(json.detail || 'Error creating post', 'error');
+    }
+  }
+
+  // ── Submit for Review ──
+  async function submitForReview() {
+    await saveDraft();
+    if (!POST_ID) return;
+    const res  = await fetch(`/api/blog/submit/${POST_ID}`, { method: 'POST' });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Submitted for review!', 'success');
+      setTimeout(() => location.reload(), 1200);
+    } else showToast('Error submitting', 'error');
+  }
+
+  // ── Publish (admin) ──
+  async function publishPost() {
+    await saveDraft();
+    if (!POST_ID) return;
+    const res  = await fetch(`/api/blog/publish/${POST_ID}`, { method: 'POST' });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Published! ✓', 'success');
+      setTimeout(() => location.reload(), 1200);
+    } else showToast('Error publishing', 'error');
+  }
+
+  // ── Archive ──
+  async function archivePost() {
+    if (!confirm('Archive this post?')) return;
+    const res  = await fetch(`/api/blog/archive/${POST_ID}`, { method: 'POST' });
+    const json = await res.json();
+    if (json.success) { showToast('Archived'); setTimeout(() => location.reload(), 800); }
+  }
+
+  async function unarchivePost() {
+    const res  = await fetch(`/api/blog/unarchive/${POST_ID}`, { method: 'POST' });
+    const json = await res.json();
+    if (json.success) { showToast('Restored', 'success'); setTimeout(() => location.reload(), 800); }
+  }
+
+  // ── Delete ──
+  async function deletePost() {
+    if (!confirm('Delete permanently? Cannot be undone.')) return;
+    const res  = await fetch(`/api/blog/${POST_ID}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Deleted');
+      const back = USER_ROLE === 'admin' ? '/admin/blog' : `/${CLIENT_ID}/staff/blog`;
+      setTimeout(() => window.location.href = back, 800);
+    }
+  }
+
+  // ── Auto-save every 60s ──
+  setInterval(() => {
+    if (POST_ID && document.getElementById('postTitle').value.trim()) {
+      const data = getFormData();
+      fetch(`/api/blog/update/${POST_ID}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+        .then(r => r.json())
+        .then(j => { if (j.success) setSaveStatus('Auto-saved ✓'); });
+    }
+  }, 60000);
+
+  // Ctrl+S save
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveDraft();
+    }
+  });
+</script>
+</body>
+</html>

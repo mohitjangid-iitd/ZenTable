@@ -18,7 +18,7 @@ Key Difference vs chatbot.py (Owner Chatbot):
   - No JWT auth — completely public
   - No ANALYTICS path — sirf platform info
   - Sales-friendly tone (prospect/visitor ke liye, not operator)
-  - IP-based rate limiting (restaurant_id nahi hai)
+  - IP-based rate limiting (client_id nahi hai)
   - Softer, more welcoming prompt
 """
 

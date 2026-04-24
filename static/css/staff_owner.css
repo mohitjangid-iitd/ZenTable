@@ -64,7 +64,8 @@ body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; 
 .split-legend { display:flex; gap:16px; font-size:0.72rem; color:#666; }
 .legend-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
 
-.filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.filter-bar { display:flex; gap:8px; flex-wrap:nowrap; margin-bottom:14px; }
+.filter-bar::-webkit-scrollbar { display:none; }
 .filter-sel { padding:8px 12px; border-radius:10px; border:1.5px solid #eee; font-family:var(--font-secondary); font-size:0.82rem; background:white; outline:none; }
 .filter-sel:focus { border-color:var(--primary); }
 
@@ -111,3 +112,78 @@ body { font-family:var(--font-secondary); background:#f4f4f6; min-height:100vh; 
 
 #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--secondary); color:white; padding:12px 24px; border-radius:30px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.3s; white-space:nowrap; }
 #toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════════════
+   Custom Dropdown — native select replace karta hai
+   Taki size poori tarah CSS se control ho
+   ══════════════════════════════════════════════ */
+.csel {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    min-width: 0;
+}
+.csel-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1.5px solid #eee;
+    background: white;
+    font-family: var(--font-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    white-space: nowrap;
+    outline: none;
+    user-select: none;
+    width: 100%;
+    color: #333;
+    overflow: hidden;
+}
+.csel-btn:focus,
+.csel.open .csel-btn { border-color: var(--primary); }
+.csel-lbl { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.csel-arr {
+    font-size: 0.6rem;
+    color: #aaa;
+    transition: transform 0.18s;
+    flex-shrink: 0;
+}
+.csel.open .csel-arr { transform: rotate(180deg); }
+
+.csel-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    min-width: max-content;
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid #eee;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+    z-index: 600;
+    overflow: hidden;
+}
+.csel.open .csel-panel { display: block; }
+
+/* Panel upar flip karo agar neeche jagah nahi */
+.csel.flip-up .csel-panel {
+    top: auto;
+    bottom: calc(100% + 5px);
+}
+
+.csel-item {
+    padding: 10px 14px;
+    font-family: var(--font-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.12s;
+}
+.csel-item:hover { background: #f5f5f5; }
+.csel-item.csel-sel {
+    background: var(--primary);
+    color: var(--secondary);
+    font-weight: 600;
+}

@@ -330,42 +330,57 @@ function renderRestGrid() {
         grid.innerHTML = '<div class="empty">Koi restaurant nahi — Add karo!</div>';
         return;
     }
-    grid.innerHTML = allRestaurants.map(r => `
-        <div class="rest-card ${r.active === false ? 'rest-card-inactive' : ''}">
+    grid.innerHTML = allRestaurants.map(r => {
+        const branches = r.branches || [];
+        const isMultiBranch = branches.length > 1;
+        const branchSelectHtml = isMultiBranch ? `
+            <select id="branch-sel-${r.client_id}" onchange="updateRestCardMeta('${r.client_id}')" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:white;padding:4px 8px;border-radius:6px;font-size:0.72rem;outline:none;max-width:150px;">
+                ${branches.map(b => `<option value="${b.branch_id}">${b.name}</option>`).join('')}
+            </select>` : '';
+        const editOnclick = isMultiBranch
+            ? `openEditRestaurant('${r.client_id}', document.getElementById('branch-sel-${r.client_id}').value)`
+            : `openEditRestaurant('${r.client_id}')`;
+        return `
+        <div class="rest-card ${r.active === false ? 'rest-card-inactive' : ''}" id="rest-card-${r.client_id}">
             <div class="rest-card-top">
-                <div>
+                <div style="flex:1;min-width:0;">
                     <div class="rest-name" style="display:flex;align-items:center;gap:8px;">
                         ${r.name}
                         ${r.active === false
                             ? `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(239,83,80,0.12);color:#ef9a9a;border:1px solid rgba(239,83,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">INACTIVE</span>`
                             : `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(76,175,80,0.10);color:#81c784;border:1px solid rgba(76,175,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">ACTIVE</span>`
                         }
+                        ${isMultiBranch ? `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:#a89cff;border:1px solid rgba(108,99,255,0.2);font-family:var(--font-m);">${branches.length} Branches</span>` : ''}
                     </div>
                     <div class="rest-id">${r.client_id}</div>
                 </div>
-                <div class="rest-actions">
-                    <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditRestaurant('${r.client_id}')" title="Edit">✏️</button>
-                    <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}',${r.active !== false})"
-                        title="${r.active === false ? 'Activate' : 'Deactivate'}"
-                        style="${r.active === false ? 'color:#81c784;border-color:rgba(76,175,80,0.3)' : 'color:#ef9a9a;border-color:rgba(239,83,80,0.3)'}">
-                        ${r.active === false ? '🟢' : '🔴'}
-                    </button>
-                    <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}') " title="Delete">🗑️</button>
+                <div class="rest-actions" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+                    ${branchSelectHtml}
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-ghost btn-icon btn-sm" onclick="${editOnclick}" title="Edit">✏️</button>
+                        <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}',${r.active !== false})"
+                            title="${r.active === false ? 'Activate' : 'Deactivate'}"
+                            style="${r.active === false ? 'color:#81c784;border-color:rgba(76,175,80,0.3)' : 'color:#ef9a9a;border-color:rgba(239,83,80,0.3)'}">
+                            ${r.active === false ? '🟢' : '🔴'}
+                        </button>
+                        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}') " title="Delete">🗑️</button>
+                    </div>
                 </div>
             </div>
-            <div class="rest-meta">
-                <div class="rest-meta-item">Tables: <span>${r.num_tables}</span></div>
+            <div class="rest-meta" id="rest-meta-${r.client_id}">
+                <div class="rest-meta-item">Tables: <span id="rm-tables-${r.client_id}">${r.num_tables}</span></div>
                 <div class="rest-meta-item">Staff: <span>${r.staff_count}</span></div>
-                <div class="rest-meta-item">Today: <span>${r.today_orders} orders</span></div>
-                <div class="rest-meta-item">Revenue: <span>₹${r.today_revenue.toLocaleString()}</span></div>
+                <div class="rest-meta-item">Today: <span id="rm-orders-${r.client_id}">${r.today_orders} orders</span></div>
+                <div class="rest-meta-item">Revenue: <span id="rm-rev-${r.client_id}">₹${r.today_revenue.toLocaleString()}</span></div>
             </div>
             ${r.cuisine_type ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:8px">${r.cuisine_type}</div>` : ''}
             <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
                 ${(r.features || ['basic']).map(f => `<span style="font-size:0.6rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:var(--primary);border:1px solid var(--border);font-family:var(--font-m)">${f}</span>`).join('')}
             </div>
             <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;font-size:0.78rem;" onclick="downloadAllQRs('${r.client_id}')">⬇ Download All QR Codes</button>
-        </div>
-    `).join('');
+            <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;font-size:0.78rem;" onclick="openBranchesModal('${r.client_id}','${r.name.replace(/'/g,"\\'")}')">🏪 Branches</button>
+        </div>`;
+    }).join('');
 }
 
 function openAddRestaurant() {
@@ -417,8 +432,8 @@ async function createRestaurant() {
     }
 }
 
-async function openEditRestaurant(client_id) {
-    const res = await fetch(`/api/admin/restaurant/${client_id}/json`);
+async function openEditRestaurant(client_id, branch_id = '__default__') {
+    const res = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`);
     if (!res.ok) { toast('Load failed', 'error'); return; }
     currentEditData = await res.json();
     currentEditClientId = client_id;
@@ -504,6 +519,58 @@ async function openEditRestaurant(client_id) {
     document.getElementById('edit-info').classList.add('active');
 
     openModal('modal-edit-rest');
+
+    // Branch selector populate karo
+    try {
+        const bRes  = await fetch(`/api/admin/restaurant/${client_id}/branches`, { credentials: 'include' });
+        const bData = await bRes.json();
+        const branchSel = document.getElementById('edit-branch-select');
+        if (bData.length > 1) {
+            branchSel.innerHTML = bData.map(b =>
+                `<option value="${b.branch_id}">${b.name} (${b.branch_id})</option>`
+            ).join('');
+            branchSel.value = branch_id;
+            branchSel.style.display = '';
+            // Agar default nahi selected toh us branch ka data load karo
+            if (branch_id !== '__default__') {
+                await onEditBranchChange();
+            }
+        } else {
+            branchSel.style.display = 'none';
+        }
+    } catch(e) {
+        document.getElementById('edit-branch-select').style.display = 'none';
+    }
+}
+
+async function onEditBranchChange() {
+    const client_id = currentEditClientId;
+    const branch_id = document.getElementById('edit-branch-select').value;
+    if (!client_id) return;
+    try {
+        const res = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`);
+        if (!res.ok) { toast('Branch data load nahi hua', 'error'); return; }
+        currentEditData = await res.json();
+        // Fields re-fill karo
+        const r = currentEditData.restaurant || {};
+        document.getElementById('ei-name').value     = r.name || '';
+        document.getElementById('ei-tables').value   = r.num_tables || 6;
+        document.getElementById('ei-tagline').value  = r.tagline || '';
+        document.getElementById('ei-desc').value     = r.description || '';
+        document.getElementById('ei-cuisine').value  = r.cuisine_type || '';
+        document.getElementById('ei-phone').value    = r.phone || '';
+        document.getElementById('ei-email').value    = r.email || '';
+        document.getElementById('ei-address').value  = r.address || '';
+        document.getElementById('ei-logo').value     = r.logo || '';
+        document.getElementById('ei-banner').value   = r.banner || '';
+        document.getElementById('ei-lunch').value    = r.timings?.lunch || '';
+        document.getElementById('ei-dinner').value   = r.timings?.dinner || '';
+        document.getElementById('ei-closed').value   = r.timings?.closed || '';
+        document.getElementById('edit-rest-title').textContent = `Edit — ${r.name || branch_id}`;
+        // Items list refresh karo agar items tab khula ho
+        const itemsTab = document.getElementById('edit-items');
+        if (itemsTab && itemsTab.classList.contains('active')) renderItemsList();
+    } catch(e) { toast('Network error', 'error'); }
 }
 
 async function saveRestaurant() {
@@ -555,9 +622,11 @@ async function saveRestaurant() {
         font_secondary:  document.getElementById('et-font-secondary').value,
     };
 
-    const res = await fetch(`/api/admin/restaurant/${currentEditClientId}/json`, {
+    const branch_id = document.getElementById('edit-branch-select')?.value || '__default__';
+    const res = await fetch(`/api/admin/restaurant/${currentEditClientId}/json?branch_id=${branch_id}`, {
         method: 'PUT',
         headers: {'Content-Type':'application/json'},
+        credentials: 'include',
         body: JSON.stringify({ data: currentEditData })
     });
     if (res.ok) {
@@ -886,21 +955,24 @@ async function populateStaffRestSelect() {
 
 async function loadStaff() {
     const client_id = document.getElementById('staff-rest-select').value;
+    const branch_filter = document.getElementById('staff-branch-filter')?.value || '';
     const tbody = document.getElementById('staff-table-body');
-    if (!client_id) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Restaurant select karo</td></tr>'; return; }
-    tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading...</td></tr>';
+    if (!client_id) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Restaurant select karo</td></tr>'; return; }
+    tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading...</td></tr>';
     const res = await fetch(`/api/admin/staff/${client_id}`);
     const staff = await res.json();
-    if (staff.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">Koi staff nahi</td></tr>';
+    const filtered = branch_filter ? staff.filter(s => (s.branch_id || '__default__') === branch_filter) : staff;
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">Koi staff nahi</td></tr>';
         return;
     }
-    tbody.innerHTML = staff.map(s => `
+    tbody.innerHTML = filtered.map(s => `
         <tr>
             <td class="mono">${s.id}</td>
             <td>${s.name}</td>
             <td class="mono">${s.username}</td>
             <td><span class="badge badge-${s.role}">${s.role}</span></td>
+            <td><span style="font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(108,99,255,0.12);color:#a89cff;border:1px solid rgba(108,99,255,0.2);font-family:var(--font-m);">${s.branch_id || '__default__'}</span></td>
             <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
             <td>
                 <div style="display:flex;gap:6px;">
@@ -911,6 +983,28 @@ async function loadStaff() {
             </td>
         </tr>
     `).join('');
+}
+
+async function onStaffRestChange(clientId) {
+    loadStaff();
+    loadBranchesForStaff(clientId);
+    // Staff tab branch filter update karo
+    const branchFilter = document.getElementById('staff-branch-filter');
+    if (!branchFilter) return;
+    if (!clientId) { branchFilter.style.display = 'none'; return; }
+    try {
+        const res  = await fetch(`/api/admin/restaurant/${clientId}/branches`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.length <= 1) {
+            branchFilter.style.display = 'none';
+        } else {
+            branchFilter.innerHTML = '<option value="">Saari Branches</option>' +
+                data.map(b => `<option value="${b.branch_id}">${b.name} (${b.branch_id})</option>`).join('');
+            branchFilter.style.display = '';
+        }
+    } catch(e) {
+        branchFilter.style.display = 'none';
+    }
 }
 
 function openAddStaff() {
@@ -924,10 +1018,11 @@ function openAddStaff() {
 async function createStaff() {
     const client_id = document.getElementById('staff-rest-select').value;
     const body = {
-        name:     document.getElementById('ns-name').value.trim(),
-        username: document.getElementById('ns-username').value.trim().toLowerCase(),
-        password: document.getElementById('ns-password').value,
-        role:     document.getElementById('ns-role').value,
+        name:      document.getElementById('ns-name').value.trim(),
+        username:  document.getElementById('ns-username').value.trim().toLowerCase(),
+        password:  document.getElementById('ns-password').value,
+        role:      document.getElementById('ns-role').value,
+        branch_id: document.getElementById('ns-branch')?.value || '__default__',
     };
     if (!body.name || !body.username || !body.password) { toast('Sab fields required', 'error'); return; }
     const res = await fetch(`/api/admin/staff/${client_id}`, {
@@ -1639,4 +1734,25 @@ function togglePass(inputId, btnId) {
     }
 
 })();
+
+async function updateRestCardMeta(client_id) {
+    const sel = document.getElementById(`branch-sel-${client_id}`);
+    if (!sel) return;
+    const branch_id = sel.value;
+    try {
+        const [aRes, cRes] = await Promise.all([
+            fetch(`/api/admin/analytics/${client_id}?branch_id=${branch_id}`, { credentials: 'include' }),
+            fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`, { credentials: 'include' }),
+        ]);
+        const aData = aRes.ok ? await aRes.json() : {};
+        const cData = cRes.ok ? await cRes.json() : {};
+        const t = aData.today || {};
+        const tablesEl = document.getElementById(`rm-tables-${client_id}`);
+        const ordersEl = document.getElementById(`rm-orders-${client_id}`);
+        const revEl    = document.getElementById(`rm-rev-${client_id}`);
+        if (tablesEl) tablesEl.textContent = cData?.restaurant?.num_tables || '—';
+        if (ordersEl) ordersEl.textContent = `${t.orders || 0} orders`;
+        if (revEl)    revEl.textContent    = `₹${(t.revenue || 0).toLocaleString()}`;
+    } catch(e) {}
+}
 
