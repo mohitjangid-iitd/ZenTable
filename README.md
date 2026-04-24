@@ -17,7 +17,7 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 - **Waiter** — Table management, order placement, billing, payments
 - **Kitchen** — Live order queue, mark items ready
 - **Counter** — Table activation/deactivation, payment collection
-- **Owner** — Analytics, QR generator, staff management, order history, full menu control (add/edit/delete items, categories), restaurant info management (name, logo, banner, social links, contact, tables), AI-powered photo-to-menu import, platform help bot
+- **Owner** — Analytics, QR generator, staff management, order history, full menu control (add/edit/delete items, categories), restaurant info management (name, logo, banner, social links, contact, tables), AI-powered photo-to-menu import, platform help bot, **Multi-Branch Support**, **Self-Signup with Admin Approval**
 
 ### For Platform Admins (ZenTable)
 > Accessible at [admin.zentable.in](https://admin.zentable.in)
@@ -28,7 +28,8 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 - **Photo to menu** — AI-powered menu extraction from image, for any restaurant
 - **3D model management** — Upload/manage `.glb` models per dish (owners cannot upload GLBs)
 - **Staff management** — Create, edit, deactivate staff accounts across all restaurants
-- **Restaurant onboarding** — Instant setup via admin panel; activate, deactivate, or delete restaurants
+- **Restaurant onboarding** — Instant setup via admin panel; activate, deactivate, or delete restaurants, **Approve Owner Signups**
+- **Blogging Platform** — Built-in blogging system for ZenTable platform and connected restaurants
 - **File management** — Upload images/models, trash + restore system
 - **DB export** — Full PostgreSQL export as ZIP
 
@@ -43,6 +44,7 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 | Restaurant Config | PostgreSQL `restaurants` table (JSONB) |
 | Frontend | HTML, CSS, Vanilla JS (Jinja2 templates) |
 | AR | MindAR + Three.js r128 |
+| AI | Google Gemini API (Chatbot, Photo-to-Menu, Help Bot) |
 | Auth | bcrypt + JWT (cookie-based) |
 | File Storage | Cloudflare R2 (production) / local (development) |
 
@@ -54,6 +56,7 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 zentable/
 ├── main.py                      # App init, lifespan, static mount, utility routes
 ├── database.py                  # PostgreSQL setup + all DB functions (psycopg2)
+├── blog_db.py                   # Blog database operations (SQLite/PostgreSQL)
 ├── auth.py                      # JWT logic — create/verify token, login functions
 ├── helpers.py                   # Shared helpers — get_client_data, require_auth, etc.
 ├── r2.py                        # Cloudflare R2 client + helper functions
@@ -75,6 +78,11 @@ zentable/
 │   ├── orders.py                # Orders + Bills API
 │   ├── login.py                 # Login/logout routes
 │   ├── admin.py                 # All admin routes
+│   ├── owner.py                 # Owner operations & branch management
+│   ├── blog.py                  # Blogging platform routes
+│   ├── chatbot.py               # Chatbot logic
+│   ├── help_chat.py             # Help chat
+│   ├── image_to_menu.py         # AI-powered photo-to-menu import
 │   └── pages.py                 # All HTML page routes
 │
 ├── templates/                   # Jinja2 HTML templates
@@ -132,8 +140,12 @@ Create a `.env` file in the project root:
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 SECRET_KEY=your-secret-key-here
 GLB_SECRET=your-glb-secret-here
+IS_PROD=false
+GEMINI_API_KEY=your-gemini-api-key
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
 
-# R2 (optional — USE_R2=false pe local storage)
+# R2 (optional — local storage when USE_R2=false)
 USE_R2=false
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY=
@@ -150,6 +162,8 @@ R2_PUBLIC_URL=
 | `http://localhost:8000/{client_id}` | Restaurant home page |
 | `http://localhost:8000/{client_id}/menu` | Digital menu |
 | `http://localhost:8000/{client_id}/ar-menu` | AR menu |
+| `http://localhost:8000/blog` | Main ZenTable blog platform |
+| `http://localhost:8000/blog/{slug}` | Specific blog post |
 | `http://localhost:8000/login` | Staff login |
 | `http://localhost:8000/admin` | ZenTable admin panel (prod: `admin.zentable.in`) |
 
@@ -157,9 +171,9 @@ R2_PUBLIC_URL=
 
 ## Adding a Restaurant
 
-Restaurants ab admin panel se directly create ho jaate hain (`/admin`). Manual JSON files ki zaroorat nahi.
+Restaurants can now be created directly from the admin panel (`/admin`). No manual JSON files required.
 
-Config structure jo DB mein store hoti hai:
+Config structure stored in the DB:
 
 ```json
 {
@@ -229,6 +243,7 @@ Config structure jo DB mein store hoti hai:
 | `waiter` | Table management, order placement, order lifecycle, billing |
 | `kitchen` | Live order queue, mark items as ready |
 | `counter` | Table activate/deactivate, payment collection |
+| `blogger` | Create and manage blog posts |
 
 ---
 
@@ -257,7 +272,7 @@ Free model sources: Sketchfab, TurboSquid, CGTrader
 ### Production Checklist
 
 - [ ] HTTPS enabled (required for camera/AR access)
-- [ ] `USE_R2=true` + R2 credentials set (Render disk ephemeral hai)
+- [ ] `USE_R2=true` + R2 credentials set (Render disk is ephemeral)
 - [ ] `create_first_admin.py` run once on server
 - [ ] Real images and 3D models uploaded via admin panel
 - [ ] Tested on Android + iOS devices
@@ -280,6 +295,8 @@ python-jose[cryptography]
 psycopg2-binary
 python-dotenv
 boto3
+pygltflib
+google-genai
 ```
 
 Full list in `requirements.txt`.
