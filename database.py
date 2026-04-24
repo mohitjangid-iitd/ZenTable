@@ -1091,9 +1091,6 @@ def get_analytics(client_id: str, branch_id: str = None):
     }
 
 
-if __name__ == "__main__":
-    init_db()
-
 
 # ════════════════════════════════
 # ADMIN PANEL — EXTRA FUNCTIONS
@@ -1870,3 +1867,6 @@ def update_owner_password(owner_id: int, new_password: str):
     conn.execute("UPDATE owners SET password_hash=%s WHERE id=%s", (password_hash, owner_id))
     conn.commit()
     conn.close()
+
+if __name__ == "__main__":
+    init_db()

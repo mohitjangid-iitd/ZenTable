@@ -1,4 +1,6 @@
 import os
+import threading
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse, Response, RedirectResponse
@@ -25,6 +27,21 @@ from blog_db import init_blog_tables, get_published_posts as get_blog_posts
 from templates_env import templates
 
 # ════════════════════════════════
+# NEON KEEP-ALIVE
+# ════════════════════════════════
+
+def _keep_neon_alive():
+    while True:
+        time.sleep(150)  # 2.5 min — Neon 5 min me sota hai, hum pehle ping kar dete hain
+        try:
+            conn = get_db()
+            conn.execute("SELECT 1;")
+            conn.close()
+            print("[keep-alive] Neon pinged successfully")
+        except Exception as e:
+            print(f"[keep-alive] Failed: {e}")
+
+# ════════════════════════════════
 # LIFESPAN
 # ════════════════════════════════
 
@@ -48,6 +65,11 @@ async def lifespan(app):
         int(os.path.getmtime(f"static/{path}")) if os.path.exists(f"static/{path}") else 0
     templates.env.globals["site"] = SITE_CONFIG
     templates.env.globals["site_settings"] = get_all_site_settings()
+
+    # Neon ko jaagta rakhne wala thread
+    t = threading.Thread(target=_keep_neon_alive, daemon=True)
+    t.start()
+
     yield
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -85,29 +107,8 @@ async def serve_asset(request: Request, client_id: str, filename: str):
 
 
 @app.api_route("/ping", methods=["GET", "HEAD"])
-def ping(response: Response):
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-
-    try:
-        conn = get_db()
-
-        # Neon wake-up query
-        cur = conn.execute("SELECT 1;")
-        cur.fetchone()
-
-        conn.close()
-
-        return {"status": "ok"}
-
-    except Exception as e:
-        # monitor ko failure dikhega
-        response.status_code = 500
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+def ping():
+    return {"status": "ok"}
 
 @app.get("/google67ff8e4e4bb9c2ef.html")
 def verify():
