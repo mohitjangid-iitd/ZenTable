@@ -104,7 +104,7 @@ function sendNotif(title, body) {
 
 // ── MAIN LOAD ──
 async function loadWithNotif() {
-    const res = await fetch(`/api/orders/${clientId}`);
+    const res = await fetch(`/api/orders/${clientId}?branch_id=${branchId}`);
     
     if (res.status === 401 || res.status === 403) {
         window.location.href = '/login';

@@ -151,6 +151,7 @@
 <!-- Jinja2 variables inject — static JS se PEHLE -->
 <script>
     const clientId = "{{ client_id }}";
+    const branchId = "{{ branch_id }}";
     const menuItems = {{ data['items'] | tojson }};
     const numTables = {{ data.restaurant.num_tables | default(6) }};
     let pendingBillId = null;

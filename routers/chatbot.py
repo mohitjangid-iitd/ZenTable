@@ -6,7 +6,7 @@ Auth     : JWT cookie (owner role only)
 SDK      : google-genai (new unified SDK — pip install google-genai)
 
 Flow:
-  1. Rate limit check (20 req/min per restaurant_id, in-memory)
+  1. Rate limit check (20 req/min per client_id, in-memory)
   2. JWT verify + owner role check
   3. Gemini Step 1 — category classify: ANALYTICS | PLATFORM_HELP | UNKNOWN
   4a. ANALYTICS    → intents detect → DB functions run → Gemini response
@@ -78,21 +78,21 @@ INTENT_MAP = {
 
 
 # ════════════════════════════════════════════════════════
-# RATE LIMITER — in-memory, per restaurant_id
+# RATE LIMITER — in-memory, per client_id
 # ════════════════════════════════════════════════════════
 
 _rate_store: dict[str, list[float]] = defaultdict(list)
 RATE_LIMIT  = 20   # max requests
 RATE_WINDOW = 60   # seconds
 
-def _check_rate_limit(restaurant_id: str) -> bool:
+def _check_rate_limit(client_id: str) -> bool:
     """True = allowed, False = blocked"""
     now    = time.time()
     window = now - RATE_WINDOW
-    _rate_store[restaurant_id] = [t for t in _rate_store[restaurant_id] if t > window]
-    if len(_rate_store[restaurant_id]) >= RATE_LIMIT:
+    _rate_store[client_id] = [t for t in _rate_store[client_id] if t > window]
+    if len(_rate_store[client_id]) >= RATE_LIMIT:
         return False
-    _rate_store[restaurant_id].append(now)
+    _rate_store[client_id].append(now)
     return True
 
 
@@ -261,7 +261,7 @@ def _detect_period(message: str) -> str:
 # PATH HANDLERS
 # ════════════════════════════════════════════════════════
 
-def _handle_analytics(message: str, restaurant_id: str) -> str:
+def _handle_analytics(message: str, client_id: str) -> str:
     intents = _detect_intents(message)
 
     if not intents:
@@ -278,9 +278,9 @@ def _handle_analytics(message: str, restaurant_id: str) -> str:
             try:
                 if intent in ("TOP_SELLING_ITEMS", "LOWEST_SELLING_ITEMS"):
                     period = _detect_period(message)  # "today"/"week"/"month"
-                    combined_data[intent] = fn(restaurant_id, period=period)
+                    combined_data[intent] = fn(client_id, period=period)
                 else:
-                    combined_data[intent] = fn(restaurant_id)
+                    combined_data[intent] = fn(client_id)
             except Exception as e:
                 combined_data[intent] = {"error": str(e)}
 
@@ -333,13 +333,13 @@ async def chat(
     if payload.get("role") != "owner":
         raise HTTPException(status_code=403, detail="Only owners can use this feature")
 
-    # ── 3. restaurant_id JWT se — kabhi frontend se mat lena ──
-    restaurant_id = payload.get("restaurant_id")
-    if not restaurant_id:
-        raise HTTPException(status_code=401, detail="Invalid token: restaurant_id missing")
+    # ── 3. client_id JWT se — kabhi frontend se mat lena ──
+    client_id = payload.get("client_id")
+    if not client_id:
+        raise HTTPException(status_code=401, detail="Invalid token: client_id missing")
 
     # ── 4. Rate limit ──
-    if not _check_rate_limit(restaurant_id):
+    if not _check_rate_limit(client_id):
         raise HTTPException(
             status_code=429,
             detail="Bahut zyada requests! Ek minute baad try karo."
@@ -357,7 +357,7 @@ async def chat(
 
     # ── 7. Path route karo ──
     if category == "ANALYTICS":
-        response_text = _handle_analytics(message, restaurant_id)
+        response_text = _handle_analytics(message, client_id)
     elif category == "PLATFORM_HELP":
         response_text = _handle_platform_help(message)
     else:

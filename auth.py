@@ -6,8 +6,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from fastapi import HTTPException, Cookie
-from database import verify_staff, verify_admin
+from database import verify_staff, verify_admin, verify_owner
 
 # ── Secret key — production mein env variable se lena ──
 SECRET_KEY = os.environ["SECRET_KEY"]
@@ -16,18 +15,20 @@ ALGORITHM  = "HS256"
 # ── Token expiry by role ──
 EXPIRY = {
     "owner":   timedelta(days=7),
-    "waiter":  timedelta(hours=12),
-    "kitchen": timedelta(hours=12),
-    "counter": timedelta(hours=12),
-    "admin":   timedelta(hours=24),
+    "waiter":  timedelta(hours=24),
+    "kitchen": timedelta(hours=24),
+    "counter": timedelta(hours=24),
+    "admin":   timedelta(days=7),
+    "blogger": timedelta(hours=24),
 }
 
 # ── Role → redirect path ──
 ROLE_REDIRECT = {
-    "owner":   "/{restaurant_id}/staff/owner",
-    "kitchen": "/{restaurant_id}/staff/kitchen",
-    "waiter":  "/{restaurant_id}/staff/waiter",
-    "counter": "/{restaurant_id}/staff/counter",
+    "owner":   "/{client_id}/staff/owner",
+    "kitchen": "/{client_id}/staff/kitchen",
+    "waiter":  "/{client_id}/staff/waiter",
+    "counter": "/{client_id}/staff/counter",
+    "blogger": "/{client_id}/staff/blog",
     "admin":   "/admin",
 }
 
@@ -44,22 +45,41 @@ def decode_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
-def login_staff(restaurant_id: str, username: str, password: str):
+def login_staff(client_id: str, username: str, password: str):
     """
     Staff login — success pe (token, staff_dict) return karo
     Fail pe None return karo
     """
-    staff = verify_staff(restaurant_id, username.lower().strip(), password)
+    staff = verify_staff(client_id, username.lower().strip(), password)
     if not staff:
         return None, None
     token = create_token({
-        "sub":           staff["username"],
-        "restaurant_id": staff["restaurant_id"],
-        "role":          staff["role"],
-        "name":          staff["name"],
-        "staff_id":      staff["id"],
+        "sub":       staff["username"],
+        "client_id": staff["client_id"],
+        "branch_id": staff.get("branch_id", "__default__"),
+        "role":      staff["role"],
+        "name":      staff["name"],
+        "staff_id":  staff["id"],
     }, staff["role"])
     return token, staff
+
+def login_owner(client_id: str, password: str):
+    """
+    Owner login (owners table) — success pe (token, owner_dict) return karo
+    Fail pe None return karo
+    """
+    owner = verify_owner(client_id, password)
+    if not owner:
+        return None, None
+    token = create_token({
+        "sub":       owner["client_id"],
+        "client_id": owner["client_id"],
+        "branch_id": None,
+        "role":      "owner",
+        "name":      owner["name"],
+        "owner_id":  owner["id"],
+    }, "owner")
+    return token, owner
 
 def login_admin(username: str, password: str):
     """
@@ -77,9 +97,9 @@ def login_admin(username: str, password: str):
     }, "admin")
     return token, admin
 
-def get_redirect_url(role: str, restaurant_id: str = None) -> str:
+def get_redirect_url(role: str, client_id: str = None) -> str:
     """Role ke hisaab se redirect URL banao"""
     path = ROLE_REDIRECT.get(role, "/login")
-    if restaurant_id:
-        path = path.replace("{restaurant_id}", restaurant_id)
+    if client_id:
+        path = path.replace("{client_id}", client_id)
     return path

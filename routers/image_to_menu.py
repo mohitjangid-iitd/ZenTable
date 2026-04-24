@@ -292,7 +292,7 @@ async def owner_image_to_menu(
         raise HTTPException(status_code=403, detail="Only restaurant owners can use this endpoint")
 
     # ── 3. Ownership verify — owner sirf apna restaurant access kar sake ──
-    if payload.get("restaurant_id") != client_id:
+    if payload.get("client_id") != client_id:
         raise HTTPException(status_code=403, detail="Aap sirf apne restaurant ka menu scan kar sakte ho")
 
     # ── 4. Extract ──

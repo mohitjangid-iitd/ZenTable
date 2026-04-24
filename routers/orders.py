@@ -66,12 +66,17 @@ class MarkPaidRequest(BaseModel):
 # ── Routes ──
 
 @router.post("/api/order/{client_id}/{table_no}")
-async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest):
+async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest,
+                          branch_id: Optional[str] = "__default__"):
+    """
+    Public endpoint — customer ya waiter order place karta hai.
+    branch_id query param se aata hai (frontend bhejega).
+    """
     data = get_client_data(client_id)
     if not data:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     require_feature(data, "ordering")
-    table = get_table_status(client_id, table_no)
+    table = get_table_status(client_id, table_no, branch_id)
     if not table or table["status"] == "inactive":
         raise HTTPException(status_code=403, detail="Table not active")
     items    = [i.dict() for i in body.items]
@@ -79,6 +84,7 @@ async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest
         client_id, table_no, items, body.total,
         body.source or "customer",
         body.customer_name, body.customer_phone,
+        branch_id,
     )
     return {"order_id": order_id, "message": "Order placed successfully"}
 
@@ -86,20 +92,26 @@ async def api_place_order(client_id: str, table_no: int, body: PlaceOrderRequest
 @router.get("/api/orders/{client_id}")
 async def api_get_orders(client_id: str, status: str = None, table_no: int = None,
                          auth_token: Optional[str] = Cookie(None)):
-    require_auth(auth_token, ["kitchen", "waiter", "counter", "owner", "admin"], client_id)
-    return get_orders(client_id, status=status, table_no=table_no)
+    user = require_auth(auth_token, ["kitchen", "waiter", "counter", "owner", "admin"], client_id)
+    branch_id = user["branch_id"]  # None = owner (all branches), "__default__" = single outlet
+    return get_orders(client_id, status=status, table_no=table_no, branch_id=branch_id)
 
 
 @router.get("/api/orders/{client_id}/filter")
 async def api_filter_orders(client_id: str, status: str = None,
                              table_no: int = None, source: str = None,
-                             from_date: str = None):
+                             from_date: str = None,
+                             branch_id: str = None,                        # ← line 1: query param add karo
+                             auth_token: Optional[str] = Cookie(None)):
+    user = require_auth(auth_token, ["kitchen", "waiter", "counter", "owner", "admin"], client_id)
+    # branch_id: frontend se aaya? use karo. Nahi aaya? owner = all branches (None), staff = apni branch
+    if not branch_id:
+        branch_id = None if user.get('role') in ('owner', 'admin') else user.get('branch_id')
     if status == "kitchen":
-        p = get_orders(client_id, status="pending",   table_no=table_no, source=source, from_date=from_date)
-        r = get_orders(client_id, status="preparing", table_no=table_no, source=source, from_date=from_date)
+        p = get_orders(client_id, status="pending",   table_no=table_no, source=source, from_date=from_date, branch_id=branch_id)
+        r = get_orders(client_id, status="preparing", table_no=table_no, source=source, from_date=from_date, branch_id=branch_id)
         return sorted(p + r, key=lambda x: x["created_at"], reverse=True)
-    return get_orders(client_id, status=status, table_no=table_no, source=source, from_date=from_date)
-
+    return get_orders(client_id, status=status, table_no=table_no, source=source, from_date=from_date, branch_id=branch_id)
 
 @router.patch("/api/order/{order_id}/status")
 async def api_update_order_status(order_id: int, body: UpdateStatusRequest,
@@ -187,11 +199,15 @@ async def api_mark_paid(bill_id: int, body: MarkPaidRequest):
 
 
 @router.post("/api/bill/{client_id}/{table_no}")
-async def api_generate_bill(client_id: str, table_no: int, body: BillRequest):
+async def api_generate_bill(client_id: str, table_no: int, body: BillRequest,
+                             auth_token: Optional[str] = Cookie(None)):
+    user = require_auth(auth_token, ["waiter", "counter", "owner", "admin"], client_id)
+    branch_id = user["branch_id"] or "__default__"
     bill = generate_bill(
         client_id, table_no,
         body.customer_name, body.customer_phone,
         body.tax_percent, body.discount, body.payment_mode,
+        branch_id,
     )
     if not bill:
         raise HTTPException(

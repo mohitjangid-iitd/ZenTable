@@ -11,6 +11,11 @@ Chart.defaults.color = '#999';
 const charts = {};
 let analyticsData = null;
 
+// ── BRANCHES STATE ──
+let allBranches = [];         // [{id, name}] — loaded on init
+let isMultiBranch = false;    // true if >1 branch exists
+let staffCache = [];          // full staff list for client-side filtering
+
 // Date label
 const now = new Date();
 document.getElementById('today-label').textContent =
@@ -38,7 +43,9 @@ async function loadAll() {
         return;
     }
     try {
-        const res = await fetch(`/api/admin/analytics/${clientId}`);
+        const branch = getTabBranch('analytics');
+        const bParam = branch ? `?branch_id=${branch}` : '';
+        const res = await fetch(`/api/admin/analytics/${clientId}${bParam}`);
         if (!res.ok) throw new Error();
         analyticsData = await res.json();
         renderOverviewTab();
@@ -197,7 +204,10 @@ async function loadOrders() {
     const source  = (document.getElementById('f-source')  || {value:''}).value;
     const time    = (document.getElementById('f-time')    || {value:''}).value;
 
-    let url = `/api/orders/${clientId}/filter?`;
+    const selectedBranch = getTabBranch('orders');
+    let url = selectedBranch
+        ? `/api/orders/${clientId}/filter?branch_id=${selectedBranch}&`
+        : `/api/orders/${clientId}/filter?`;
 
     // "kitchen" = pending + preparing — dono fetch karke merge
     if (status === 'kitchen') {
@@ -234,8 +244,9 @@ async function loadOrders() {
         if (fromDate) url += `from_date=${fromDate}&`;
     }
 
+    const summaryBranch = selectedBranch || branchId;
     let [ordersRes, summaryRes] = await Promise.all([
-        fetch(url), fetch(`/api/tables/${clientId}/summary`)
+        fetch(url), fetch(`/api/tables/${clientId}/summary?branch_id=${summaryBranch}`)
     ]);
     let orders = await ordersRes.json();
     // Staff filter — merge 'waiter' + 'Staff' source orders
@@ -262,12 +273,16 @@ async function loadOrders() {
             ? `<span class="badge pay-paid">PAID</span>`
             : tInfo.payment_status === 'unpaid'
             ? `<span class="badge pay-billed">BILLED</span>` : '';
+        const branchBadge = (isMultiBranch && !selectedBranch && o.branch_id)
+            ? `<span class="badge" style="background:#f0f4ff;color:#3b5bdb;font-size:0.6rem;">${branchLabel(o.branch_id)}</span>`
+            : '';
         return `<div class="order-card ${o.status}">
             <div class="order-top">
                 <div class="badges">
                     <span class="badge status-${o.status}">${o.status}</span>
                     <span class="badge src-${o.source}">${o.source}</span>
                     ${payBadge}
+                    ${branchBadge}
                 </div>
                 <div class="order-meta">T${o.table_no} · #${o.id}<br>${(o.created_at||'').substring(0,16)}</div>
             </div>
@@ -279,15 +294,27 @@ async function loadOrders() {
 
 // ── TABLES ──
 async function loadTables() {
-    const res = await fetch(`/api/tables/${clientId}/summary`);
+    // Tables mein always ek specific branch — "All" nahi hota
+    const selectedBranch = getTabBranch('tables')
+        || (allBranches[0] && (allBranches[0].branch_id || allBranches[0].id))
+        || branchId;
+    const res = await fetch(`/api/tables/${clientId}/summary?branch_id=${selectedBranch}`);
     const tables = await res.json();
     const map = {};
     tables.forEach(t => map[t.table_no] = t);
 
-    // f-table removed
+    // Selected branch ka num_tables — BRANCHES config se nikalo
+    const branchObj = allBranches.find(b => (b.branch_id || b.id) === selectedBranch);
+    const branchCfg = branchObj ? getBranchConfig(branchObj) : null;
+    const configCount = branchCfg?.restaurant?.num_tables || branchCfg?.num_tables;
+    // Fallback: API ne kitni tables return ki unka max table_no
+    const apiMaxTable = tables.length ? Math.max(...tables.map(t => t.table_no)) : 0;
+    const count = configCount || apiMaxTable || parseInt(document.getElementById('oi-num-tables')?.value) || numTables;
 
-    const maxTable = tables.length ? Math.max(...tables.map(t => t.table_no)) : 0;
-    const count = parseInt(document.getElementById('oi-num-tables')?.value) || numTables;
+    // oi-num-tables input bhi update karo — branch change reflect ho
+    const numInput = document.getElementById('oi-num-tables');
+    if (numInput) numInput.value = count;
+
     const labels = { inactive:'Inactive', active:'Active', occupied:'Occupied',
                      ready:'Ready', done:'Done', billed:'Billed', paid:'Paid' };
 
@@ -316,14 +343,20 @@ function downloadTableQR(tableNo) {
 
 // ── Activate / Close All ──
 async function activateAll() {
-    const res = await fetch(`/api/table/${clientId}/activate-all`, { method: 'POST' });
+    const effectiveBranch = getTabBranch('tables')
+        || (allBranches[0] && (allBranches[0].branch_id || allBranches[0].id))
+        || branchId;
+    const res = await fetch(`/api/table/${clientId}/activate-all?branch_id=${effectiveBranch}`, { method: 'POST' });
     if (res.ok) { toast('✅ Saari tables activate ho gayi!'); loadTables(); }
     else toast('❌ Failed');
 }
 
 async function closeAll() {
     if (!confirm('Saari tables close karna chahte ho?')) return;
-    const res = await fetch(`/api/table/${clientId}/close-all`, { method: 'POST' });
+    const effectiveBranch = getTabBranch('tables')
+        || (allBranches[0] && (allBranches[0].branch_id || allBranches[0].id))
+        || branchId;
+    const res = await fetch(`/api/table/${clientId}/close-all?branch_id=${effectiveBranch}`, { method: 'POST' });
     if (res.ok) { toast('✅ Saari tables band ho gayi'); loadTables(); }
     else toast('❌ Failed');
 }
@@ -438,10 +471,98 @@ function toast(msg) {
     setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ════════════════════════════════
+// BRANCH MANAGEMENT (multi-branch)
+// ════════════════════════════════
+
+function loadBranchesInit() {
+    allBranches = (typeof BRANCHES !== 'undefined') ? BRANCHES : [];
+    isMultiBranch = allBranches.length > 1;
+    if (isMultiBranch) {
+        populateAllBranchDropdowns();
+        showBranchUI();
+    }
+}
+// config already parsed object hai ya string — dono handle karo
+function getBranchConfig(b) {
+    if (!b.config) return {};
+    if (typeof b.config === 'object') return b.config;
+    try { return JSON.parse(b.config); } catch(e) { return {}; }
+}
+
+function getBranchName(b) {
+    const bid = b.branch_id || b.id || '';
+    if (bid === '__default__') return 'Main';
+    const cfg = getBranchConfig(b);
+    return cfg?.restaurant?.name || bid.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function populateAllBranchDropdowns() {
+    // Tables + Manage — NO "All Branches", first branch auto-selected
+    // FIX: getElementById sirf 1 arg leta hai — dono ko alag handle karo
+    ['f-tables-branch', 'f-manage-branch'].forEach(selId => {
+        const sel = document.getElementById(selId);
+        if (!sel) return;
+        sel.innerHTML = '';
+        allBranches.forEach((b, i) => {
+            const opt = document.createElement('option');
+            opt.value = b.branch_id || b.id || '';
+            opt.textContent = getBranchName(b);
+            if (i === 0) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    });
+
+    // Baaki — "All Branches" option ke saath
+    const otherIds = ['f-analytics-branch','f-orders-branch','f-staff-branch','sm-branch'];
+    otherIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const firstOpt = el.options[0];
+        el.innerHTML = '';
+        el.appendChild(firstOpt);
+        allBranches.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.branch_id || b.id || '';
+            opt.textContent = getBranchName(b);
+            el.appendChild(opt);
+        });
+    });
+}
+
+function showBranchUI() {
+    ['analytics-branch-bar','tables-branch-bar','manage-branch-bar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+    const fOB = document.getElementById('f-orders-branch');
+    if (fOB) fOB.style.display = '';
+    const fSB = document.getElementById('f-staff-branch');
+    if (fSB) fSB.style.display = '';
+    const smBG = document.getElementById('sm-branch-group');
+    if (smBG) smBG.style.display = '';
+}
+
+// Active branch per tab (helper)
+function getTabBranch(tabName) {
+    const el = document.getElementById(`f-${tabName}-branch`);
+    return (el && el.value) ? el.value : null;
+}
+
 // Init
+loadBranchesInit();
 loadAll();
 setInterval(loadAll, 60000);
 
+
+// ── BRANCH LABEL HELPER ──
+function branchLabel(bid) {
+    if (!bid || bid === '__default__') return 'Main';
+    const b = allBranches.find(x => (x.branch_id || x.id) === bid);
+    if (!b) return bid.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+    const cfg = getBranchConfig(b);
+    return cfg?.restaurant?.name || bid.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
 // ════════════════════════════════
 // STAFF MANAGEMENT
@@ -451,26 +572,35 @@ let changingPasswordId = null;
 
 async function loadStaff() {
     const res = await fetch(`/api/staff/${clientId}`);
-    const staff = await res.json();
+    staffCache = await res.json();
+    renderStaffFiltered();
+}
+
+function renderStaffFiltered() {
+    const branchFilter = (document.getElementById('f-staff-branch') || {value:''}).value;
+    const roleFilter   = (document.getElementById('f-staff-role')   || {value:''}).value;
     const el = document.getElementById('staff-list');
 
-    if (!staff.length) {
-        el.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>Koi staff nahi — Add karo!</p></div>';
-        return;
-    }
+    let filtered = staffCache.filter(s => s.id !== currentStaffId);
+    if (branchFilter) filtered = filtered.filter(s => s.branch_id === branchFilter);
+    if (roleFilter)   filtered = filtered.filter(s => s.role === roleFilter);
 
-    const filtered = staff.filter(s => s.id !== currentStaffId);
     if (!filtered.length) {
         el.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>Koi staff nahi — Add karo!</p></div>';
         return;
     }
-    el.innerHTML = filtered.map(s => `
+    el.innerHTML = filtered.map(s => {
+        const branchBadge = isMultiBranch
+            ? `<span class="staff-role-badge" style="background:#f0f4ff;color:#3b5bdb;font-size:0.6rem;margin-left:5px;">${branchLabel(s.branch_id)}</span>`
+            : '';
+        return `
         <div class="staff-card ${s.is_active ? '' : 'staff-inactive'}">
             <div class="staff-card-top">
                 <div>
                     <div class="staff-name">
                         <span class="active-dot ${s.is_active ? 'dot-active' : 'dot-inactive'}"></span>
                         ${s.name}
+                        ${branchBadge}
                     </div>
                     <div class="staff-username">@${s.username}</div>
                 </div>
@@ -478,14 +608,14 @@ async function loadStaff() {
             </div>
             <div class="staff-actions">
                 <button class="staff-btn staff-btn-pass" onclick="openChangePassword(${s.id})">🔑 Password</button>
-                <button class="staff-btn ${s.is_active ? 'staff-btn-toggle-on' : 'staff-btn-toggle-off'}" 
+                <button class="staff-btn ${s.is_active ? 'staff-btn-toggle-on' : 'staff-btn-toggle-off'}"
                         onclick="toggleStaff(${s.id}, ${s.is_active})">
                     ${s.is_active ? '🔴 Deactivate' : '🟢 Activate'}
                 </button>
                 <button class="staff-btn staff-btn-delete" onclick="deleteStaff(${s.id}, '${s.name}')">🗑 Delete</button>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 function openAddStaff() {
@@ -498,6 +628,12 @@ function openAddStaff() {
     document.getElementById('sm-role').value = 'waiter';
     document.getElementById('sm-username').disabled = false;
     document.getElementById('sm-password-group').style.display = 'block';
+    // Pre-select current branch filter if any
+    const smBranch = document.getElementById('sm-branch');
+    if (smBranch) {
+        const curFilter = (document.getElementById('f-staff-branch') || {value:''}).value;
+        smBranch.value = curFilter || '__default__';
+    }
     document.getElementById('staff-modal').style.display = 'flex';
 }
 
@@ -510,13 +646,15 @@ async function saveStaff() {
     const username = document.getElementById('sm-username').value.trim().toLowerCase();
     const password = document.getElementById('sm-password').value;
     const role     = document.getElementById('sm-role').value;
+    const smBranch = document.getElementById('sm-branch');
+    const branch_id = (isMultiBranch && smBranch) ? (smBranch.value || '__default__') : (branchId || '__default__');
 
     if (!name || !username || !password) { toast('❌ Sab fields required hain'); return; }
 
     const res = await fetch(`/api/staff/${clientId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, password, role })
+        body: JSON.stringify({ name, username, password, role, branch_id })
     });
     const d = await res.json();
     if (res.ok) {
@@ -596,6 +734,13 @@ function switchManageSub(sub, btn) {
     btn.classList.add('active');
 }
 
+// ── Manage branch change ──
+function onManageBranchChange() {
+    ownerRestData = null;
+    manageInitDone = false;
+    initManageTab();
+}
+
 async function initManageTab() {
     if (!ownerRestData) await loadOwnerRestData();
     renderOwnerDishes();
@@ -603,7 +748,18 @@ async function initManageTab() {
 
 async function loadOwnerRestData() {
     try {
-        const res = await fetch(`/api/owner/${clientId}/json`);
+        const selectedBranch = getTabBranch('manage') || branchId;
+        // BRANCHES already available hai page load se — extra API call nahi
+        const branchObj = allBranches.find(b => (b.branch_id || b.id) === selectedBranch)
+                       || allBranches[0];
+        if (branchObj) {
+            ownerRestData = getBranchConfig(branchObj);
+            populateInfoFields();
+            populateTableCount();
+            return;
+        }
+        // Fallback — API call
+        const res = await fetch(`/api/owner/${clientId}/json?branch_id=${selectedBranch}`);
         if (!res.ok) throw new Error();
         ownerRestData = await res.json();
         populateInfoFields();
@@ -879,17 +1035,45 @@ function populateTableCount() {
 async function saveTableCount() {
     const val = parseInt(document.getElementById('oi-num-tables').value);
     if (!val || val < 1 || val > 500) { toast('❌ 1–500 ke beech hona chahiye'); return; }
-    if (!ownerRestData) await loadOwnerRestData();
-    if (!ownerRestData?.restaurant) { toast('❌ Data load nahi hua, dobara try karo'); return; }
-    ownerRestData.restaurant.num_tables = val;
-    const ok = await pushOwnerRestData();
-    if (ok) { toast('✅ Table count saved!'); loadTables(); }
+    // Tables tab ki selected branch use karo — manage tab ki nahi
+    const tablesBranch = getTabBranch('tables')
+        || (allBranches[0] && (allBranches[0].branch_id || allBranches[0].id))
+        || branchId;
+    // Us branch ka fresh data API se fetch karo — ownerRestData overwrite nahi karna
+    let branchData = null;
+    try {
+        const r = await fetch(`/api/owner/${clientId}/json?branch_id=${tablesBranch}`);
+        if (r.ok) branchData = await r.json();
+    } catch(e) {}
+    if (!branchData) { toast('❌ Data load nahi hua, dobara try karo'); return; }
+    if (!branchData.restaurant) branchData.restaurant = {};
+    branchData.restaurant.num_tables = val;
+    try {
+        const res = await fetch(`/api/owner/${clientId}/json?branch_id=${tablesBranch}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: branchData }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || 'Error');
+        toast('✅ Table count saved!');
+        // allBranches cache bhi update karo — warna loadTables stale count dikhayega
+        const updatedBranch = allBranches.find(b => (b.branch_id || b.id) === tablesBranch);
+        if (updatedBranch) {
+            const cfg = getBranchConfig(updatedBranch);
+            if (cfg.restaurant) cfg.restaurant.num_tables = val;
+            updatedBranch.config = cfg;
+        }
+        loadTables();
+    } catch(e) {
+        toast('❌ Save failed: ' + e.message);
+    }
 }
 
 // ── Push data to server ──
-async function pushOwnerRestData() {
+async function pushOwnerRestData(branchOverride) {
     try {
-        const res = await fetch(`/api/owner/${clientId}/json`, {
+        const selectedBranch = branchOverride || getTabBranch('manage') || branchId;
+        const res = await fetch(`/api/owner/${clientId}/json?branch_id=${selectedBranch}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: ownerRestData }),

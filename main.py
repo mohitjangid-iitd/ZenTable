@@ -20,6 +20,8 @@ from routers.owner import router as owner_router
 from routers.chatbot import router as chatbot_router
 from routers.help_chat import router as help_chat_router
 from routers.image_to_menu import router as image_to_menu_router
+from routers.blog import router as blog_router
+from blog_db import init_blog_tables, get_published_posts as get_blog_posts
 from templates_env import templates
 
 # ════════════════════════════════
@@ -29,11 +31,19 @@ from templates_env import templates
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    init_blog_tables()
     purge_expired_trash()
     for r in get_all_restaurants_info():
         rdata = get_client_data(r["client_id"])
         if rdata and "num_tables" in rdata.get("restaurant", {}):
-            seed_tables(r["client_id"], rdata["restaurant"]["num_tables"])
+            # Saari branches ke liye seed karo
+            from database import get_restaurant_branches
+            branches = get_restaurant_branches(r["client_id"])
+            for branch in branches:
+                branch_config = branch["config"] if isinstance(branch["config"], dict) else {}
+                num = branch_config.get("restaurant", {}).get("num_tables") \
+                      or rdata["restaurant"]["num_tables"]
+                seed_tables(r["client_id"], num, branch["branch_id"])
     templates.env.globals["static_v"] = lambda path: \
         int(os.path.getmtime(f"static/{path}")) if os.path.exists(f"static/{path}") else 0
     templates.env.globals["site"] = SITE_CONFIG
@@ -101,6 +111,8 @@ async def sitemap(request: Request):
             urls.append(f"{base_url}/{cid}/menu")
             if "ar_menu" in rdata.get("subscription", {}).get("features", []):
                 urls.append(f"{base_url}/{cid}/ar-menu")
+        for post in get_blog_posts(limit=200):
+            urls.append(f"{base_url}/blog/{post['slug']}")
     except Exception as e:
         print(f"Sitemap error: {e}")
     xml  = '<?xml version="1.0" encoding="UTF-8"?>'
@@ -141,6 +153,7 @@ app.include_router(owner_router)
 app.include_router(chatbot_router)
 app.include_router(help_chat_router)
 app.include_router(image_to_menu_router)
+app.include_router(blog_router)
 app.include_router(pages_router)
 
 if __name__ == "__main__":

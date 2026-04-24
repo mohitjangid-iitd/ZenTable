@@ -46,6 +46,7 @@
         .staff-role-waiter  { background:#e3f2fd;color:#1565c0; }
         .staff-role-counter { background:#e8f5e9;color:#2e7d32; }
         .staff-role-owner   { background:#f3e5f5;color:#6a1b9a; }
+        .staff-role-blogger { background:#ede7f6;color:#4527a0; }
         .staff-inactive { opacity:0.55; }
         .staff-actions { display:flex;gap:8px;margin-top:10px;flex-wrap:wrap; }
         .staff-btn { padding:6px 14px;border-radius:8px;border:none;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:var(--font-secondary); }
@@ -98,6 +99,46 @@
         .owner-dish-edit { background:#e3f2fd; color:#1565c0; }
         .owner-dish-delete { background:#fce4ec; color:#c62828; }
         .owner-dish-veg { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+        /* Dish modal selects (odm-veg, odm-featured) */
+        .owner-form-group-sel {
+            width: 100%;
+            border: 1.5px solid #eee;
+            outline: none;
+            font-family: var(--font-secondary);
+            background: white;
+            display: block;
+        }
+        .owner-form-group-sel:focus { border-color: var(--primary); }
+
+        /* ── Responsive Dropdowns Fix ──
+           Saare select/dropdown elements screen size ke saath scale honge.
+           clamp(min, preferred-vw, max) use kiya hai — 
+           chhoti screen pe chhota, badi screen pe bada. */
+        select,
+        .filter-sel,
+        .form-group-owner select,
+        .owner-form-group select {
+            font-size: clamp(0.7rem, 2.4vw, 0.88rem) !important;
+            padding-top:    clamp(6px,  1.6vw, 10px) !important;
+            padding-bottom: clamp(6px,  1.6vw, 10px) !important;
+            padding-left:   clamp(8px,  2.2vw, 12px) !important;
+            padding-right:  clamp(8px,  2.2vw, 12px) !important;
+            min-height: clamp(30px, 6vw, 42px);
+            box-sizing: border-box;
+            border-radius: clamp(6px, 1.5vw, 10px) !important;
+        }
+
+        /* Filter bar selects — Orders/Staff tab ke upar wale */
+        .filter-sel {
+            font-size: clamp(0.68rem, 2.2vw, 0.82rem) !important;
+        }
+
+        /* Manage sub-nav buttons bhi responsive */
+        .manage-sub-btn {
+            font-size: clamp(0.7rem, 2vw, 0.8rem);
+            padding: clamp(6px, 1.4vw, 8px) clamp(10px, 2.8vw, 16px);
+        }
     </style>
 
     <!-- Static CSS -->
@@ -136,6 +177,12 @@
         <div class="date-row">
             <span class="date-label" id="today-label"></span>
             <button class="refresh-btn" onclick="loadAll()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+        <!-- Branch filter — only shown in multi-branch mode -->
+        <div id="analytics-branch-bar" style="display:none;margin-bottom:14px;">
+            <select class="filter-sel" id="f-analytics-branch" onchange="loadAll()" style="width:100%;max-width:220px;">
+                <option value="">🏪 All Branches</option>
+            </select>
         </div>
 
         <div class="group-label">Today</div>
@@ -228,7 +275,10 @@
     <!-- ORDERS -->
     <div id="tab-orders" style="display:none">
         <div class="filter-bar">
-            <select class="filter-sel" id="f-status" onchange="loadOrders()">
+            <select class="filter-sel" id="f-orders-branch" onchange="loadOrders()" style="display:none;width:140px;flex-shrink:0;">
+                <option value="">🏪 All Branches</option>
+            </select>
+            <select class="filter-sel" id="f-status" onchange="loadOrders()" style="width:120px;flex-shrink:0;">
                 <option value="">All Status</option>
                 <option value="kitchen">In Kitchen</option>
                 <option value="ready">Ready</option>
@@ -236,19 +286,19 @@
                 <option value="paid">Paid</option>
                 <option value="cancelled">Cancelled</option>
             </select>
-            <select class="filter-sel" id="f-source" onchange="loadOrders()">
+            <select class="filter-sel" id="f-source" onchange="loadOrders()" style="width:120px;flex-shrink:0;">
                 <option value="">All Sources</option>
                 <option value="customer">Customer</option>
                 <option value="waiter">Staff</option>
             </select>
-            <select class="filter-sel" id="f-time" onchange="loadOrders()">
+            <select class="filter-sel" id="f-time" onchange="loadOrders()" style="width:120px;flex-shrink:0;">
                 <option value="">All Time</option>
                 <option value="today">Today</option>
                 <option value="week">This Week</option>
                 <option value="month">This Month</option>
                 <option value="year">This Year</option>
             </select>
-            <button class="refresh-btn" onclick="loadOrders()"><i class="fas fa-rotate"></i></button>
+            <button class="refresh-btn" onclick="loadOrders()" style="flex-shrink:0;"><i class="fas fa-rotate"></i></button>
         </div>
         <div id="orders-list">
             <div class="empty-state"><i class="fas fa-receipt"></i>Loading...</div>
@@ -269,6 +319,12 @@
         </div>
         <div style="font-size:0.7rem;color:#bbb;margin-bottom:12px;margin-top:2px;">⚠️ Naye tables ke QR mein 3D tracking issue aa sakta hai — ZenTable ko inform karein.</div>
 
+        <!-- Branch filter for tables — multi-branch only -->
+        <div id="tables-branch-bar" style="display:none;margin-bottom:12px;">
+            <select class="filter-sel" id="f-tables-branch" onchange="loadTables()" style="min-width:160px;">
+            </select>
+        </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
             <button onclick="activateAll()" style="padding:6px 14px;height:32px;border-radius:8px;border:1.5px solid #81c784;background:white;color:#388e3c;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--font-secondary);display:flex;align-items:center;gap:5px;"><i class="fas fa-play-circle"></i> Activate All</button>
             <button onclick="closeAll()" style="padding:6px 14px;height:32px;border-radius:8px;border:1.5px solid #ef9a9a;background:white;color:#c62828;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--font-secondary);display:flex;align-items:center;gap:5px;"><i class="fas fa-stop-circle"></i> Close All</button>
@@ -287,6 +343,16 @@
         <div class="manage-subnav">
             <button class="manage-sub-btn active" onclick="switchManageSub('dishes',this)">🍽️ Dishes</button>
             <button class="manage-sub-btn" onclick="switchManageSub('info',this)">🏪 Info</button>
+            <div style="flex:1;"></div>
+            {% if site_settings.get('blog_owner_enabled', true) %}
+                <button class="manage-sub-btn" onclick="window.open('/{{ client_id }}/staff/blog', '_self')" style="color: #222;">✍️ Blog </button>
+            {% endif %}
+        </div>
+
+        <!-- Branch filter for manage — multi-branch only -->
+        <div id="manage-branch-bar" style="display:none;margin-bottom:12px;">
+            <select class="filter-sel" id="f-manage-branch" onchange="onManageBranchChange()" style="min-width:160px;">
+            </select>
         </div>
 
         <!-- ── DISHES ── -->
@@ -403,8 +469,22 @@
             <span class="date-label">Staff Management</span>
             <button class="refresh-btn" onclick="loadStaff()"><i class="fas fa-rotate"></i> Refresh</button>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-            <button class="refresh-btn" style="background:var(--primary);color:white;border:none;padding:9px 18px;border-radius:10px;font-weight:600;cursor:pointer;" onclick="openAddStaff()">+ Add Staff</button>
+        <!-- Filters row -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+            <select class="filter-sel" id="f-staff-branch" onchange="renderStaffFiltered()" style="display:none;width:140px;flex-shrink:0;">
+                <option value="">🏪 All Branches</option>
+            </select>
+            <select class="filter-sel" id="f-staff-role" onchange="renderStaffFiltered()" style="width:130px;flex-shrink:0;">
+                <option value="">All Roles</option>
+                <option value="kitchen">Kitchen</option>
+                <option value="waiter">Waiter</option>
+                <option value="counter">Counter</option>
+                {% if site_settings.get('blog_owner_enabled', true) %}
+                <option value="blogger">Blogger</option>
+                {% endif %}
+            </select>
+            <div style="flex:1;"></div>
+            <button class="refresh-btn" style="background:var(--primary);color:white;border:none;padding:9px 18px;border-radius:10px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;" onclick="openAddStaff()">+ Add Staff</button>
         </div>
         <div id="staff-list">
             <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
@@ -443,6 +523,16 @@
                     <option value="kitchen">Kitchen</option>
                     <option value="waiter">Waiter</option>
                     <option value="counter">Counter</option>
+                    {% if site_settings.get('blog_owner_enabled', true) %}
+                    <option value="blogger">Blogger</option>
+                    {% endif %}
+                </select>
+            </div>
+            <!-- Branch — only visible in multi-branch -->
+            <div class="form-group-owner" id="sm-branch-group" style="display:none;">
+                <label>Branch</label>
+                <select id="sm-branch">
+                    <option value="__default__">Main Branch</option>
                 </select>
             </div>
         </div>
@@ -513,7 +603,7 @@
 
             <div class="owner-form-group">
                 <label>Veg / Non-Veg</label>
-                <select id="odm-veg" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none;font-family:var(--font-secondary);">
+                <select id="odm-veg" class="owner-form-group-sel">
                     <option value="true">Veg ✅</option>
                     <option value="false">Non-Veg 🍗</option>
                 </select>
@@ -555,7 +645,7 @@
 
             <div class="owner-form-group">
                 <label>Featured</label>
-                <select id="odm-featured" style="width:100%;padding:10px 12px;border:1.5px solid #eee;border-radius:10px;font-size:0.88rem;outline:none;font-family:var(--font-secondary);">
+                <select id="odm-featured" class="owner-form-group-sel">
                     <option value="true">Yes ⭐</option>
                     <option value="false">No</option>
                 </select>
@@ -582,8 +672,10 @@
 <script>
     const clientId = "{{ client_id }}";
     const numTables = {{ data.restaurant.num_tables | default(6) }};
-    const currentStaffId = {{ user.staff_id }};
+    const currentStaffId = {{ user.staff_id or user.owner_id or 0 }};
+    const branchId = "{{ branch_id }}";
     const HAS_ANALYTICS = {{ 'true' if 'analytics' in features else 'false' }};
+    const BRANCHES = {{ branches | tojson }};
 </script>
 
 <!-- Static JS -->
@@ -592,6 +684,147 @@
 {% if site_settings.get('chatbot_enabled', true) %}
 <script src="/static/js/chatbot.js?v={{ static_v('js/chatbot.js') }}"></script>
 {% endif %}
+
+<!-- ══ Custom Dropdown — native select replace ══
+     Native browser dropdown hamesha OS font size use karta hai.
+     Yeh custom dropdown poori tarah CSS se control hota hai. -->
+<script>
+(function () {
+    'use strict';
+    var _map = new Map(); // native select -> csel state
+
+    function build(sel) {
+        if (_map.has(sel)) return;
+
+        var origDisplay = sel.style.display; // 'none' ya ''
+
+        // Wrapper
+        var wrap = document.createElement('div');
+        wrap.className = 'csel';
+        // Preserve layout styles from original select
+        if (sel.style.flex)     wrap.style.flex = sel.style.flex;
+        if (sel.style.minWidth) wrap.style.minWidth = sel.style.minWidth;
+        if (sel.style.width)    wrap.style.width = sel.style.width;
+        if (sel.style.maxWidth) wrap.style.maxWidth = sel.style.maxWidth;
+        // Start hidden if native select was hidden
+        if (origDisplay === 'none') wrap.style.display = 'none';
+
+        // Button (visible part)
+        var btn = document.createElement('div');
+        btn.className = 'csel-btn';
+        btn.tabIndex = 0;
+        btn.setAttribute('role', 'button');
+        btn.innerHTML = '<span class="csel-lbl"></span><span class="csel-arr">&#9660;</span>';
+
+        // Dropdown panel
+        var panel = document.createElement('div');
+        panel.className = 'csel-panel';
+
+        wrap.appendChild(btn);
+        wrap.appendChild(panel);
+
+        // Insert wrap before native select, move native select inside wrap (hidden)
+        sel.parentNode.insertBefore(wrap, sel);
+        wrap.appendChild(sel);
+        sel.style.position   = 'absolute';
+        sel.style.opacity    = '0';
+        sel.style.width      = '0';
+        sel.style.height     = '0';
+        sel.style.padding    = '0';
+        sel.style.border     = '0';
+        sel.style.margin     = '0';
+        sel.style.pointerEvents = 'none';
+        sel.style.display    = 'block'; // always block so JS can find it
+
+        var state = { wrap: wrap, btn: btn, panel: panel, lbl: btn.querySelector('.csel-lbl') };
+        _map.set(sel, state);
+
+        rebuildPanel(sel);
+        
+        // Open/close on button click
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var isOpen = wrap.classList.contains('open');
+            closeAll();
+            if (!isOpen) {
+                rebuildPanel(sel); // refresh (dynamic options ke liye)
+                // Flip up agar neeche jagah nahi hai
+                var rect = wrap.getBoundingClientRect();
+                var spaceBelow = window.innerHeight - rect.bottom;
+                wrap.classList.toggle('flip-up', spaceBelow < 200);
+                wrap.classList.add('open');
+            }
+        });
+
+        // Keyboard support
+        btn.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+            if (e.key === 'Escape') closeAll();
+        });
+
+        // Watch for dynamic option changes (branch selects)
+        new MutationObserver(function () {
+            rebuildPanel(sel);
+        }).observe(sel, { childList: true });
+    }
+
+    function rebuildPanel(sel) {
+        var c = _map.get(sel);
+        if (!c) return;
+        var panel = c.panel, lbl = c.lbl;
+
+        panel.innerHTML = '';
+        Array.from(sel.options).forEach(function (opt) {
+            var item = document.createElement('div');
+            item.className = 'csel-item' + (opt.selected ? ' csel-sel' : '');
+            item.textContent = opt.text;
+            item.addEventListener('click', function (e) {
+                e.stopPropagation();
+                sel.value = opt.value;
+                lbl.textContent = opt.text;
+                panel.querySelectorAll('.csel-item').forEach(function (i) {
+                    i.classList.remove('csel-sel');
+                });
+                item.classList.add('csel-sel');
+                c.wrap.classList.remove('open');
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            panel.appendChild(item);
+        });
+
+        var cur = sel.options[sel.selectedIndex];
+        lbl.textContent = cur ? cur.text : '';
+    }
+
+    function closeAll() {
+        document.querySelectorAll('.csel.open').forEach(function (el) {
+            el.classList.remove('open');
+        });
+    }
+
+    document.addEventListener('click', closeAll);
+
+    // Patch showBranchUI — multi-branch mode mein branch selects dikhane ke liye
+    function patchShowBranchUI() {
+        var orig = window.showBranchUI;
+        if (!orig) return;
+        window.showBranchUI = function () {
+            orig.call(this);
+            ['f-orders-branch', 'f-staff-branch'].forEach(function (id) {
+                var sel = document.getElementById(id);
+                var c = sel && _map.get(sel);
+                if (c) { c.wrap.style.display = ''; c.wrap.style.width = '140px'; }
+            });
+        };
+    }
+
+    // Init — thodi der baad taaki main JS pehle chal le
+    setTimeout(function () {
+        document.querySelectorAll('.filter-sel').forEach(build);
+        patchShowBranchUI();
+    }, 0);
+})();
+</script>
 
 {% if site_settings.get('image_to_menu_enabled', true) %}
 <script src="/static/js/image_to_menu.js?v={{ static_v('js/image_to_menu.js') }}"></script>

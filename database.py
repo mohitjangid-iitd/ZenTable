@@ -68,22 +68,28 @@ def init_db():
     conn = get_db()
     cur = conn._conn.cursor()
 
+    # ── Tables ──
+    # waiter_called_at column yahan — waiter_calls table alag nahi hai
     cur.execute("""
         CREATE TABLE IF NOT EXISTS tables (
-            id          SERIAL PRIMARY KEY,
-            client_id   TEXT NOT NULL,
-            table_no    INTEGER NOT NULL,
-            status      TEXT DEFAULT 'inactive',
-            opened_at   TEXT,
-            closed_at   TEXT,
-            UNIQUE(client_id, table_no)
+            id                SERIAL PRIMARY KEY,
+            client_id         TEXT NOT NULL,
+            branch_id         TEXT NOT NULL DEFAULT '__default__',
+            table_no          INTEGER NOT NULL,
+            status            TEXT DEFAULT 'inactive',
+            opened_at         TEXT,
+            closed_at         TEXT,
+            waiter_called_at  TEXT,
+            UNIQUE(client_id, branch_id, table_no)
         )
     """)
 
+    # ── Orders ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id             SERIAL PRIMARY KEY,
             client_id      TEXT NOT NULL,
+            branch_id      TEXT NOT NULL DEFAULT '__default__',
             table_no       INTEGER NOT NULL,
             source         TEXT DEFAULT 'customer',
             customer_name  TEXT,
@@ -97,10 +103,12 @@ def init_db():
         )
     """)
 
+    # ── Bills ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS bills (
             id             SERIAL PRIMARY KEY,
             client_id      TEXT NOT NULL,
+            branch_id      TEXT NOT NULL DEFAULT '__default__',
             table_no       INTEGER NOT NULL,
             order_ids      TEXT NOT NULL,
             customer_name  TEXT,
@@ -115,37 +123,25 @@ def init_db():
         )
     """)
 
-    # ── Staff table ──
+    # ── Staff ──
+    # client_id = restaurant/brand id (renamed from restaurant_id)
+    # branch_id = konsi branch pe kaam karta hai (__default__ for single outlet)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS staff (
             id            SERIAL PRIMARY KEY,
-            restaurant_id TEXT NOT NULL,
+            client_id     TEXT NOT NULL,
+            branch_id     TEXT NOT NULL DEFAULT '__default__',
             username      TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             name          TEXT NOT NULL,
             role          TEXT NOT NULL,
             is_active     INTEGER DEFAULT 1,
             created_at    TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
-            UNIQUE(restaurant_id, username)
+            UNIQUE(client_id, username)
         )
     """)
 
-    # ── Branches table (multi-branch support) ──
-    # Single-outlet restaurants ke liye branch_id = NULL rehta hai — koi change nahi
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS branches (
-            id          SERIAL PRIMARY KEY,
-            client_id   TEXT NOT NULL,
-            branch_id   TEXT NOT NULL,
-            name        TEXT NOT NULL,
-            address     TEXT,
-            is_active   INTEGER DEFAULT 1,
-            created_at  TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
-            UNIQUE(client_id, branch_id)
-        )
-    """)
-
-    # ── Admin table (site admins) ──
+    # ── Admins (ZenTable platform admins) ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS admins (
             id            SERIAL PRIMARY KEY,
@@ -157,29 +153,23 @@ def init_db():
         )
     """)
 
-    # ── Restaurants config table ──
-    # JSON files ki jagah — menu, theme, restaurant info sab yahan
+    # ── Restaurants ──
+    # (client_id, branch_id) = composite PK
+    # theme = brand-level shared (sirf ek row pe store hoga, baaki NULL)
+    # config = branch-level — menu, info, tables count
+    # Single outlet ke liye branch_id = '__default__'
     cur.execute("""
         CREATE TABLE IF NOT EXISTS restaurants (
-            client_id   TEXT PRIMARY KEY,
-            config      JSONB NOT NULL,
-            updated_at  TIMESTAMP DEFAULT NOW()
-        )
-    """)
-
-    # ── Waiter calls table ──
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS waiter_calls (
-            id          SERIAL PRIMARY KEY,
             client_id   TEXT NOT NULL,
-            table_no    INTEGER NOT NULL,
-            called_at   TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
-            UNIQUE(client_id, table_no)
+            branch_id   TEXT NOT NULL DEFAULT '__default__',
+            config      JSONB NOT NULL,
+            theme       JSONB,
+            updated_at  TIMESTAMP DEFAULT NOW(),
+            PRIMARY KEY (client_id, branch_id)
         )
     """)
 
-    # ── Trash meta table ──
-    # Local json file ki jagah — Render ephemeral disk pe survive karta hai
+    # ── Trash meta ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS trash_meta (
             id              SERIAL PRIMARY KEY,
@@ -195,39 +185,7 @@ def init_db():
         )
     """)
 
-    # ── Migrations for older DBs ──
-    try:
-        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'customer'")
-    except Exception:
-        conn._conn.rollback()
-    try:
-        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS ready_items TEXT DEFAULT '[]'")
-    except Exception:
-        conn._conn.rollback()
-
-    # ── Multi-branch migrations (safe — NULL default, existing data untouched) ──
-    # branch_id = NULL → single-outlet restaurant (legacy + new single outlets)
-    # branch_id = "branch_1" etc → multi-branch restaurant
-    try:
-        cur.execute("ALTER TABLE tables ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT NULL")
-    except Exception:
-        conn._conn.rollback()
-    try:
-        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT NULL")
-    except Exception:
-        conn._conn.rollback()
-    try:
-        cur.execute("ALTER TABLE bills ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT NULL")
-    except Exception:
-        conn._conn.rollback()
-    # branch_ids = JSON list — ek staff multiple branches pe kaam kar sake
-    # e.g. '["branch_1"]' or '["branch_1","branch_2"]' or '[]' (single-outlet)
-    try:
-        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS branch_ids TEXT DEFAULT '[]'")
-    except Exception:
-        conn._conn.rollback()
-
-    # ── Site settings table (platform-level feature flags) ──
+    # ── Site settings (platform-level feature flags) ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS site_settings (
             key        TEXT PRIMARY KEY,
@@ -236,18 +194,159 @@ def init_db():
         )
     """)
 
-    # ── Default values (insert only if not exists) ──
+    # ── Owner signup requests ──
+    # Admin yahan se approve/reject karta hai
     cur.execute("""
-        INSERT INTO site_settings (key, value)
-        VALUES ('image_to_menu_enabled', 'true')
-        ON CONFLICT (key) DO NOTHING
+        CREATE TABLE IF NOT EXISTS owner_signup_requests (
+            id                SERIAL PRIMARY KEY,
+            name              TEXT NOT NULL,
+            phone             TEXT NOT NULL,
+            email             TEXT NOT NULL,
+            restaurant_name   TEXT NOT NULL,
+            comment           TEXT,
+            status            TEXT DEFAULT 'pending',
+            client_id         TEXT,
+            rejection_reason  TEXT,
+            created_at        TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
+            reviewed_at       TEXT,
+            reviewed_by       TEXT
+        )
     """)
 
-        # ── Default values (insert only if not exists) ──
+    # ── Owners ──
+    # Approved owners — staff table se alag personal identity
+    # username = client_id (login ke liye)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS owners (
+            id            SERIAL PRIMARY KEY,
+            name          TEXT NOT NULL,
+            phone         TEXT NOT NULL,
+            email         TEXT NOT NULL UNIQUE,
+            client_id     TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            is_active     INTEGER DEFAULT 1,
+            request_id    INTEGER REFERENCES owner_signup_requests(id),
+            created_at    TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+        )
+    """)
+
+    # ════════════════════════════════
+    # MIGRATIONS — existing DBs ke liye safe ALTER TABLE
+    # Naye fresh DBs pe ye no-op hain (IF NOT EXISTS)
+    # ════════════════════════════════
+
+    # orders
+    try:
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'customer'")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS ready_items TEXT DEFAULT '[]'")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT '__default__'")
+        cur.execute("UPDATE orders SET branch_id = '__default__' WHERE branch_id IS NULL")
+    except Exception:
+        conn._conn.rollback()
+
+    # bills
+    try:
+        cur.execute("ALTER TABLE bills ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT '__default__'")
+        cur.execute("UPDATE bills SET branch_id = '__default__' WHERE branch_id IS NULL")
+    except Exception:
+        conn._conn.rollback()
+
+    # tables — branch_id + waiter_called_at
+    try:
+        cur.execute("ALTER TABLE tables ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT '__default__'")
+        cur.execute("UPDATE tables SET branch_id = '__default__' WHERE branch_id IS NULL")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("ALTER TABLE tables ADD COLUMN IF NOT EXISTS waiter_called_at TEXT DEFAULT NULL")
+    except Exception:
+        conn._conn.rollback()
+    # Purana UNIQUE(client_id, table_no) → UNIQUE(client_id, branch_id, table_no)
+    # Safe: drop old constraint if exists, add new one
+    try:
+        cur.execute("ALTER TABLE tables DROP CONSTRAINT IF EXISTS tables_client_id_table_no_key")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'tables_client_id_branch_id_table_no_key'
+                ) THEN
+                    ALTER TABLE tables ADD CONSTRAINT tables_client_id_branch_id_table_no_key
+                    UNIQUE (client_id, branch_id, table_no);
+                END IF;
+            END $$;
+        """)
+    except Exception:
+        conn._conn.rollback()
+
+    # staff — restaurant_id → client_id rename, branch_ids → branch_id
+    try:
+        cur.execute("ALTER TABLE staff RENAME COLUMN restaurant_id TO client_id")
+    except Exception:
+        conn._conn.rollback()  # already renamed — ignore
+    try:
+        cur.execute("ALTER TABLE staff DROP COLUMN IF EXISTS branch_ids")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT '__default__'")
+        cur.execute("UPDATE staff SET branch_id = '__default__' WHERE branch_id IS NULL")
+    except Exception:
+        conn._conn.rollback()
+
+    # restaurants — single PK → composite PK migration
+    # Existing rows mein branch_id column add karo
+    try:
+        cur.execute("ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS branch_id TEXT DEFAULT '__default__'")
+        cur.execute("UPDATE restaurants SET branch_id = '__default__' WHERE branch_id IS NULL")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS theme JSONB DEFAULT NULL")
+    except Exception:
+        conn._conn.rollback()
+    # Old single PK drop, new composite PK add
+    try:
+        cur.execute("ALTER TABLE restaurants DROP CONSTRAINT IF EXISTS restaurants_pkey")
+    except Exception:
+        conn._conn.rollback()
+    try:
+        cur.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'restaurants_pkey'
+                ) THEN
+                    ALTER TABLE restaurants ADD PRIMARY KEY (client_id, branch_id);
+                END IF;
+            END $$;
+        """)
+    except Exception:
+        conn._conn.rollback()
+
+    # waiter_calls table — ab zaroorat nahi (tables.waiter_called_at mein merge)
+    # DROP nahi karenge abhi — data loss risk. Sirf ignore karenge.
+    # Jab confirmed ho ki waiter_called_at kaam kar raha hai tab manually drop karna.
+
+    # ── Site settings default values ──
     cur.execute("""
         INSERT INTO site_settings (key, value)
-        VALUES ('image_to_menu_enabled', 'true'),
-               ('chatbot_enabled', 'true')
+        VALUES
+            ('image_to_menu_enabled', 'true'),
+            ('chatbot_enabled',       'true'),
+            ('blog_owner_enabled',    'true'),
+            ('blog_blogger_enabled',  'true')
         ON CONFLICT (key) DO NOTHING
     """)
 
@@ -303,15 +402,15 @@ def get_all_site_settings() -> dict:
 # AUTH — STAFF
 # ════════════════════════════════
 
-def create_staff(restaurant_id: str, username: str, password: str, name: str, role: str):
+def create_staff(client_id: str, username: str, password: str, name: str, role: str, branch_id: str = "__default__"):
     """Naya staff member banao — password hash karke store hoga"""
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
     try:
         conn.execute("""
-            INSERT INTO staff (restaurant_id, username, password_hash, name, role)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (restaurant_id, username, password_hash, name, role))
+            INSERT INTO staff (client_id, branch_id, username, password_hash, name, role)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (client_id, branch_id, username, password_hash, name, role))
         conn.commit()
         return True
     except Exception:
@@ -319,29 +418,38 @@ def create_staff(restaurant_id: str, username: str, password: str, name: str, ro
     finally:
         conn.close()
 
-def verify_staff(restaurant_id: str, username: str, password: str):
+def verify_staff(client_id: str, username: str, password: str):
     """Staff login verify karo — match hone pe staff dict return karo"""
     conn = get_db()
     cur = conn.execute("""
         SELECT * FROM staff
-        WHERE restaurant_id=%s AND LOWER(username)=LOWER(%s) AND is_active=1
-    """, (restaurant_id, username))
+        WHERE client_id=%s AND LOWER(username)=LOWER(%s) AND is_active=1
+    """, (client_id, username))
     row = cur.fetchone()
     conn.close()
     if not row:
         return None
     staff = dict(row)
+    # backward compat — purane rows mein restaurant_id column ho sakta hai
+    if "client_id" not in staff and "restaurant_id" in staff:
+        staff["client_id"] = staff["restaurant_id"]
     if bcrypt.checkpw(password.encode(), staff["password_hash"].encode()):
         return staff
     return None
 
-def get_staff_list(restaurant_id: str):
-    """Ek restaurant ke saare staff members"""
+def get_staff_list(client_id: str, branch_id: str = None):
+    """Ek restaurant ke saare staff members — branch filter optional"""
     conn = get_db()
-    cur = conn.execute("""
-        SELECT id, restaurant_id, username, name, role, is_active, created_at
-        FROM staff WHERE restaurant_id=%s ORDER BY role, name
-    """, (restaurant_id,))
+    if branch_id:
+        cur = conn.execute("""
+            SELECT id, client_id, branch_id, username, name, role, is_active, created_at
+            FROM staff WHERE client_id=%s AND branch_id=%s ORDER BY role, name
+        """, (client_id, branch_id))
+    else:
+        cur = conn.execute("""
+            SELECT id, client_id, branch_id, username, name, role, is_active, created_at
+            FROM staff WHERE client_id=%s ORDER BY role, name
+        """, (client_id,))
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -406,84 +514,85 @@ def verify_admin(username: str, password: str):
 # TABLE OPERATIONS
 # ════════════════════════════════
 
-def seed_tables(client_id: str, num_tables: int):
+def seed_tables(client_id: str, num_tables: int, branch_id: str = "__default__"):
     conn = get_db()
     for i in range(1, num_tables + 1):
         conn.execute("""
-            INSERT INTO tables (client_id, table_no, status)
-            VALUES (%s, %s, 'inactive')
-            ON CONFLICT (client_id, table_no) DO NOTHING
-        """, (client_id, i))
+            INSERT INTO tables (client_id, branch_id, table_no, status)
+            VALUES (%s, %s, %s, 'inactive')
+            ON CONFLICT (client_id, branch_id, table_no) DO NOTHING
+        """, (client_id, branch_id, i))
     conn.execute("""
-        DELETE FROM tables WHERE client_id=%s AND table_no > %s
-    """, (client_id, num_tables))
+        DELETE FROM tables WHERE client_id=%s AND branch_id=%s AND table_no > %s
+    """, (client_id, branch_id, num_tables))
     conn.commit()
     conn.close()
 
-def activate_table(client_id: str, table_no: int):
+def activate_table(client_id: str, table_no: int, branch_id: str = "__default__"):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     conn.execute("""
-        INSERT INTO tables (client_id, table_no, status, opened_at)
-        VALUES (%s, %s, 'active', %s)
-        ON CONFLICT (client_id, table_no)
+        INSERT INTO tables (client_id, branch_id, table_no, status, opened_at)
+        VALUES (%s, %s, %s, 'active', %s)
+        ON CONFLICT (client_id, branch_id, table_no)
         DO UPDATE SET status='active', opened_at=%s, closed_at=NULL
-    """, (client_id, table_no, now, now))
+    """, (client_id, branch_id, table_no, now, now))
     conn.commit()
     conn.close()
 
-def activate_all_tables(client_id: str):
+def activate_all_tables(client_id: str, branch_id: str = "__default__"):
     """Saari tables ek saath activate karo"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     conn.execute("""
         UPDATE tables SET status='active', opened_at=%s, closed_at=NULL
-        WHERE client_id=%s
-    """, (now, client_id))
+        WHERE client_id=%s AND branch_id=%s
+    """, (now, client_id, branch_id))
     conn.commit()
     conn.close()
 
-def close_table(client_id: str, table_no: int):
+def close_table(client_id: str, table_no: int, branch_id: str = "__default__"):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     conn.execute("""
         UPDATE tables SET status='inactive', closed_at=%s
-        WHERE client_id=%s AND table_no=%s
-    """, (now, client_id, table_no))
+        WHERE client_id=%s AND branch_id=%s AND table_no=%s
+    """, (now, client_id, branch_id, table_no))
     conn.commit()
     conn.close()
 
-def close_all_tables(client_id: str):
+def close_all_tables(client_id: str, branch_id: str = "__default__"):
     """Saari tables ek saath close karo"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     conn.execute("""
         UPDATE tables SET status='inactive', closed_at=%s
-        WHERE client_id=%s
-    """, (now, client_id))
+        WHERE client_id=%s AND branch_id=%s
+    """, (now, client_id, branch_id))
     conn.commit()
     conn.close()
 
-def get_table_status(client_id: str, table_no: int):
+def get_table_status(client_id: str, table_no: int, branch_id: str = "__default__"):
     conn = get_db()
     cur = conn.execute(
-        "SELECT * FROM tables WHERE client_id=%s AND table_no=%s",
-        (client_id, table_no)
+        "SELECT * FROM tables WHERE client_id=%s AND branch_id=%s AND table_no=%s",
+        (client_id, branch_id, table_no)
     )
     row = cur.fetchone()
     conn.close()
     return dict(row) if row else None
 
-def get_all_tables(client_id: str):
+def get_all_tables(client_id: str, branch_id: str = "__default__"):
     conn = get_db()
     cur = conn.execute(
-        "SELECT * FROM tables WHERE client_id=%s ORDER BY table_no", (client_id,)
+        "SELECT * FROM tables WHERE client_id=%s AND branch_id=%s ORDER BY table_no",
+        (client_id, branch_id)
     )
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
-def get_table_summary(client_id: str):
+def get_table_summary(client_id: str, branch_id: str = "__default__"):
     """
     Returns each table with computed display_status based on current session.
     display_status: inactive | active | occupied | ready | done | billed | paid
@@ -491,7 +600,8 @@ def get_table_summary(client_id: str):
     conn = get_db()
 
     cur = conn.execute(
-        "SELECT * FROM tables WHERE client_id=%s ORDER BY table_no", (client_id,)
+        "SELECT * FROM tables WHERE client_id=%s AND branch_id=%s ORDER BY table_no",
+        (client_id, branch_id)
     )
     tables = cur.fetchall()
 
@@ -505,24 +615,25 @@ def get_table_summary(client_id: str):
 
         cur2 = conn.execute("""
             SELECT id, status FROM orders
-            WHERE client_id=%s AND table_no=%s AND status != 'cancelled'
+            WHERE client_id=%s AND branch_id=%s AND table_no=%s AND status != 'cancelled'
             AND created_at >= %s
-        """, (client_id, table_no, opened_at))
+        """, (client_id, branch_id, table_no, opened_at))
         orders = [dict(o) for o in cur2.fetchall()]
 
         cur3 = conn.execute("""
             SELECT id, payment_status, total FROM bills
-            WHERE client_id=%s AND table_no=%s AND created_at >= %s
+            WHERE client_id=%s AND branch_id=%s AND table_no=%s AND created_at >= %s
             ORDER BY created_at DESC LIMIT 1
-        """, (client_id, table_no, opened_at))
+        """, (client_id, branch_id, table_no, opened_at))
         session_bill = cur3.fetchone()
         session_bill = dict(session_bill) if session_bill else None
 
         paid_order_ids = set()
         cur4 = conn.execute("""
             SELECT order_ids FROM bills
-            WHERE client_id=%s AND table_no=%s AND payment_status='paid' AND created_at >= %s
-        """, (client_id, table_no, opened_at))
+            WHERE client_id=%s AND branch_id=%s AND table_no=%s
+            AND payment_status='paid' AND created_at >= %s
+        """, (client_id, branch_id, table_no, opened_at))
         for pb in cur4.fetchall():
             paid_order_ids.update(json.loads(pb["order_ids"]))
 
@@ -564,13 +675,13 @@ def get_table_summary(client_id: str):
             billed_ids = []
         t["billed_order_ids"] = billed_ids
 
-        # Paid today — current session ke paid order ids
         paid_today_ids = []
         try:
             today = date.today().isoformat()
             cur6 = conn.execute(
-                "SELECT order_ids FROM bills WHERE client_id=%s AND table_no=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
-                (client_id, table_no, today)
+                "SELECT order_ids FROM bills WHERE client_id=%s AND branch_id=%s AND table_no=%s"
+                " AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
+                (client_id, branch_id, table_no, today)
             )
             for row in cur6.fetchall():
                 paid_today_ids.extend(json.loads(row["order_ids"]))
@@ -590,23 +701,28 @@ def get_table_summary(client_id: str):
 
 def place_order(client_id: str, table_no: int, items: list,
                 total: int, source: str = "customer",
-                customer_name: str = None, customer_phone: str = None):
+                customer_name: str = None, customer_phone: str = None,
+                branch_id: str = "__default__"):
     conn = get_db()
     cur = conn._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
-        INSERT INTO orders (client_id, table_no, source, customer_name, customer_phone, items, total)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO orders (client_id, branch_id, table_no, source, customer_name, customer_phone, items, total)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
-    """, (client_id, table_no, source, customer_name, customer_phone, json.dumps(items), total))
+    """, (client_id, branch_id, table_no, source, customer_name, customer_phone, json.dumps(items), total))
     order_id = cur.fetchone()["id"]
     conn.commit()
     conn.close()
     return order_id
 
-def get_orders(client_id: str, status: str = None, table_no: int = None, source: str = None, from_date: str = None):
+def get_orders(client_id: str, status: str = None, table_no: int = None,
+               source: str = None, from_date: str = None, branch_id: str = None):
     conn = get_db()
     query = "SELECT * FROM orders WHERE client_id=%s"
     params = [client_id]
+    if branch_id:
+        query += " AND branch_id=%s"
+        params.append(branch_id)
     if status:
         query += " AND status=%s"
         params.append(status)
@@ -643,12 +759,12 @@ def update_ready_items(order_id: int, ready_items: list):
     conn.commit()
     conn.close()
 
-def get_table_orders_detail(client_id: str, table_no: int):
+def get_table_orders_detail(client_id: str, table_no: int, branch_id: str = "__default__"):
     """Full orders for current session with billing context"""
     conn = get_db()
     cur = conn.execute(
-        "SELECT * FROM tables WHERE client_id=%s AND table_no=%s",
-        (client_id, table_no)
+        "SELECT * FROM tables WHERE client_id=%s AND branch_id=%s AND table_no=%s",
+        (client_id, branch_id, table_no)
     )
     table = cur.fetchone()
 
@@ -659,16 +775,16 @@ def get_table_orders_detail(client_id: str, table_no: int):
 
     cur2 = conn.execute("""
         SELECT * FROM orders
-        WHERE client_id=%s AND table_no=%s AND created_at >= %s
+        WHERE client_id=%s AND branch_id=%s AND table_no=%s AND created_at >= %s
         ORDER BY created_at DESC
-    """, (client_id, table_no, opened_at))
+    """, (client_id, branch_id, table_no, opened_at))
     orders = [dict(o) for o in cur2.fetchall()]
 
     cur3 = conn.execute("""
         SELECT * FROM bills
-        WHERE client_id=%s AND table_no=%s AND created_at >= %s
+        WHERE client_id=%s AND branch_id=%s AND table_no=%s AND created_at >= %s
         ORDER BY created_at DESC
-    """, (client_id, table_no, opened_at))
+    """, (client_id, branch_id, table_no, opened_at))
     bills = [dict(b) for b in cur3.fetchall()]
 
     for b in bills:
@@ -694,14 +810,14 @@ def get_table_orders_detail(client_id: str, table_no: int):
 def generate_bill(client_id: str, table_no: int,
                   customer_name: str = None, customer_phone: str = None,
                   tax_percent: float = 0.0, discount: int = 0,
-                  payment_mode: str = None):
-    orders = get_orders(client_id, table_no=table_no)
+                  payment_mode: str = None, branch_id: str = "__default__"):
+    orders = get_orders(client_id, table_no=table_no, branch_id=branch_id)
 
     conn = get_db()
     cur = conn.execute("""
         SELECT order_ids FROM bills
-        WHERE client_id=%s AND table_no=%s AND payment_status='paid'
-    """, (client_id, table_no))
+        WHERE client_id=%s AND branch_id=%s AND table_no=%s AND payment_status='paid'
+    """, (client_id, branch_id, table_no))
     paid_bills = cur.fetchall()
     conn.close()
 
@@ -725,11 +841,11 @@ def generate_bill(client_id: str, table_no: int,
     conn = get_db()
     cur2 = conn._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur2.execute("""
-        INSERT INTO bills (client_id, table_no, order_ids, customer_name, customer_phone,
+        INSERT INTO bills (client_id, branch_id, table_no, order_ids, customer_name, customer_phone,
                            subtotal, tax, discount, total, payment_mode)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
-    """, (client_id, table_no, json.dumps(order_ids),
+    """, (client_id, branch_id, table_no, json.dumps(order_ids),
           customer_name, customer_phone,
           subtotal, tax, discount, total, payment_mode))
     bill_id = cur2.fetchone()["id"]
@@ -737,18 +853,19 @@ def generate_bill(client_id: str, table_no: int,
     conn.close()
 
     return {
-        "bill_id": bill_id,
-        "client_id": client_id,
-        "table_no": table_no,
-        "customer_name": customer_name,
+        "bill_id":        bill_id,
+        "client_id":      client_id,
+        "branch_id":      branch_id,
+        "table_no":       table_no,
+        "customer_name":  customer_name,
         "customer_phone": customer_phone,
-        "order_ids": order_ids,
-        "subtotal": subtotal,
-        "tax": tax,
-        "discount": discount,
-        "total": total,
-        "payment_mode": payment_mode,
-        "orders": billable
+        "order_ids":      order_ids,
+        "subtotal":       subtotal,
+        "tax":            tax,
+        "discount":       discount,
+        "total":          total,
+        "payment_mode":   payment_mode,
+        "orders":         billable
     }
 
 def get_bill(bill_id: int):
@@ -775,28 +892,30 @@ def mark_bill_paid(bill_id: int, payment_mode: str):
 # ADMIN / ANALYTICS
 # ════════════════════════════════
 
-def get_summary(client_id: str):
+def get_summary(client_id: str, branch_id: str = None):
     conn = get_db()
     raw = conn._conn.cursor()
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
-    raw.execute("SELECT COUNT(*) FROM orders WHERE client_id=%s", (client_id,))
+    raw.execute(f"SELECT COUNT(*) FROM orders WHERE client_id=%s {bf}", (client_id,) + bp)
     total_orders = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid'",
-        (client_id,)
+        f"SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' {bf}",
+        (client_id,) + bp
     )
     total_revenue = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COUNT(*) FROM orders WHERE client_id=%s AND status='pending'",
-        (client_id,)
+        f"SELECT COUNT(*) FROM orders WHERE client_id=%s AND status='pending' {bf}",
+        (client_id,) + bp
     )
     pending_orders = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COUNT(*) FROM tables WHERE client_id=%s AND status != 'inactive'",
-        (client_id,)
+        f"SELECT COUNT(*) FROM tables WHERE client_id=%s AND status != 'inactive' {bf}",
+        (client_id,) + bp
     )
     active_tables = raw.fetchone()[0]
 
@@ -808,42 +927,45 @@ def get_summary(client_id: str):
         "active_tables": active_tables
     }
 
-def get_analytics(client_id: str):
-    """Rich analytics for owner dashboard."""
+def get_analytics(client_id: str, branch_id: str = None):
+    """Rich analytics for owner dashboard. branch_id=None → entire brand combined."""
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
+    # branch filter snippet — appended to WHERE clauses where needed
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
     raw.execute(
-        "SELECT COUNT(*) FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled'",
-        (client_id, today)
+        f"SELECT COUNT(*) FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled' {bf}",
+        (client_id, today) + bp
     )
     today_orders = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
-        (client_id, today)
+        f"SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s {bf}",
+        (client_id, today) + bp
     )
     today_revenue = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COUNT(*) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
-        (client_id, today)
+        f"SELECT COUNT(*) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s {bf}",
+        (client_id, today) + bp
     )
     today_bills = raw.fetchone()[0]
 
     today_avg = round(today_revenue / today_bills, 0) if today_bills > 0 else 0
 
     raw.execute(
-        "SELECT COUNT(*) FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled'",
-        (client_id, yesterday)
+        f"SELECT COUNT(*) FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled' {bf}",
+        (client_id, yesterday) + bp
     )
     yest_orders = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
-        (client_id, yesterday)
+        f"SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s {bf}",
+        (client_id, yesterday) + bp
     )
     yest_revenue = raw.fetchone()[0]
 
@@ -853,28 +975,28 @@ def get_analytics(client_id: str):
         return round((today_val - yest_val) / yest_val * 100, 1)
 
     raw.execute(
-        "SELECT COUNT(*) FROM orders WHERE client_id=%s AND status != 'cancelled'", (client_id,)
+        f"SELECT COUNT(*) FROM orders WHERE client_id=%s AND status != 'cancelled' {bf}", (client_id,) + bp
     )
     alltime_orders = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid'",
-        (client_id,)
+        f"SELECT COALESCE(SUM(total),0) FROM bills WHERE client_id=%s AND payment_status='paid' {bf}",
+        (client_id,) + bp
     )
     alltime_revenue = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COUNT(*) FROM orders WHERE client_id=%s AND status='pending'", (client_id,)
+        f"SELECT COUNT(*) FROM orders WHERE client_id=%s AND status='pending' {bf}", (client_id,) + bp
     )
     pending_now = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT COUNT(*) FROM tables WHERE client_id=%s AND status != 'inactive'", (client_id,)
+        f"SELECT COUNT(*) FROM tables WHERE client_id=%s AND status != 'inactive' {bf}", (client_id,) + bp
     )
     active_tables = raw.fetchone()[0]
 
     raw.execute(
-        "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled'", (client_id,)
+        f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' {bf}", (client_id,) + bp
     )
     all_orders_items = raw.fetchall()
 
@@ -898,30 +1020,30 @@ def get_analytics(client_id: str):
     )[:8]
 
     raw.execute(
-        """SELECT payment_mode, COUNT(*) as cnt, COALESCE(SUM(total),0) as rev
-           FROM bills WHERE client_id=%s AND payment_status='paid'
+        f"""SELECT payment_mode, COUNT(*) as cnt, COALESCE(SUM(total),0) as rev
+           FROM bills WHERE client_id=%s AND payment_status='paid' {bf}
            GROUP BY payment_mode""",
-        (client_id,)
+        (client_id,) + bp
     )
     pay_rows = raw.fetchall()
     payment_breakdown = [{"mode": r[0] or "unknown", "count": r[1], "revenue": r[2]} for r in pay_rows]
 
     raw.execute(
-        """SELECT EXTRACT(HOUR FROM created_at::timestamp)::INTEGER as hr, COUNT(*) as cnt
-           FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled'
+        f"""SELECT EXTRACT(HOUR FROM created_at::timestamp)::INTEGER as hr, COUNT(*) as cnt
+           FROM orders WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled' {bf}
            GROUP BY hr ORDER BY hr""",
-        (client_id, today)
+        (client_id, today) + bp
     )
     hourly_rows = raw.fetchall()
     hourly = {r[0]: r[1] for r in hourly_rows}
     hourly_data = [{"hour": h, "orders": hourly.get(h, 0)} for h in range(8, 24)]
 
     raw.execute(
-        """SELECT DATE(created_at::timestamp) as day, COALESCE(SUM(total),0) as rev, COUNT(*) as cnt
-           FROM bills WHERE client_id=%s AND payment_status='paid'
+        f"""SELECT DATE(created_at::timestamp) as day, COALESCE(SUM(total),0) as rev, COUNT(*) as cnt
+           FROM bills WHERE client_id=%s AND payment_status='paid' {bf}
            AND DATE(created_at::timestamp) >= CURRENT_DATE - INTERVAL '6 days'
            GROUP BY day ORDER BY day""",
-        (client_id,)
+        (client_id,) + bp
     )
     daily_rows = raw.fetchall()
     daily_map = {str(r[0]): {"revenue": r[1], "orders": r[2]} for r in daily_rows}
@@ -936,10 +1058,10 @@ def get_analytics(client_id: str):
         })
 
     raw.execute(
-        """SELECT source, COUNT(*) as cnt FROM orders
-           WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled'
+        f"""SELECT source, COUNT(*) as cnt FROM orders
+           WHERE client_id=%s AND DATE(created_at::timestamp)=%s AND status != 'cancelled' {bf}
            GROUP BY source""",
-        (client_id, today)
+        (client_id, today) + bp
     )
     source_rows = raw.fetchall()
     source_today = {r[0]: r[1] for r in source_rows}
@@ -992,7 +1114,7 @@ def get_all_restaurants_info():
         rdata     = row[1] if isinstance(row[1], dict) else json.loads(row[1])
         rinfo     = rdata.get("restaurant", {})
 
-        raw.execute("SELECT COUNT(*) FROM staff WHERE restaurant_id=%s", (client_id,))
+        raw.execute("SELECT COUNT(*) FROM staff WHERE client_id=%s", (client_id,))
         staff_count = raw.fetchone()[0]
 
         raw.execute(
@@ -1115,17 +1237,40 @@ def get_top_dishes_overall(limit=10, period='alltime'):
     )[:limit]
     return top
 
-def save_restaurant_json(client_id: str, data: dict):
-    """Restaurant config DB mein save karo (upsert)"""
+def save_restaurant_json(client_id: str, data: dict, branch_id: str = "__default__"):
+    """
+    Restaurant config DB mein save karo (upsert).
+    theme sirf branch_id='__default__' wali row pe store hoti hai — shared across brand.
+    """
+    theme = data.pop("theme", None)  # theme alag column mein jaayegi
     conn = get_db()
-    conn.execute("""
-        INSERT INTO restaurants (client_id, config, updated_at)
-        VALUES (%s, %s::jsonb, NOW())
-        ON CONFLICT (client_id)
-        DO UPDATE SET config = EXCLUDED.config, updated_at = NOW()
-    """, (client_id, json.dumps(data, ensure_ascii=False)))
+    if theme is not None:
+        conn.execute("""
+            INSERT INTO restaurants (client_id, branch_id, config, theme, updated_at)
+            VALUES (%s, %s, %s::jsonb, %s::jsonb, NOW())
+            ON CONFLICT (client_id, branch_id)
+            DO UPDATE SET config = EXCLUDED.config, theme = EXCLUDED.theme, updated_at = NOW()
+        """, (client_id, branch_id, json.dumps(data, ensure_ascii=False), json.dumps(theme, ensure_ascii=False)))
+    else:
+        conn.execute("""
+            INSERT INTO restaurants (client_id, branch_id, config, updated_at)
+            VALUES (%s, %s, %s::jsonb, NOW())
+            ON CONFLICT (client_id, branch_id)
+            DO UPDATE SET config = EXCLUDED.config, updated_at = NOW()
+        """, (client_id, branch_id, json.dumps(data, ensure_ascii=False)))
     conn.commit()
     conn.close()
+
+def get_restaurant_branches(client_id: str) -> list:
+    """Ek brand ki saari branches"""
+    conn = get_db()
+    cur = conn.execute(
+        "SELECT branch_id, config, theme FROM restaurants WHERE client_id=%s ORDER BY branch_id",
+        (client_id,)
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 def delete_restaurant_full(client_id: str):
     """Poora restaurant delete — DB se sab"""
@@ -1133,7 +1278,7 @@ def delete_restaurant_full(client_id: str):
     conn.execute("DELETE FROM orders WHERE client_id=%s", (client_id,))
     conn.execute("DELETE FROM bills WHERE client_id=%s", (client_id,))
     conn.execute("DELETE FROM tables WHERE client_id=%s", (client_id,))
-    conn.execute("DELETE FROM staff WHERE restaurant_id=%s", (client_id,))
+    conn.execute("DELETE FROM staff WHERE client_id=%s", (client_id,))
     conn.execute("DELETE FROM restaurants WHERE client_id=%s", (client_id,))
     conn.commit()
     conn.close()
@@ -1153,9 +1298,13 @@ def export_full_db_zip() -> str:
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
     tmp.close()
 
+    # Tables jinmein 'id' column nahi — ORDER BY id crash karega
+    NO_ID_TABLES = {"restaurants", "site_settings"}
+
     with zipfile.ZipFile(tmp.name, "w", zipfile.ZIP_DEFLATED) as zf:
         for table_name in table_names:
-            raw.execute(f"SELECT * FROM {table_name} ORDER BY id")
+            order_clause = "" if table_name in NO_ID_TABLES else "ORDER BY id"
+            raw.execute(f"SELECT * FROM {table_name} {order_clause}")
             rows = raw.fetchall()
             col_names = [desc[0] for desc in raw.description]
 
@@ -1170,41 +1319,40 @@ def export_full_db_zip() -> str:
 
 
 # ════════════════════════════════
-# WAITER CALLS
+# WAITER CALLS — tables.waiter_called_at mein merge
 # ════════════════════════════════
 
-def create_waiter_call(client_id: str, table_no: int):
-    """Customer ne waiter ko call kiya — upsert (duplicate pe reset)"""
+def create_waiter_call(client_id: str, table_no: int, branch_id: str = "__default__"):
+    """Customer ne waiter ko call kiya — timestamp set karo"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     conn.execute("""
-        INSERT INTO waiter_calls (client_id, table_no, called_at)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (client_id, table_no)
-        DO UPDATE SET called_at = %s
-    """, (client_id, table_no, now, now))
+        UPDATE tables SET waiter_called_at=%s
+        WHERE client_id=%s AND branch_id=%s AND table_no=%s
+    """, (now, client_id, branch_id, table_no))
     conn.commit()
     conn.close()
 
-def get_active_calls(client_id: str):
-    """Saari pending calls return karo"""
+def get_active_calls(client_id: str, branch_id: str = "__default__"):
+    """Saari pending waiter calls return karo"""
     conn = get_db()
     cur = conn.execute("""
-        SELECT table_no, called_at FROM waiter_calls
-        WHERE client_id = %s
-        ORDER BY called_at ASC
-    """, (client_id,))
+        SELECT table_no, waiter_called_at as called_at
+        FROM tables
+        WHERE client_id=%s AND branch_id=%s AND waiter_called_at IS NOT NULL
+        ORDER BY waiter_called_at ASC
+    """, (client_id, branch_id))
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
-def resolve_waiter_call(client_id: str, table_no: int):
-    """Waiter pahunch gaya — call hata do"""
+def resolve_waiter_call(client_id: str, table_no: int, branch_id: str = "__default__"):
+    """Waiter pahunch gaya — call clear karo"""
     conn = get_db()
     conn.execute("""
-        DELETE FROM waiter_calls
-        WHERE client_id = %s AND table_no = %s
-    """, (client_id, table_no))
+        UPDATE tables SET waiter_called_at=NULL
+        WHERE client_id=%s AND branch_id=%s AND table_no=%s
+    """, (client_id, branch_id, table_no))
     conn.commit()
     conn.close()
 
@@ -1319,7 +1467,7 @@ def trash_remove_expired(before_datetime_str: str) -> list:
 # CHATBOT ANALYTICS FUNCTIONS
 # ════════════════════════════════════════════════════════
 
-def get_today_sales(client_id: str) -> dict:
+def get_today_sales(client_id: str, branch_id: str = None) -> dict:
     """
     Aaj ka total revenue aur paid bills count.
     Intent: GET_TODAY_SALES
@@ -1329,11 +1477,13 @@ def get_today_sales(client_id: str) -> dict:
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
     raw.execute(
-        "SELECT COALESCE(SUM(total), 0), COUNT(*) FROM bills "
-        "WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s",
-        (client_id, today)
+        f"SELECT COALESCE(SUM(total), 0), COUNT(*) FROM bills "
+        f"WHERE client_id=%s AND payment_status='paid' AND DATE(created_at::timestamp)=%s {bf}",
+        (client_id, today) + bp
     )
     row = raw.fetchone()
     total_revenue = int(row[0])
@@ -1342,13 +1492,13 @@ def get_today_sales(client_id: str) -> dict:
 
     conn.close()
     return {
-        "date":         today,
+        "date":          today,
         "total_revenue": total_revenue,
-        "bills_paid":   bills_paid,
-        "avg_bill":     avg_bill,
+        "bills_paid":    bills_paid,
+        "avg_bill":      avg_bill,
     }
 
-def get_total_orders_today(client_id: str) -> dict:
+def get_total_orders_today(client_id: str, branch_id: str = None) -> dict:
     """
     Aaj ke orders — total, pending, done, cancelled breakdown.
     Intent: GET_TOTAL_ORDERS
@@ -1358,12 +1508,14 @@ def get_total_orders_today(client_id: str) -> dict:
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
     raw.execute(
-        "SELECT status, COUNT(*) FROM orders "
-        "WHERE client_id=%s AND DATE(created_at::timestamp)=%s "
-        "GROUP BY status",
-        (client_id, today)
+        f"SELECT status, COUNT(*) FROM orders "
+        f"WHERE client_id=%s AND DATE(created_at::timestamp)=%s {bf} "
+        f"GROUP BY status",
+        (client_id, today) + bp
     )
     rows = raw.fetchall()
     conn.close()
@@ -1380,7 +1532,8 @@ def get_total_orders_today(client_id: str) -> dict:
         "ready":     counts.get("ready",     0),
     }
 
-def get_top_selling_items(client_id: str, limit: int = 5, period: str = "today") -> dict:
+def get_top_selling_items(client_id: str, limit: int = 5, period: str = "today",
+                          branch_id: str = None) -> dict:
     """
     Sabse zyada bikne wale items — qty aur revenue ke saath.
     Intent: TOP_SELLING_ITEMS
@@ -1391,31 +1544,33 @@ def get_top_selling_items(client_id: str, limit: int = 5, period: str = "today")
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
     if period == "today":
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
-            "AND DATE(created_at::timestamp)=%s",
-            (client_id, today)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            f"AND DATE(created_at::timestamp)=%s {bf}",
+            (client_id, today) + bp
         )
     elif period == "week":
         week_start = (date.today() - timedelta(days=6)).isoformat()
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
-            "AND DATE(created_at::timestamp) >= %s",
-            (client_id, week_start)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            f"AND DATE(created_at::timestamp) >= %s {bf}",
+            (client_id, week_start) + bp
         )
     elif period == "month":
         month_start = (date.today() - timedelta(days=29)).isoformat()
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
-            "AND DATE(created_at::timestamp) >= %s",
-            (client_id, month_start)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            f"AND DATE(created_at::timestamp) >= %s {bf}",
+            (client_id, month_start) + bp
         )
     else:  # alltime
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled'",
-            (client_id,)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' {bf}",
+            (client_id,) + bp
         )
 
     rows = raw.fetchall()
@@ -1446,7 +1601,8 @@ def get_top_selling_items(client_id: str, limit: int = 5, period: str = "today")
         "items":  sorted_items,
     }
 
-def get_lowest_selling_items(client_id: str, limit: int = 5, period: str = "week") -> dict:
+def get_lowest_selling_items(client_id: str, limit: int = 5, period: str = "week",
+                             branch_id: str = None) -> dict:
     """
     Sabse kam bikne wale items — kaunsi dish nahi chal rahi.
     Intent: LOWEST_SELLING_ITEMS
@@ -1457,31 +1613,33 @@ def get_lowest_selling_items(client_id: str, limit: int = 5, period: str = "week
     conn = get_db()
     raw = conn._conn.cursor()
     today = date.today().isoformat()
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
     if period == "today":
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
-            "AND DATE(created_at::timestamp)=%s",
-            (client_id, today)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            f"AND DATE(created_at::timestamp)=%s {bf}",
+            (client_id, today) + bp
         )
     elif period == "week":
         week_start = (date.today() - timedelta(days=6)).isoformat()
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
-            "AND DATE(created_at::timestamp) >= %s",
-            (client_id, week_start)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            f"AND DATE(created_at::timestamp) >= %s {bf}",
+            (client_id, week_start) + bp
         )
     elif period == "month":
         month_start = (date.today() - timedelta(days=29)).isoformat()
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
-            "AND DATE(created_at::timestamp) >= %s",
-            (client_id, month_start)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' "
+            f"AND DATE(created_at::timestamp) >= %s {bf}",
+            (client_id, month_start) + bp
         )
     else:
         raw.execute(
-            "SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled'",
-            (client_id,)
+            f"SELECT items FROM orders WHERE client_id=%s AND status != 'cancelled' {bf}",
+            (client_id,) + bp
         )
 
     rows = raw.fetchall()
@@ -1515,7 +1673,7 @@ def get_lowest_selling_items(client_id: str, limit: int = 5, period: str = "week
         "items":  sorted_items,
     }
 
-def get_revenue_summary(client_id: str, days: int = 7) -> dict:
+def get_revenue_summary(client_id: str, days: int = 7, branch_id: str = None) -> dict:
     """
     Last N din ka daily revenue breakdown + total.
     Intent: GET_REVENUE_SUMMARY
@@ -1530,11 +1688,12 @@ def get_revenue_summary(client_id: str, days: int = 7) -> dict:
     """
     conn = get_db()
     raw = conn._conn.cursor()
-
     days = max(1, min(days, 30))   # clamp: 1–30
+    bf = "AND branch_id=%s" if branch_id else ""
+    bp = (branch_id,) if branch_id else ()
 
     raw.execute(
-        """
+        f"""
         SELECT DATE(created_at::timestamp) AS day,
                COALESCE(SUM(total), 0)     AS rev,
                COUNT(*)                    AS cnt
@@ -1542,10 +1701,11 @@ def get_revenue_summary(client_id: str, days: int = 7) -> dict:
         WHERE client_id=%s
           AND payment_status='paid'
           AND DATE(created_at::timestamp) >= CURRENT_DATE - INTERVAL '%s days'
+          {bf}
         GROUP BY day
         ORDER BY day
         """,
-        (client_id, days - 1)
+        (client_id, days - 1) + bp
     )
     rows = raw.fetchall()
     conn.close()
@@ -1557,7 +1717,7 @@ def get_revenue_summary(client_id: str, days: int = 7) -> dict:
         d = (date.today() - timedelta(days=i)).isoformat()
         daily_data.append({
             "date":    d,
-            "label":  (date.today() - timedelta(days=i)).strftime("%a"),  # Mon, Tue...
+            "label":  (date.today() - timedelta(days=i)).strftime("%a"),
             "revenue": daily_map.get(d, {}).get("revenue", 0),
             "orders":  daily_map.get(d, {}).get("orders",  0),
         })
@@ -1571,3 +1731,142 @@ def get_revenue_summary(client_id: str, days: int = 7) -> dict:
         "total_orders":  total_orders,
         "daily":         daily_data,
     }
+
+# ════════════════════════════════
+# OWNER SIGNUP REQUESTS
+# ════════════════════════════════
+
+def create_signup_request(name: str, phone: str, email: str,
+                          restaurant_name: str, comment: str = None) -> int:
+    """Naya owner signup request create karo — pending status mein"""
+    conn = get_db()
+    cur = conn._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        INSERT INTO owner_signup_requests
+            (name, phone, email, restaurant_name, comment)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+    """, (name, phone, email, restaurant_name, comment))
+    req_id = cur.fetchone()["id"]
+    conn.commit()
+    conn.close()
+    return req_id
+
+def get_signup_requests(status: str = None) -> list:
+    """Saari signup requests — status filter optional (pending/approved/rejected)"""
+    conn = get_db()
+    if status:
+        cur = conn.execute(
+            "SELECT * FROM owner_signup_requests WHERE status=%s ORDER BY created_at DESC",
+            (status,)
+        )
+    else:
+        cur = conn.execute(
+            "SELECT * FROM owner_signup_requests ORDER BY created_at DESC"
+        )
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_signup_request(req_id: int) -> dict | None:
+    """Ek specific request by id"""
+    conn = get_db()
+    cur = conn.execute(
+        "SELECT * FROM owner_signup_requests WHERE id=%s", (req_id,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def approve_signup_request(req_id: int, client_id: str, reviewed_by: str):
+    """Request approve karo — client_id assign karo"""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db()
+    conn.execute("""
+        UPDATE owner_signup_requests
+        SET status='approved', client_id=%s, reviewed_at=%s, reviewed_by=%s
+        WHERE id=%s
+    """, (client_id, now, reviewed_by, req_id))
+    conn.commit()
+    conn.close()
+
+def reject_signup_request(req_id: int, rejection_reason: str, reviewed_by: str):
+    """Request reject karo"""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db()
+    conn.execute("""
+        UPDATE owner_signup_requests
+        SET status='rejected', rejection_reason=%s, reviewed_at=%s, reviewed_by=%s
+        WHERE id=%s
+    """, (rejection_reason, now, reviewed_by, req_id))
+    conn.commit()
+    conn.close()
+
+
+# ════════════════════════════════
+# OWNERS
+# ════════════════════════════════
+
+def create_owner(name: str, phone: str, email: str, client_id: str,
+                 password: str, request_id: int = None) -> bool:
+    """
+    Naya owner account banao — admin approve karne ke baad call hoga.
+    username = client_id (login ke liye)
+    """
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    conn = get_db()
+    try:
+        conn.execute("""
+            INSERT INTO owners (name, phone, email, client_id, password_hash, request_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (name, phone, email, client_id, password_hash, request_id))
+        conn.commit()
+        return True
+    except Exception:
+        return False  # email/client_id already exists
+    finally:
+        conn.close()
+
+def verify_owner(client_id: str, password: str) -> dict | None:
+    """
+    Owner login verify karo.
+    client_id = username (restaurant ka unique id)
+    """
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT * FROM owners WHERE client_id=%s AND is_active=1
+    """, (client_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    owner = dict(row)
+    if bcrypt.checkpw(password.encode(), owner["password_hash"].encode()):
+        owner["role"] = "owner"
+        owner["restaurant_id"] = owner["client_id"]  # auth.py compatibility
+        return owner
+    return None
+
+def get_owner_by_client_id(client_id: str) -> dict | None:
+    """Owner info by client_id"""
+    conn = get_db()
+    cur = conn.execute(
+        "SELECT id, name, phone, email, client_id, is_active, created_at FROM owners WHERE client_id=%s",
+        (client_id,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def toggle_owner_active(owner_id: int, is_active: bool):
+    conn = get_db()
+    conn.execute("UPDATE owners SET is_active=%s WHERE id=%s", (int(is_active), owner_id))
+    conn.commit()
+    conn.close()
+
+def update_owner_password(owner_id: int, new_password: str):
+    password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    conn = get_db()
+    conn.execute("UPDATE owners SET password_hash=%s WHERE id=%s", (password_hash, owner_id))
+    conn.commit()
+    conn.close()

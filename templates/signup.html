@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/x-icon" href="/static/assets/zentable/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/zentable/favicon_32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/zentable/favicon_16.png" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request Access — {{ site.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:      {{ site.primary }};
+      --secondary:    {{ site.secondary }};
+      --accent:       {{ site.accent }};
+      --success:      {{ site.success }};
+      --font-display: '{{ site.font_display }}', sans-serif;
+      --font-body:    '{{ site.font_body }}', sans-serif;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:var(--font-body); background:var(--secondary); min-height:100vh; display:flex; align-items:center; justify-content:center; overflow-y:auto; overflow-x:hidden; position:relative; }
+
+    /* ── Background ── */
+    .bg-orbs { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    .orb { position:absolute; border-radius:50%; filter:blur(90px); opacity:0.12; animation:float 8s ease-in-out infinite; }
+    .orb-1 { width:600px;height:600px;background:var(--primary);top:-200px;left:-150px;animation-delay:0s; }
+    .orb-2 { width:450px;height:450px;background:var(--accent);bottom:-120px;right:-100px;animation-delay:3s; }
+    .orb-3 { width:300px;height:300px;background:var(--primary);top:55%;right:25%;animation-delay:5s; }
+    @keyframes float { 0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-28px) scale(1.04);} }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(108,99,255,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(108,99,255,0.035) 1px,transparent 1px); background-size:44px 44px; z-index:0; }
+
+    /* ── Layout ── */
+    .page-wrap { position:relative; z-index:10; display:flex; align-items:center; gap:64px; padding:32px 24px; width:100%; max-width:960px; margin:0 auto; min-height:100vh; }
+
+    /* ── Brand panel (left) ── */
+    .brand-panel { flex:1; color:white; display:flex; flex-direction:column; gap:20px; }
+    .logo-row { display:flex; align-items:center; gap:14px; }
+    .logo-icon { width:52px; height:52px; background:linear-gradient(135deg,var(--primary),var(--accent)); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; box-shadow:0 8px 24px rgba(108,99,255,0.35); flex-shrink:0; }
+    .logo-name { font-family:var(--font-display); font-size:2rem; font-weight:700; letter-spacing:-1px; line-height:1; color:white; }
+    .logo-name span { color:var(--primary); }
+    .brand-tagline { font-size:1rem; color:rgba(255,255,255,0.45); line-height:1.65; max-width:300px; }
+    .brand-features { display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+    .feature-row { display:flex; align-items:center; gap:10px; font-size:0.83rem; color:rgba(255,255,255,0.38); }
+    .feature-dot { width:6px; height:6px; border-radius:50%; background:var(--primary); flex-shrink:0; }
+
+    /* ── Signup Card ── */
+    .signup-card { width:100%; max-width:430px; flex-shrink:0; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:24px; padding:38px 34px; backdrop-filter:blur(24px); box-shadow:0 32px 64px rgba(0,0,0,0.45); animation:slideUp 0.5s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes slideUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+    .card-title { font-family:var(--font-display); font-size:1.2rem; font-weight:600; color:white; margin-bottom:5px; }
+    .card-sub { font-size:0.78rem; color:rgba(255,255,255,0.32); margin-bottom:26px; line-height:1.5; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom:13px; }
+    .form-group label { display:block; font-size:0.69rem; font-weight:500; color:rgba(255,255,255,0.38); text-transform:uppercase; letter-spacing:0.9px; margin-bottom:7px; }
+    .form-group label .opt { color:rgba(255,255,255,0.2); font-weight:400; text-transform:none; letter-spacing:0; margin-left:4px; }
+    .form-group input,
+    .form-group textarea { width:100%; padding:12px 14px; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.08); border-radius:11px; color:white; font-family:var(--font-body); font-size:0.88rem; outline:none; transition:border-color 0.2s,background 0.2s; }
+    .form-group textarea { resize:none; height:76px; line-height:1.5; }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color:rgba(255,255,255,0.18); }
+    .form-group input:focus,
+    .form-group textarea:focus { border-color:var(--primary); background:rgba(108,99,255,0.08); }
+
+    /* ── Two column row ── */
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* ── Submit ── */
+    .submit-btn { width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),#8B83FF); border:none; border-radius:11px; color:white; font-family:var(--font-display); font-size:0.92rem; font-weight:600; cursor:pointer; margin-top:6px; transition:all 0.2s; letter-spacing:0.3px; }
+    .submit-btn:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(108,99,255,0.45); }
+    .submit-btn:active { transform:translateY(0); }
+    .submit-btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+    .spinner { display:none; width:17px; height:17px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.6s linear infinite; margin:0 auto; }
+    @keyframes spin { to{transform:rotate(360deg);} }
+
+    /* ── Messages ── */
+    .error-msg { display:none; background:rgba(255,71,87,0.1); border:1px solid rgba(255,71,87,0.25); border-radius:9px; padding:10px 13px; font-size:0.8rem; color:#FF6B7A; margin-top:12px; text-align:center; }
+    .error-msg.show { display:block; animation:shake 0.3s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);} }
+
+    /* ── Success state ── */
+    .success-state { display:none; text-align:center; padding:10px 0; }
+    .success-state.show { display:block; animation:fadeIn 0.4s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:scale(0.97);} to{opacity:1;transform:scale(1);} }
+    .success-icon { font-size:2.8rem; margin-bottom:14px; }
+    .success-title { font-family:var(--font-display); font-size:1.15rem; font-weight:600; color:white; margin-bottom:8px; }
+    .success-text { font-size:0.82rem; color:rgba(255,255,255,0.4); line-height:1.6; }
+    .success-back { display:inline-block; margin-top:20px; padding:10px 22px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:9px; color:rgba(255,255,255,0.5); font-size:0.8rem; text-decoration:none; transition:all 0.2s; }
+    .success-back:hover { background:rgba(255,255,255,0.1); color:white; }
+
+    .card-footer { text-align:center; margin-top:22px; font-size:0.69rem; color:rgba(255,255,255,0.16); }
+    .card-footer a { color:rgba(108,99,255,0.6); text-decoration:none; }
+    .card-footer a:hover { color:rgba(108,99,255,0.9); }
+
+    /* ── Mobile ── */
+    @media (max-width:680px) {
+      .page-wrap { flex-direction:column; gap:0; min-height:unset; padding:28px 16px 40px; justify-content:flex-start; align-items:stretch; }
+      .brand-panel { display:none; }
+      .signup-card { max-width:100%; border-radius:20px; padding:34px 26px; }
+      .mobile-logo { display:flex !important; }
+      .form-row { grid-template-columns:1fr; gap:0; }
+    }
+    .mobile-logo { display:none; align-items:center; gap:12px; margin-bottom:26px; }
+    .mobile-logo .logo-icon { width:42px; height:42px; font-size:1.2rem; background:linear-gradient(135deg,var(--primary),var(--accent)); border-radius:12px; display:flex; align-items:center; justify-content:center; }
+    .mobile-logo .m-name { font-family:var(--font-display); font-size:1.45rem; font-weight:700; color:white; letter-spacing:-0.5px; }
+    .mobile-logo .m-name span { color:var(--primary); }
+  </style>
+</head>
+<body>
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div class="page-wrap">
+  <!-- Brand panel -->
+  <div class="brand-panel">
+    <div class="logo-row">
+      <div class="logo-icon">
+        <img src="/static/assets/zentable/logo_white_192.png" alt="{{ site.name }}" style="width:70%;height:70%;object-fit:contain;" />
+      </div>
+      <div class="logo-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span>.</div>
+    </div>
+    <div class="brand-tagline">{{ site.tagline }}<br>Apna restaurant aaj hi digital karo.</div>
+    <div class="brand-features">
+      <div class="feature-row"><div class="feature-dot"></div>AR-powered digital menu</div>
+      <div class="feature-row"><div class="feature-dot"></div>Real-time order & kitchen management</div>
+      <div class="feature-row"><div class="feature-dot"></div>Waiter, counter & owner dashboards</div>
+      <div class="feature-row"><div class="feature-dot"></div>Analytics & billing — sab ek jagah</div>
+    </div>
+  </div>
+
+  <!-- Signup card -->
+  <div class="signup-card">
+
+    <!-- Mobile logo -->
+    <div class="mobile-logo">
+      <div class="logo-icon">
+        <img src="/static/assets/zentable/logo_white_192.png" alt="{{ site.name }}" style="width:70%;height:70%;object-fit:contain;" />
+      </div>
+      <div class="m-name">{{ site.name[:3] }}<span>{{ site.name[3:] }}</span>.</div>
+    </div>
+
+    <!-- Form view -->
+    <div id="form-view">
+      <div class="card-title">Request Access</div>
+      <div class="card-sub">Apna restaurant ZenTable pe register karo. Hamare team aapse jald sampark karegi.</div>
+
+      <form onsubmit="event.preventDefault(); doSignup()">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Aapka Naam</label>
+            <input type="text" id="name" placeholder="e.g. Ramesh Kumar" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label>Phone Number</label>
+            <input type="tel" id="phone" placeholder="e.g. 9876543210" autocomplete="tel">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label>Restaurant Ka Naam</label>
+          <input type="text" id="restaurant_name" placeholder="e.g. Spice Garden" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label>Koi Baat <span class="opt">(optional)</span></label>
+          <textarea id="comment" placeholder="City, branches, ya koi sawaal..."></textarea>
+        </div>
+
+        <button class="submit-btn" id="signup-btn" type="submit">
+          <span id="btn-text">Submit Request</span>
+          <div class="spinner" id="spinner"></div>
+        </button>
+      </form>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <div class="card-footer">
+        Already have an account? <a href="/login">Sign in →</a>
+        <br><br>
+        Powered by <span style="color:rgba(108,99,255,0.55);">{{ site.name }}</span> &nbsp;·&nbsp; v{{ site.version }}
+      </div>
+    </div>
+
+    <!-- Success view -->
+    <div class="success-state" id="success-view">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Request Receive Ho Gayi!</div>
+      <div class="success-text">
+        Aapka request hamare team tak pahunch gaya hai.<br>
+        Aapke email pe ek confirmation bhi bheja gaya hai.<br><br>
+        Hamare executives aapse <strong style="color:rgba(255,255,255,0.65);">jald hi sampark karenge.</strong>
+      </div>
+      <a href="/login" class="success-back">← Login page pe jaao</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+  }
+
+  function setLoading(on) {
+    document.getElementById('btn-text').style.display = on ? 'none' : 'block';
+    document.getElementById('spinner').style.display  = on ? 'block' : 'none';
+    document.getElementById('signup-btn').disabled = on;
+  }
+
+  async function doSignup() {
+    document.getElementById('error-msg').classList.remove('show');
+
+    const name            = document.getElementById('name').value.trim();
+    const phone           = document.getElementById('phone').value.trim();
+    const email           = document.getElementById('email').value.trim();
+    const restaurant_name = document.getElementById('restaurant_name').value.trim();
+    const comment         = document.getElementById('comment').value.trim();
+
+    // Client-side validation
+    if (!name)            { showError('Naam required hai'); return; }
+    if (!phone || phone.replace(/\D/g,'').length < 10) { showError('Valid phone number required (min 10 digits)'); return; }
+    if (!email || !email.includes('@')) { showError('Valid email address required'); return; }
+    if (!restaurant_name) { showError('Restaurant ka naam required hai'); return; }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email, restaurant_name, comment: comment || null })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Form hide karo, success dikhao
+        document.getElementById('form-view').style.display = 'none';
+        document.getElementById('success-view').classList.add('show');
+      } else {
+        showError(data.detail || 'Kuch problem aayi, dobara try karo');
+        setLoading(false);
+      }
+    } catch(e) {
+      showError('Connection error — try again');
+      setLoading(false);
+    }
+  }
+</script>
+</body>
+</html>

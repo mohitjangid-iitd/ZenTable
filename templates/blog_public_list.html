@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% if active_tag %}#{{ active_tag }} — {% endif %}Blog — ZenTable</title>
+  <meta name="description" content="{% if active_tag %}Posts tagged '{{ active_tag }}'{% else %}Stories, guides and updates from ZenTable restaurants{% endif %}" />
+
+  <link rel="alternate" type="application/rss+xml" title="ZenTable Blog RSS" href="/blog/rss.xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #F7F5F2;
+      --surface:   #FFFFFF;
+      --border:    #E5E1DA;
+      --text:      #1A1814;
+      --muted:     #7A7570;
+      --accent:    #C8832A;
+      --accent-bg: #FDF3E7;
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body:    'DM Sans', sans-serif;
+      --radius:       8px;
+      --shadow:       0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+    }
+
+    body {
+      background: var(--bg);
+      font-family: var(--font-body);
+      color: var(--text);
+    }
+
+    /* ── NAV ── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .nav-brand span { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a {
+      font-size: .875rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color .15s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+
+    /* ── HEADER ── */
+    .page-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 64px 32px 48px;
+      text-align: center;
+    }
+    .page-header-eyebrow {
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .page-header h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 400;
+      line-height: 1.1;
+      margin-bottom: 14px;
+    }
+    .page-header h1 em { font-style: italic; color: var(--muted); }
+    .page-header p {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Tag filter header for tag pages */
+    .tag-header {
+      background: var(--accent-bg);
+      border-bottom: 1px solid #f0d9b5;
+      padding: 24px 32px;
+      text-align: center;
+    }
+    .tag-header h2 {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 400;
+    }
+    .tag-header a {
+      font-size: .85rem;
+      color: var(--accent);
+      text-decoration: none;
+      margin-top: 6px;
+      display: inline-block;
+    }
+
+    /* ── WRAPPER ── */
+    .wrapper {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    /* ── FEATURED POST (first post, larger) ── */
+    .featured-post {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 56px;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow .2s, transform .2s;
+    }
+    .featured-post:hover { box-shadow: 0 8px 32px rgba(0,0,0,.1); transform: translateY(-2px); }
+
+    .featured-post-cover {
+      height: 100%;
+      min-height: 340px;
+      object-fit: cover;
+      display: block;
+    }
+    .featured-post-cover-placeholder {
+      height: 340px;
+      background: linear-gradient(135deg, #ede8df 0%, #ddd7ca 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      opacity: .3;
+    }
+    .featured-post-body {
+      padding: 48px 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .featured-label {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    .featured-post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .tag-link {
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 2px 9px;
+      background: var(--accent-bg);
+      color: var(--accent);
+      border-radius: 10px;
+      text-decoration: none;
+    }
+    .featured-post-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 400;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+    .featured-post-desc {
+      font-size: .95rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 24px;
+      flex: 1;
+    }
+    .featured-post-meta {
+      font-size: .82rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .featured-post-meta .author { font-weight: 500; color: var(--text); }
+    .featured-post-meta .sep { opacity: .4; }
+    .read-more {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .875rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-top: 20px;
+    }
+
+    /* ── SECTION DIVIDER ── */
+    .section-head {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── POST GRID ── */
+    .posts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 56px;
+    }
+
+    /* ── POST CARD ── */
+    .post-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--shadow);
+      transition: transform .2s, box-shadow .2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .post-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.09); }
+
+    .post-card-cover {
+      height: 180px;
+      overflow: hidden;
+    }
+    .post-card-cover img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform .4s ease;
+    }
+    .post-card:hover .post-card-cover img { transform: scale(1.04); }
+    .post-card-cover-placeholder {
+      height: 180px;
+      background: linear-gradient(135deg, #ede8df 0%, #ddd7ca 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      opacity: .25;
+    }
+
+    .post-card-body { padding: 20px; flex: 1; display: flex; flex-direction: column; }
+    .post-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+    .post-card-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 400;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .post-card-desc {
+      font-size: .85rem;
+      color: var(--muted);
+      line-height: 1.55;
+      flex: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .post-card-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      font-size: .78rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .post-card-footer .author { font-weight: 500; color: var(--text); }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: .3; }
+    .empty h3 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 400; margin-bottom: 8px; }
+    .empty p { font-size: .95rem; }
+
+    /* ── PAGINATION ── */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding-top: 12px;
+    }
+    .page-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-family: var(--font-body);
+      font-size: .85rem;
+      font-weight: 500;
+      color: var(--text);
+      text-decoration: none;
+      transition: all .15s;
+    }
+    .page-btn:hover, .page-btn.active {
+      background: var(--text);
+      color: #fff;
+      border-color: var(--text);
+    }
+    .page-btn.disabled { opacity: .4; pointer-events: none; }
+
+    /* ── FOOTER ── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 32px;
+      text-align: center;
+    }
+    .site-footer a {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .site-footer a span { color: var(--accent); }
+    .site-footer p { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+
+    @media (max-width: 720px) {
+      .featured-post { grid-template-columns: 1fr; }
+      .featured-post-cover, .featured-post-cover-placeholder { min-height: 200px; height: 220px; }
+      .featured-post-body { padding: 24px; }
+      .featured-post-title { font-size: 1.5rem; }
+      .nav { padding: 0 16px; }
+      .page-header { padding: 40px 16px 32px; }
+      .wrapper { padding: 36px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <a class="nav-brand" href="/">Zen<span>Table</span></a>
+  <div class="nav-links">
+    <a href="/blog" class="active">Blog</a>
+    <a href="/">Home</a>
+  </div>
+</nav>
+
+<!-- ── PAGE HEADER ── -->
+{% if active_tag %}
+<div class="tag-header">
+  <h2>Posts tagged <em style="font-style:italic;color:var(--accent)">#{{ active_tag }}</em></h2>
+  <a href="/blog">← All Posts</a>
+</div>
+{% else %}
+<div class="page-header">
+  <div class="page-header-eyebrow">ZenTable Stories</div>
+  <h1>Bites, Bytes <em>& Beyond</em></h1>
+  <p>Recipes, restaurant stories, dining trends and the people behind the plates.</p>
+</div>
+{% endif %}
+
+<!-- ── MAIN ── -->
+<div class="wrapper">
+
+  {% if posts %}
+
+    {% if not active_tag and page == 1 %}
+    <!-- Featured Post — pehla post bada dikhega -->
+    {% set featured = posts[0] %}
+    <a href="/blog/{{ featured.slug }}" class="featured-post">
+      {% if featured.cover_image %}
+        <img class="featured-post-cover" src="{{ featured.cover_image }}" alt="{{ featured.title }}" loading="lazy" />
+      {% else %}
+        <div class="featured-post-cover-placeholder">✍</div>
+      {% endif %}
+      <div class="featured-post-body">
+        <div class="featured-label">Featured</div>
+        {% if featured.tags %}
+        <div class="featured-post-tags">
+          {% for tag in featured.tags[:3] %}
+            <span class="tag-link">{{ tag }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <h2 class="featured-post-title">{{ featured.title }}</h2>
+        {% if featured.meta_desc %}
+          <p class="featured-post-desc">{{ featured.meta_desc }}</p>
+        {% endif %}
+        <div class="featured-post-meta">
+          <span class="author">{{ featured.author_name }}</span>
+          <span class="sep">·</span>
+          <span>{{ (featured.published_at or featured.created_at)[:10] }}</span>
+        </div>
+        <span class="read-more">Read Article →</span>
+      </div>
+    </a>
+
+    <!-- Remaining posts -->
+    {% set remaining = posts[1:] %}
+    {% if remaining %}
+    <div class="section-head">More Posts</div>
+    <div class="posts-grid">
+      {% for post in remaining %}
+      <a href="/blog/{{ post.slug }}" class="post-card">
+        <div class="post-card-cover">
+          {% if post.cover_image %}
+            <img src="{{ post.cover_image }}" alt="{{ post.title }}" loading="lazy" />
+          {% else %}
+            <div class="post-card-cover-placeholder">✍</div>
+          {% endif %}
+        </div>
+        <div class="post-card-body">
+          {% if post.tags %}
+          <div class="post-card-tags">
+            {% for tag in post.tags[:2] %}<span class="tag-link">{{ tag }}</span>{% endfor %}
+          </div>
+          {% endif %}
+          <div class="post-card-title">{{ post.title }}</div>
+          {% if post.meta_desc %}
+            <div class="post-card-desc">{{ post.meta_desc }}</div>
+          {% endif %}
+        </div>
+        <div class="post-card-footer">
+          <span class="author">{{ post.author_name }}</span>
+          <span>{{ (post.published_at or post.created_at)[:10] }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Tag page or page > 1 — just grid, no featured -->
+    <div class="posts-grid">
+      {% for post in posts %}
+      <a href="/blog/{{ post.slug }}" class="post-card">
+        <div class="post-card-cover">
+          {% if post.cover_image %}
+            <img src="{{ post.cover_image }}" alt="{{ post.title }}" loading="lazy" />
+          {% else %}
+            <div class="post-card-cover-placeholder">✍</div>
+          {% endif %}
+        </div>
+        <div class="post-card-body">
+          {% if post.tags %}
+          <div class="post-card-tags">
+            {% for tag in post.tags[:2] %}<span class="tag-link">{{ tag }}</span>{% endfor %}
+          </div>
+          {% endif %}
+          <div class="post-card-title">{{ post.title }}</div>
+          {% if post.meta_desc %}
+            <div class="post-card-desc">{{ post.meta_desc }}</div>
+          {% endif %}
+        </div>
+        <div class="post-card-footer">
+          <span class="author">{{ post.author_name }}</span>
+          <span>{{ (post.published_at or post.created_at)[:10] }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if total > limit %}
+    {% set total_pages = ((total + limit - 1) // limit) %}
+    <div class="pagination">
+      {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="page-btn">‹</a>
+      {% else %}
+        <span class="page-btn disabled">‹</span>
+      {% endif %}
+
+      {% for p in range(1, total_pages + 1) %}
+        <a href="?page={{ p }}" class="page-btn {% if p == page %}active{% endif %}">{{ p }}</a>
+      {% endfor %}
+
+      {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}" class="page-btn">›</a>
+      {% else %}
+        <span class="page-btn disabled">›</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="empty">
+    <div class="empty-icon">📝</div>
+    <h3>No posts yet</h3>
+    <p>{% if active_tag %}No posts with tag #{{ active_tag }} found.{% else %}Check back soon — stories are being written!{% endif %}</p>
+  </div>
+  {% endif %}
+
+</div><!-- /wrapper -->
+
+<!-- ── FOOTER ── -->
+<footer class="site-footer">
+  <a href="/">Zen<span>Table</span></a>
+  <p>Smart dining, reimagined.</p>
+</footer>
+
+</body>
+</html>
