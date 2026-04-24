@@ -83,15 +83,32 @@ async def serve_asset(request: Request, client_id: str, filename: str):
 # UTILITY ROUTES
 # ════════════════════════════════
 
+
 @app.api_route("/ping", methods=["GET", "HEAD"])
-def ping():
+def ping(response: Response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
     try:
         conn = get_db()
-        conn.execute("SELECT 1")
+        cur = conn.cursor()
+
+        # Neon wake-up query
+        cur.execute("SELECT 1;")
+        cur.fetchone()
+
+        cur.close()
         conn.close()
-    except:
-        pass
-    return {"status": "ok"}
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        # monitor ko failure dikhega
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 @app.get("/google67ff8e4e4bb9c2ef.html")
 def verify():
