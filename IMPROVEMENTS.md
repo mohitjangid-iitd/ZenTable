@@ -21,10 +21,11 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 ### Staff Workflows
 | Role | Capabilities |
 |---|---|
-| Owner | Analytics dashboard, QR generator, staff management, order history, full menu control, restaurant info management (name, logo, banner, social links, contact, tables), AI photo-to-menu import, platform help bot |
+| Owner | Analytics dashboard, QR generator, staff management, order history, full menu control, restaurant info management (name, logo, banner, social links, contact, tables), AI photo-to-menu import, platform help bot, multi-branch management, self-signup |
 | Waiter | Table management, order placement, order lifecycle, billing, payments |
 | Kitchen | Live order queue, mark individual items as ready |
 | Counter | Table activate/deactivate, payment collection |
+| Blogger | Create and manage blog posts for the platform and restaurants |
 
 ### Platform Admin (ZenTable) — admin.zentable.in
 | Feature | Details |
@@ -35,6 +36,8 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 | Photo to menu | AI-powered menu extraction from image for any restaurant |
 | 3D model management | Upload/manage `.glb` models per dish (owners cannot upload GLBs) |
 | Staff management | Create and manage staff accounts per restaurant |
+| Owner onboarding | Approve or reject owner self-signups |
+| Blogging platform | Centralized blogging system for ZenTable and connected restaurants |
 | File management | Upload images/models, trash + restore system (30-day recovery) |
 | Platform analytics | Revenue, orders, top dishes across all restaurants |
 | DB export | Full PostgreSQL export as ZIP |
@@ -42,8 +45,8 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 ### Technical Foundation
 | Component | Details |
 |---|---|
-| Backend | Python — FastAPI (modular routers) |
-| Database | PostgreSQL (psycopg2, ThreadedConnectionPool) |
+| Backend | Python — FastAPI (modular routers), background keep-alive threads |
+| Database | PostgreSQL (psycopg2, ThreadedConnectionPool), Neon DB keep-alive support |
 | Auth | bcrypt + JWT (cookie-based), role-scoped |
 | Multi-tenant | client_id isolation across all DB tables |
 | Restaurant Config | JSONB stored in PostgreSQL `restaurants` table |
@@ -76,13 +79,14 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 - [x] AI chatbot for customers (Gemini)
 - [x] AI photo-to-menu import (owner + admin)
 - [x] Platform help bot for owners
-- [x] Multi-branch DB schema (upgrade path ready)
+- [x] Multi-branch activation (owner manages multiple locations)
+- [x] Owner self-signup with admin approval
+- [x] Full blogging platform integration
 - [x] Customer-facing order placement (QR → order directly)
 - [x] Push notifications for staff (partial)
 
 ### Phase 2 — Next
 - [ ] Delivery app integration — Swiggy, Zomato, direct delivery
-- [ ] Multi-branch activation (owner manages multiple locations)
 - [ ] Manager role (branch-level staff and analytics access)
 - [ ] Customer reviews and ratings
 - [ ] Gallery section per restaurant
@@ -108,6 +112,7 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 | PDF menu | Interactive, shareable, brand building, engagement metrics |
 | Other AR solutions | Full staff workflow included, no native app, budget-friendly |
 | Generic POS systems | AR experience built-in, JSON-based easy onboarding |
+| Standard Restaurant Websites | Integrated blogging platform for organic SEO, content marketing, and audience engagement |
 
 ---
 
