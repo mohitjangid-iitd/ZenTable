@@ -2,13 +2,31 @@
 
 ## ZenTable Pe Apna Restaurant Kaise Add Hoga?
 
-Abhi ZenTable ka onboarding **fully managed** hai — restaurant owner ko kuch setup nahi karna padta. ZenTable ki team poora setup karti hai aur ready hone ke baad owner ko handover karti hai.
+ZenTable pe restaurant add karne ke **do tareeqe** hain:
+1. **Self-Signup** — Owner khud signup kare, admin approve kare, aur restaurant setup shuru
+2. **Managed Onboarding** — ZenTable ki team poora setup karke handover kare
 
 ---
 
-## Onboarding Process
+## Option A — Self-Signup (New)
 
-### Step 1 — Contact Karo
+### Step 1 — Signup Request
+- Owner ZenTable website pe jaake signup form bharta hai
+- Basic info deni hoti hai: naam, phone, email, restaurant ka naam, cuisine type
+
+### Step 2 — Admin Review
+- ZenTable admin ko request milti hai
+- Admin request review karke approve ya reject karta hai
+- Reject hone pe reason bhi diya jaata hai
+
+### Step 3 — Account Active
+- Approve hone ke baad owner ka account ban jaata hai
+- Owner apne credentials se login karke apna restaurant khud setup kar sakta hai
+- Menu items, staff accounts, tables, branding — sab owner khud manage karta hai
+
+---
+
+## Option B — Managed Onboarding
 - ZenTable se contact karo: `contact@zentable.in` ya website pe
 - Apne restaurant ki basic info share karo:
   - Restaurant ka naam aur address
