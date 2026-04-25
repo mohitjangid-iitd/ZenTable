@@ -49,7 +49,7 @@ ZenTable targets restaurant ke brand ke hisaab se customize kar sakti hai.
 ---
 
 ## AR Menu Kis Plan Mein Available Hai?
-AR menu `ar_menu` feature wale subscription mein available hai. ZenTable se contact karo AR menu add karne ke liye.
+AR menu `ar_menu` feature wale subscription mein available hai. ZenTable se contact karo AR menu add karne ke liye — `zentable.in@gmail.com`
 
 ---
 
@@ -62,7 +62,7 @@ A: Nahi — sirf phone ka browser chahiye. QR scan karo aur AR seedha browser me
 A: Android aur iOS dono pe modern browsers pe kaam karta hai (Chrome, Safari).
 
 **Q: Agar 3D model add karwana ho naye dish ka?**
-A: ZenTable team se contact karo — woh 3D model banake add kar denge.
+A: ZenTable team se contact karo (`zentable.in@gmail.com`) — woh 3D model banake add kar denge.
 
 **Q: AR target customize ho sakta hai?**
-A: Haan — table card, physical menu, ya koi bhi printed material AR target ban sakta hai. ZenTable team se discuss karo.
+A: Haan — table card, physical menu, ya koi bhi printed material AR target ban sakta hai. ZenTable team se discuss karo (`zentable.in@gmail.com`).

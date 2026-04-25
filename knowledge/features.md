@@ -44,7 +44,7 @@ Live platform: https://zentable.in
 - Payment status tracking
 
 ### 6. Staff Management
-- Multiple roles: owner, waiter, kitchen, counter
+- Multiple roles: owner, waiter, kitchen, counter, blogger
 - Har role ko sirf uska relevant dashboard dikhta hai
 - Staff accounts owner khud bana sakta hai
 - Active/inactive toggle — temporary disable without deleting
@@ -60,6 +60,29 @@ Live platform: https://zentable.in
 - Ek platform pe multiple restaurants
 - Har restaurant ka alag data, alag staff, alag menu
 - Admin panel se sab manage hota hai
+
+### 9. Multi-Branch Support
+- Ek brand ki multiple branches manage karo — ek hi dashboard se
+- Har branch ka apna menu, staff, orders, aur analytics alag
+- Owner apni saari branches ek jagah se dekh sakta hai
+- Branch-level aur brand-level dono analytics available
+
+### 10. Owner Self-Signup
+- Restaurant owner khud signup kar sakta hai ZenTable pe
+- Admin ko request jaati hai — approve ya reject ka option
+- Approve hone ke baad owner apna restaurant setup kar sakta hai
+- Koi manual onboarding ki zaroorat nahi
+
+### 11. Blogging Platform
+- ZenTable ka apna built-in blogging system hai
+- Platform aur connected restaurants ke liye blog posts likho
+- SEO-friendly — organic traffic aur audience engagement badhta hai
+- Blogger role wale staff members blog posts create aur manage kar sakte hain
+
+### 12. AI-Powered Tools
+- **Photo to Menu** — menu ki photo upload karo, AI automatically items extract karke menu bana deta hai
+- **AI Chatbot** — customers apne sawaal puch sakte hain menu, timings, restaurant info ke baare mein
+- **Help Bot** — owners ko platform use karne mein madad karta hai
 
 ---
 

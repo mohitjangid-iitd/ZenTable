@@ -1,14 +1,15 @@
 # Staff Management
 
 ## Staff Roles — Overview
-ZenTable mein 4 staff roles hain. Har role ko sirf uska relevant dashboard dikhta hai.
+ZenTable mein 5 staff roles hain. Har role ko sirf uska relevant dashboard dikhta hai.
 
 | Role | Kya Karta Hai |
 |------|---------------|
-| **owner** | Poora access — analytics, staff management, orders, billing |
+| **owner** | Poora access — analytics, staff management, orders, billing, multi-branch management |
 | **waiter** | Table management, order placement, billing |
 | **kitchen** | Live order queue, items ready mark karna |
 | **counter** | Table activate/deactivate, payment collect karna |
+| **blogger** | Blog posts create aur manage karna |
 
 ---
 
@@ -17,9 +18,18 @@ ZenTable mein 4 staff roles hain. Har role ko sirf uska relevant dashboard dikht
 ### Owner
 - Analytics dashboard — sales, revenue, top items
 - Staff accounts banana aur manage karna
-- Saari tables ka overview
+- Saari tables ka overview aur manage karna
 - Full order history
 - QR code generator
+- Blog posts create aur manage karna
+- Restaurent ki menu aur info manage karna
+- AI-powered photo-to-menu tool use karna
+- AI help bot use karna, analytics aur general help lene ke liye
+- Multi-branch management — saari branches ek dashboard se
+
+### Blogger
+- Blog posts create, edit, aur publish karna
+- Platform aur restaurant ke liye content manage karna
 
 ### Waiter
 - Table status — kaun si table occupied, billed, paid
@@ -49,8 +59,17 @@ ZenTable mein 4 staff roles hain. Har role ko sirf uska relevant dashboard dikht
    - Name
    - Username (login ke liye)
    - Password
-   - Role select karo (waiter/kitchen/counter)
+   - Role select karo (waiter/kitchen/counter/blogger)
 5. Save karo — account ready
+
+---
+
+## Multi-Branch Staff Management
+
+- Agar restaurant ki multiple branches hain, toh har branch ke liye alag staff manage hota hai
+- Owner apne dashboard se kisi bhi branch ke staff ko dekh aur manage kar sakta hai
+- Staff sirf apni assigned branch ka data dekhta hai
+- Owner ko saari branches ka combined view bhi milta hai
 
 ---
 
@@ -94,10 +113,10 @@ Owner dashboard → Staff Management → Delete button
 A: Subscription ke hisaab se — ZenTable se confirm karo apne plan mein.
 
 **Q: Owner ka password bhul gaya?**
-A: ZenTable support se contact karo — `support@zentable.in`
+A: ZenTable support se contact karo — `zentable.in@gmail.com`
 
 **Q: Ek staff member multiple roles pe kaam kar sakta hai?**
 A: Abhi ek account ek role — alag role ke liye alag account banana padega.
 
 **Q: Staff ka username change ho sakta hai?**
-A: Abhi directly nahi — old account delete karke naya banana padega. ZenTable support se bhi help le sakte hain.
+A: Abhi directly nahi — old account delete karke naya banana padega. ZenTable support se bhi help le sakte hain (`zentable.in@gmail.com`).

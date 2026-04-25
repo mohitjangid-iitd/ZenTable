@@ -19,7 +19,7 @@ A: Chhote se bade sab ke liye — cafe, QSR, fine dining, food court stalls sab 
 ## Digital Menu
 
 **Q: Menu update karna padega to kya karna hoga?**
-A: Menu mein changes ke liye ZenTable team se contact karo — woh update kar denge. Future mein owner panel se seedha edit karne ka feature aayega.
+A: Owner apne dashboard se seedha menu edit kar sakta hai — items add, edit, delete, categories manage, sab owner panel se hota hai. AI photo-to-menu feature se menu ki photo se bhi items extract ho sakte hain.
 
 **Q: Menu mein kitne items add ho sakte hain?**
 A: Koi hard limit nahi hai — jitne chahiye utne.
@@ -85,6 +85,12 @@ A: Owner dashboard se staff ka password change kar sakte hain. Ya ZenTable suppo
 **Q: Kya owner remotely dekh sakta hai kya ho raha hai restaurant mein?**
 A: Haan — owner dashboard kisi bhi device se access ho sakta hai. Live orders, tables, analytics — sab real-time.
 
+**Q: Kya ek owner multiple branches manage kar sakta hai?**
+A: Haan — ZenTable multi-branch support deta hai. Owner apni saari branches ek hi dashboard se manage kar sakta hai — har branch ka alag menu, staff, orders, aur analytics hota hai.
+
+**Q: Kya restaurant owner khud signup kar sakta hai?**
+A: Haan — owner ZenTable website pe self-signup kar sakta hai. ZenTable admin request review karke approve karega, uske baad owner apna restaurant khud setup kar sakta hai.
+
 ---
 
 ## Pricing & Trial
@@ -93,10 +99,10 @@ A: Haan — owner dashboard kisi bhi device se access ho sakta hai. Live orders,
 A: Haan — 1 mahine ka free trial with full features aur 5 pre-existing 3D models.
 
 **Q: Pricing kya hai?**
-A: Flexible plans hain — restaurant ki zaroorat ke hisaab se. Contact karo: contact@zentable.in
+A: Flexible plans hain — restaurant ki zaroorat ke hisaab se. Contact karo: zentable.in@gmail.com
 
 **Q: Demo kaise book karein?**
-A: Email karo `contact@zentable.in` ya website pe contact form bharo — team 1-2 business days mein respond karti hai.
+A: Email karo `zentable.in@gmail.com` ya website pe contact form bharo — team 1-2 business days mein respond karti hai.
 
 ---
 
@@ -106,7 +112,20 @@ A: Email karo `contact@zentable.in` ya website pe contact form bharo — team 1-
 A: Platform Render pe hosted hai with PostgreSQL database aur Cloudflare CDN. Uptime monitoring active hai.
 
 **Q: Kuch kaam na kare toh?**
-A: `support@zentable.in` pe mail karo with screenshot — team working hours mein respond karti hai.
+A: `zentable.in@gmail.com` pe mail karo with screenshot — team working hours mein respond karti hai.
 
 **Q: Data secure hai?**
 A: Haan — JWT authentication, encrypted passwords, aur secure file storage. Customer ka data (orders, billing) sirf aapke restaurant ka staff dekh sakta hai.
+
+---
+
+## Blogging
+
+**Q: ZenTable pe blog bhi likh sakte hain?**
+A: Haan — ZenTable ka built-in blogging platform hai. Platform aur connected restaurants ke liye blog posts likhe ja sakte hain.
+
+**Q: Blog kaun likh sakta hai?**
+A: Blogger role wale staff members blog posts create aur manage kar sakte hain. Admin bhi blog manage kar sakta hai.
+
+**Q: Blog ka SEO benefit milta hai?**
+A: Haan — blog posts SEO-friendly hain, organic traffic aur audience engagement badhane mein help karte hain.
