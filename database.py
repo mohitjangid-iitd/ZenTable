@@ -1102,7 +1102,7 @@ def get_all_restaurants_info():
     raw  = conn._conn.cursor()
     today = date.today().isoformat()
 
-    raw.execute("SELECT client_id, config FROM restaurants ORDER BY client_id")
+    raw.execute("SELECT client_id, config FROM restaurants WHERE branch_id='__default__' ORDER BY client_id")
     rows = raw.fetchall()
 
     restaurants = []
