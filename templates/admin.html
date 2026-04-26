@@ -1022,7 +1022,7 @@
                     <div class="form-group" id="ns-branch-group">
                         <label>Branch</label>
                         <select id="ns-branch">
-                            <option value="__default__">__default__ (Single outlet)</option>
+                            <option value="__default__">Main</option>
                         </select>
                     </div>
                 </div>
@@ -1825,7 +1825,7 @@
                 `<option value="${b.branch_id}">${b.name} (${b.branch_id})</option>`
             ).join('');
         } catch(e) {
-            sel.innerHTML = '<option value="__default__">__default__</option>';
+            sel.innerHTML = '<option value="__default__">Main</option>';
         }
     }
 

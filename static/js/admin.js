@@ -79,6 +79,7 @@ let currentEditClientId = null;
 let currentEditData = null;
 let currentEditItemIndex = -1;
 let currentPasswordStaffId = null;
+let branchDataCache = {};   // { branch_id: data } — unsaved changes preserve karne ke liye
 
 // ════════════════════════════════
 // FILE UPLOAD HELPERS
@@ -335,6 +336,7 @@ function renderRestGrid() {
         const isMultiBranch = branches.length > 1;
         const branchSelectHtml = isMultiBranch ? `
             <select id="branch-sel-${r.client_id}" onchange="updateRestCardMeta('${r.client_id}')" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:white;padding:4px 8px;border-radius:6px;font-size:0.72rem;outline:none;max-width:150px;">
+                <option value="__all__" selected>All</option>
                 ${branches.map(b => `<option value="${b.branch_id}">${b.name}</option>`).join('')}
             </select>` : '';
         const editOnclick = isMultiBranch
@@ -346,16 +348,17 @@ function renderRestGrid() {
                 <div style="flex:1;min-width:0;">
                     <div class="rest-name" style="display:flex;align-items:center;gap:8px;">
                         ${r.name}
+                    </div>
+                    <div class="rest-id">${r.client_id}</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
                         ${r.active === false
                             ? `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(239,83,80,0.12);color:#ef9a9a;border:1px solid rgba(239,83,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">INACTIVE</span>`
                             : `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(76,175,80,0.10);color:#81c784;border:1px solid rgba(76,175,80,0.2);font-family:var(--font-m);letter-spacing:.5px;">ACTIVE</span>`
                         }
                         ${isMultiBranch ? `<span style="font-size:0.58rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:#a89cff;border:1px solid rgba(108,99,255,0.2);font-family:var(--font-m);">${branches.length} Branches</span>` : ''}
                     </div>
-                    <div class="rest-id">${r.client_id}</div>
                 </div>
-                <div class="rest-actions" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-                    ${branchSelectHtml}
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
                     <div style="display:flex;gap:6px;">
                         <button class="btn btn-ghost btn-icon btn-sm" onclick="${editOnclick}" title="Edit">✏️</button>
                         <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}',${r.active !== false})"
@@ -365,16 +368,16 @@ function renderRestGrid() {
                         </button>
                         <button class="btn btn-danger btn-icon btn-sm" onclick="deleteRestaurant('${r.client_id}','${r.name.replace(/'/g,"\\'")}') " title="Delete">🗑️</button>
                     </div>
+                    ${branchSelectHtml}
                 </div>
             </div>
             <div class="rest-meta" id="rest-meta-${r.client_id}">
-                <div class="rest-meta-item">Tables: <span id="rm-tables-${r.client_id}">${r.num_tables}</span></div>
-                <div class="rest-meta-item">Staff: <span>${r.staff_count}</span></div>
+                <div class="rest-meta-item">Staff: <span id="rm-staff-${r.client_id}">${r.staff_count}</span></div>
                 <div class="rest-meta-item">Today: <span id="rm-orders-${r.client_id}">${r.today_orders} orders</span></div>
                 <div class="rest-meta-item">Revenue: <span id="rm-rev-${r.client_id}">₹${r.today_revenue.toLocaleString()}</span></div>
+                <div class="rest-meta-item" id="rm-tables-wrap-${r.client_id}" style="${isMultiBranch ? 'display:none' : ''}">Tables: <span id="rm-tables-${r.client_id}">${r.num_tables}</span></div>
             </div>
-            ${r.cuisine_type ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:8px">${r.cuisine_type}</div>` : ''}
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+            <div id="rm-features-${r.client_id}" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
                 ${(r.features || ['basic']).map(f => `<span style="font-size:0.6rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:var(--primary);border:1px solid var(--border);font-family:var(--font-m)">${f}</span>`).join('')}
             </div>
             <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;font-size:0.78rem;" onclick="downloadAllQRs('${r.client_id}')">⬇ Download All QR Codes</button>
@@ -433,27 +436,33 @@ async function createRestaurant() {
 }
 
 async function openEditRestaurant(client_id, branch_id = '__default__') {
-    const res = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`);
+    const res = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=__default__`);
     if (!res.ok) { toast('Load failed', 'error'); return; }
-    currentEditData = await res.json();
+    const defaultData = await res.json();
+    const restaurantName = defaultData.restaurant?.name || client_id;
+
+    // Agar non-default branch select hai toh us branch ka data load karo
+    if (branch_id !== '__default__') {
+        const res2 = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`);
+        if (!res2.ok) { toast('Load failed', 'error'); return; }
+        currentEditData = await res2.json();
+        branchDataCache['__default__'] = JSON.parse(JSON.stringify(defaultData));
+        branchDataCache[branch_id]     = JSON.parse(JSON.stringify(currentEditData));
+    } else {
+        currentEditData = defaultData;
+        branchDataCache['__default__'] = JSON.parse(JSON.stringify(defaultData));
+    }
+
     currentEditClientId = client_id;
 
-    document.getElementById('edit-rest-title').textContent = `Edit — ${currentEditData.restaurant.name}`;
+    // Title hamesha __default__ branch ka restaurant naam
+    document.getElementById('edit-rest-title').textContent = `Edit — ${restaurantName}`;
 
-    // Fill info
-    const r = currentEditData.restaurant;
-    document.getElementById('ei-name').value     = r.name || '';
-    document.getElementById('ei-tables').value   = r.num_tables || 6;
-    document.getElementById('ei-tagline').value  = r.tagline || '';
-    document.getElementById('ei-desc').value     = r.description || '';
-    document.getElementById('ei-cuisine').value  = r.cuisine_type || '';
-    document.getElementById('ei-phone').value    = r.phone || '';
-    document.getElementById('ei-email').value    = r.email || '';
-    document.getElementById('ei-address').value  = r.address || '';
-    document.getElementById('ei-logo').value    = r.logo || '';
-    document.getElementById('ei-banner').value  = r.banner || '';
+    // Fill all form fields
+    _fillFormFromEditData();
 
     // Logo upload box — agar pehle se path hai toh preview dikhao
+    const r = currentEditData.restaurant || {};
     resetUploadBox('ei-logo-box','🖼️','Click karo ya drag karo','ei-logo-preview','ei-logo-icon','ei-logo-hint');
     if (r.logo) {
         const prev = document.getElementById('ei-logo-preview');
@@ -484,33 +493,6 @@ async function openEditRestaurant(client_id, branch_id = '__default__') {
     initUploadDragDrop('ei-logo-box','ei-logo-file');
     initUploadDragDrop('ei-banner-box','ei-banner-file');
     initUploadDragDrop('ei-mind-box','ei-mind-file');
-    document.getElementById('ei-lunch').value    = r.timings?.lunch || '';
-    document.getElementById('ei-dinner').value   = r.timings?.dinner || '';
-    document.getElementById('ei-closed').value   = r.timings?.closed || '';
-    document.getElementById('ei-instagram').value = r.social?.instagram || '';
-    document.getElementById('ei-facebook').value  = r.social?.facebook || '';
-    document.getElementById('ei-twitter').value   = r.social?.twitter || '';
-
-    // Fill features
-    const activeFeatures = currentEditData.subscription?.features || ['basic'];
-    ['ordering','analytics','ar_menu'].forEach(f => {
-        const cb = document.getElementById(`feat-${f}`);
-        if (cb) cb.checked = activeFeatures.includes(f);
-    });
-
-    // Fill theme
-    const t = currentEditData.theme || {};
-    const setColor = (id, val) => {
-        document.getElementById(id).value = val || '';
-        try { document.getElementById(id+'-picker').value = val || '#000000'; } catch(e){}
-    };
-    setColor('et-primary', t.primary_color);
-    setColor('et-secondary', t.secondary_color);
-    setColor('et-accent', t.accent_color);
-    setColor('et-text', t.text_color);
-    setColor('et-bg', t.background);
-    document.getElementById('et-font-primary').value = t.font_primary || 'Playfair Display';
-    document.getElementById('et-font-secondary').value = t.font_secondary || 'Poppins';
 
     // Reset to info tab
     document.querySelectorAll('.json-tab').forEach(b => b.classList.remove('active'));
@@ -529,12 +511,12 @@ async function openEditRestaurant(client_id, branch_id = '__default__') {
             branchSel.innerHTML = bData.map(b =>
                 `<option value="${b.branch_id}">${b.name} (${b.branch_id})</option>`
             ).join('');
-            branchSel.value = branch_id;
+            // Agar branch_id kisi option se match nahi karta toh pehli branch select karo
+            const validValues = bData.map(b => b.branch_id);
+            const resolvedBranch = validValues.includes(branch_id) ? branch_id : (validValues[0] || branch_id);
+            branchSel.value = resolvedBranch;
+            branchSel.dataset.prevBranch = resolvedBranch;
             branchSel.style.display = '';
-            // Agar default nahi selected toh us branch ka data load karo
-            if (branch_id !== '__default__') {
-                await onEditBranchChange();
-            }
         } else {
             branchSel.style.display = 'none';
         }
@@ -545,65 +527,66 @@ async function openEditRestaurant(client_id, branch_id = '__default__') {
 
 async function onEditBranchChange() {
     const client_id = currentEditClientId;
-    const branch_id = document.getElementById('edit-branch-select').value;
+    const branchSel = document.getElementById('edit-branch-select');
+    const newBranch = branchSel.value;
     if (!client_id) return;
-    try {
-        const res = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`);
-        if (!res.ok) { toast('Branch data load nahi hua', 'error'); return; }
-        currentEditData = await res.json();
-        // Fields re-fill karo
-        const r = currentEditData.restaurant || {};
-        document.getElementById('ei-name').value     = r.name || '';
-        document.getElementById('ei-tables').value   = r.num_tables || 6;
-        document.getElementById('ei-tagline').value  = r.tagline || '';
-        document.getElementById('ei-desc').value     = r.description || '';
-        document.getElementById('ei-cuisine').value  = r.cuisine_type || '';
-        document.getElementById('ei-phone').value    = r.phone || '';
-        document.getElementById('ei-email').value    = r.email || '';
-        document.getElementById('ei-address').value  = r.address || '';
-        document.getElementById('ei-logo').value     = r.logo || '';
-        document.getElementById('ei-banner').value   = r.banner || '';
-        document.getElementById('ei-lunch').value    = r.timings?.lunch || '';
-        document.getElementById('ei-dinner').value   = r.timings?.dinner || '';
-        document.getElementById('ei-closed').value   = r.timings?.closed || '';
-        document.getElementById('edit-rest-title').textContent = `Edit — ${r.name || branch_id}`;
-        // Items list refresh karo agar items tab khula ho
-        const itemsTab = document.getElementById('edit-items');
-        if (itemsTab && itemsTab.classList.contains('active')) renderItemsList();
-    } catch(e) { toast('Network error', 'error'); }
+
+    // ── Step 1: Pehle wali branch ke form fields currentEditData mein collect karo ──
+    _collectFormIntoEditData();
+
+    // ── Step 2: Purani branch ka data cache mein save karo ──
+    const prevBranch = branchSel.dataset.prevBranch || '__default__';
+    if (currentEditData) {
+        branchDataCache[prevBranch] = JSON.parse(JSON.stringify(currentEditData));
+    }
+    branchSel.dataset.prevBranch = newBranch;
+
+    // ── Step 3: Naye branch ka data — cache mein hai toh wahan se, warna server se ──
+    let data;
+    if (branchDataCache[newBranch]) {
+        data = branchDataCache[newBranch];
+    } else {
+        try {
+            const res = await fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${newBranch}`);
+            if (!res.ok) { toast('Branch data load nahi hua', 'error'); return; }
+            data = await res.json();
+            branchDataCache[newBranch] = JSON.parse(JSON.stringify(data));
+        } catch(e) { toast('Network error', 'error'); return; }
+    }
+
+    currentEditData = data;
+    _fillFormFromEditData();
 }
 
-async function saveRestaurant() {
-    if (!currentEditData || !currentEditClientId) return;
-
-    // Collect info
-    const r = currentEditData.restaurant;
-    r.name         = document.getElementById('ei-name').value.trim();
-    r.num_tables   = parseInt(document.getElementById('ei-tables').value) || r.num_tables;
-    r.tagline      = document.getElementById('ei-tagline').value.trim();
-    r.description  = document.getElementById('ei-desc').value.trim();
-    r.cuisine_type = document.getElementById('ei-cuisine').value.trim();
-    r.phone        = document.getElementById('ei-phone').value.trim();
-    r.email        = document.getElementById('ei-email').value.trim();
-    r.address      = document.getElementById('ei-address').value.trim();
-    r.logo         = document.getElementById('ei-logo').value.trim();
-    r.banner       = document.getElementById('ei-banner').value.trim();
-
-    // targets.mind path save karo
-    const mindVal = document.getElementById('ei-mind').value.trim();
-    if (mindVal) currentEditData.targets = mindVal;
+// ── Form → currentEditData (save without API) ──
+function _collectFormIntoEditData() {
+    if (!currentEditData) return;
+    const r = currentEditData.restaurant || (currentEditData.restaurant = {});
+    r.name         = document.getElementById('ei-name')?.value.trim() || r.name;
+    r.num_tables   = parseInt(document.getElementById('ei-tables')?.value) || r.num_tables;
+    r.tagline      = document.getElementById('ei-tagline')?.value.trim() ?? '';
+    r.description  = document.getElementById('ei-desc')?.value.trim() ?? '';
+    r.cuisine_type = document.getElementById('ei-cuisine')?.value.trim() ?? '';
+    r.phone        = document.getElementById('ei-phone')?.value.trim() ?? '';
+    r.email        = document.getElementById('ei-email')?.value.trim() ?? '';
+    r.address      = document.getElementById('ei-address')?.value.trim() ?? '';
+    r.logo         = document.getElementById('ei-logo')?.value.trim() || r.logo;
+    r.banner       = document.getElementById('ei-banner')?.value.trim() || r.banner;
     r.timings = {
-        lunch:  document.getElementById('ei-lunch').value.trim(),
-        dinner: document.getElementById('ei-dinner').value.trim(),
-        closed: document.getElementById('ei-closed').value.trim(),
+        lunch:  document.getElementById('ei-lunch')?.value.trim() ?? '',
+        dinner: document.getElementById('ei-dinner')?.value.trim() ?? '',
+        closed: document.getElementById('ei-closed')?.value.trim() ?? '',
     };
     r.social = {
-        instagram: document.getElementById('ei-instagram').value.trim(),
-        facebook:  document.getElementById('ei-facebook').value.trim(),
-        twitter:   document.getElementById('ei-twitter').value.trim(),
+        instagram: document.getElementById('ei-instagram')?.value.trim() ?? '',
+        facebook:  document.getElementById('ei-facebook')?.value.trim() ?? '',
+        twitter:   document.getElementById('ei-twitter')?.value.trim() ?? '',
     };
+    currentEditData.restaurant = r;
 
-    // Collect features
+    const mindVal = document.getElementById('ei-mind')?.value.trim();
+    if (mindVal) currentEditData.targets = mindVal;
+
     const selectedFeatures = ['basic'];
     ['ordering','analytics','ar_menu'].forEach(f => {
         const cb = document.getElementById(`feat-${f}`);
@@ -611,16 +594,74 @@ async function saveRestaurant() {
     });
     currentEditData.subscription = { features: selectedFeatures };
 
-    // Collect theme
     currentEditData.theme = {
-        primary_color:   document.getElementById('et-primary').value.trim(),
-        secondary_color: document.getElementById('et-secondary').value.trim(),
-        accent_color:    document.getElementById('et-accent').value.trim(),
-        text_color:      document.getElementById('et-text').value.trim(),
-        background:      document.getElementById('et-bg').value.trim(),
-        font_primary:    document.getElementById('et-font-primary').value,
-        font_secondary:  document.getElementById('et-font-secondary').value,
+        primary_color:   document.getElementById('et-primary')?.value.trim() || '',
+        secondary_color: document.getElementById('et-secondary')?.value.trim() || '',
+        accent_color:    document.getElementById('et-accent')?.value.trim() || '',
+        text_color:      document.getElementById('et-text')?.value.trim() || '',
+        background:      document.getElementById('et-bg')?.value.trim() || '',
+        font_primary:    document.getElementById('et-font-primary')?.value || 'Playfair Display',
+        font_secondary:  document.getElementById('et-font-secondary')?.value || 'Poppins',
     };
+}
+
+// ── currentEditData → Form fields fill karo ──
+function _fillFormFromEditData() {
+    if (!currentEditData) return;
+    const r = currentEditData.restaurant || {};
+    document.getElementById('ei-name').value      = r.name || '';
+    document.getElementById('ei-tables').value    = r.num_tables || 6;
+    document.getElementById('ei-tagline').value   = r.tagline || '';
+    document.getElementById('ei-desc').value      = r.description || '';
+    document.getElementById('ei-cuisine').value   = r.cuisine_type || '';
+    document.getElementById('ei-phone').value     = r.phone || '';
+    document.getElementById('ei-email').value     = r.email || '';
+    document.getElementById('ei-address').value   = r.address || '';
+    document.getElementById('ei-logo').value      = r.logo || '';
+    document.getElementById('ei-banner').value    = r.banner || '';
+    document.getElementById('ei-lunch').value     = r.timings?.lunch || '';
+    document.getElementById('ei-dinner').value    = r.timings?.dinner || '';
+    document.getElementById('ei-closed').value    = r.timings?.closed || '';
+    document.getElementById('ei-instagram').value = r.social?.instagram || '';
+    document.getElementById('ei-facebook').value  = r.social?.facebook || '';
+    document.getElementById('ei-twitter').value   = r.social?.twitter || '';
+
+    // Features
+    const activeFeatures = currentEditData.subscription?.features || ['basic'];
+    ['ordering','analytics','ar_menu'].forEach(f => {
+        const cb = document.getElementById(`feat-${f}`);
+        if (cb) cb.checked = activeFeatures.includes(f);
+    });
+
+    // Theme
+    const t = currentEditData.theme || {};
+    const setColor = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+        try { document.getElementById(id+'-picker').value = val || '#000000'; } catch(e){}
+    };
+    setColor('et-primary',   t.primary_color);
+    setColor('et-secondary', t.secondary_color);
+    setColor('et-accent',    t.accent_color);
+    setColor('et-text',      t.text_color);
+    setColor('et-bg',        t.background);
+    document.getElementById('et-font-primary').value   = t.font_primary   || 'Playfair Display';
+    document.getElementById('et-font-secondary').value = t.font_secondary || 'Poppins';
+
+    // Items list refresh karo agar items tab khula ho
+    const itemsTab = document.getElementById('edit-items');
+    if (itemsTab && itemsTab.classList.contains('active')) renderItemsList();
+}
+
+async function saveRestaurant() {
+    if (!currentEditData || !currentEditClientId) return;
+
+    // Saare form fields currentEditData mein collect karo
+    _collectFormIntoEditData();
+
+    // targets.mind path save karo
+    const mindVal = document.getElementById('ei-mind').value.trim();
+    if (mindVal) currentEditData.targets = mindVal;
 
     const branch_id = document.getElementById('edit-branch-select')?.value || '__default__';
     const res = await fetch(`/api/admin/restaurant/${currentEditClientId}/json?branch_id=${branch_id}`, {
@@ -959,6 +1000,7 @@ async function loadStaff() {
     const tbody = document.getElementById('staff-table-body');
     if (!client_id) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Restaurant select karo</td></tr>'; return; }
     tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading...</td></tr>';
+
     const res = await fetch(`/api/admin/staff/${client_id}`);
     const staff = await res.json();
     const filtered = branch_filter ? staff.filter(s => (s.branch_id || '__default__') === branch_filter) : staff;
@@ -972,7 +1014,7 @@ async function loadStaff() {
             <td>${s.name}</td>
             <td class="mono">${s.username}</td>
             <td><span class="badge badge-${s.role}">${s.role}</span></td>
-            <td><span style="font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(108,99,255,0.12);color:#a89cff;border:1px solid rgba(108,99,255,0.2);font-family:var(--font-m);">${s.branch_id || '__default__'}</span></td>
+            <td><span style="font-size:0.7rem;padding:2px 8px;border-radius:4px;background:rgba(108,99,255,0.12);color:#a89cff;border:1px solid rgba(108,99,255,0.2);font-family:var(--font-m);">${s.branch_id && s.branch_id !== '__default__' ? s.branch_id : 'Main'}</span></td>
             <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
             <td>
                 <div style="display:flex;gap:6px;">
@@ -1739,20 +1781,89 @@ async function updateRestCardMeta(client_id) {
     const sel = document.getElementById(`branch-sel-${client_id}`);
     if (!sel) return;
     const branch_id = sel.value;
+
+    const tablesEl   = document.getElementById(`rm-tables-${client_id}`);
+    const ordersEl   = document.getElementById(`rm-orders-${client_id}`);
+    const revEl      = document.getElementById(`rm-rev-${client_id}`);
+    const staffEl    = document.getElementById(`rm-staff-${client_id}`);
+    const featuresEl = document.getElementById(`rm-features-${client_id}`);
+
     try {
-        const [aRes, cRes] = await Promise.all([
+        // __all__ — sabhi branches ka total
+        if (branch_id === '__all__') {
+            const r = allRestaurants.find(x => x.client_id === client_id);
+
+            // Pehle fresh branches list lo
+            const bRes = await fetch(`/api/admin/restaurant/${client_id}/branches`, { credentials: 'include' });
+            const branchList = bRes.ok ? await bRes.json() : [];
+
+            const [allAnalytics, allBranchData, sRes] = await Promise.all([
+                Promise.all(branchList.map(b =>
+                    fetch(`/api/admin/analytics/${client_id}?branch_id=${b.branch_id}`, { credentials: 'include' })
+                        .then(r => r.ok ? r.json() : {})
+                )),
+                Promise.all(branchList.map(b =>
+                    fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${b.branch_id}`, { credentials: 'include' })
+                        .then(r => r.ok ? r.json() : {})
+                )),
+                fetch(`/api/admin/staff/${client_id}`, { credentials: 'include' })
+                    .then(r => r.ok ? r.json() : []),
+            ]);
+
+            const defaultData  = allBranchData.find((_, i) => branchList[i]?.branch_id === '__default__') || allBranchData[0] || {};
+            const totalTables  = allBranchData.reduce((sum, d) => sum + (d?.restaurant?.num_tables || 0), 0) || r?.num_tables || 0;
+            const totalOrders  = allAnalytics.reduce((sum, a) => sum + (a.today?.orders  || 0), 0);
+            const totalRevenue = allAnalytics.reduce((sum, a) => sum + (a.today?.revenue || 0), 0);
+
+            // DEBUG — browser console mein dekho, baad mein hata dena
+            console.log('[ALL] branchList:', branchList.map(b => b.branch_id));
+            console.log('[ALL] num_tables per branch:', allBranchData.map((d, i) => `${branchList[i]?.branch_id}: ${d?.restaurant?.num_tables}`));
+            console.log('[ALL] totalTables:', totalTables);
+
+            const tablesWrapEl = document.getElementById(`rm-tables-wrap-${client_id}`);
+            if (tablesWrapEl) tablesWrapEl.style.display = 'none';
+            if (tablesEl) tablesEl.textContent = totalTables || '—';
+            if (ordersEl) ordersEl.textContent = `${totalOrders} orders`;
+            if (revEl)    revEl.textContent    = `₹${totalRevenue.toLocaleString()}`;
+            if (staffEl)  staffEl.textContent  = Array.isArray(sRes) ? sRes.length : '—';
+
+            if (featuresEl) {
+                const features = defaultData?.subscription?.features || ['basic'];
+                featuresEl.innerHTML = features.map(f =>
+                    `<span style="font-size:0.6rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:var(--primary);border:1px solid var(--border);font-family:var(--font-m)">${f}</span>`
+                ).join('');
+            }
+            return;
+        }
+
+        // Single branch
+        const [aRes, cRes, sRes] = await Promise.all([
             fetch(`/api/admin/analytics/${client_id}?branch_id=${branch_id}`, { credentials: 'include' }),
             fetch(`/api/admin/restaurant/${client_id}/json?branch_id=${branch_id}`, { credentials: 'include' }),
+            fetch(`/api/admin/staff/${client_id}`, { credentials: 'include' }),
         ]);
         const aData = aRes.ok ? await aRes.json() : {};
         const cData = cRes.ok ? await cRes.json() : {};
+        const sData = sRes.ok ? await sRes.json() : [];
         const t = aData.today || {};
-        const tablesEl = document.getElementById(`rm-tables-${client_id}`);
-        const ordersEl = document.getElementById(`rm-orders-${client_id}`);
-        const revEl    = document.getElementById(`rm-rev-${client_id}`);
+
+        const tablesWrapEl2 = document.getElementById(`rm-tables-wrap-${client_id}`);
+        if (tablesWrapEl2) tablesWrapEl2.style.display = '';
         if (tablesEl) tablesEl.textContent = cData?.restaurant?.num_tables || '—';
         if (ordersEl) ordersEl.textContent = `${t.orders || 0} orders`;
         if (revEl)    revEl.textContent    = `₹${(t.revenue || 0).toLocaleString()}`;
+
+        if (staffEl) {
+            const branchStaff = sData.filter(s => (s.branch_id || '__default__') === branch_id);
+            staffEl.textContent = branchStaff.length;
+        }
+
+        if (featuresEl) {
+            const features = cData?.subscription?.features || ['basic'];
+            featuresEl.innerHTML = features.map(f =>
+                `<span style="font-size:0.6rem;padding:2px 7px;border-radius:3px;background:rgba(108,99,255,0.12);color:var(--primary);border:1px solid var(--border);font-family:var(--font-m)">${f}</span>`
+            ).join('');
+        }
     } catch(e) {}
 }
 
