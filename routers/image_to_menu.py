@@ -88,14 +88,13 @@ SIZES RULE — when a dish shows two or more prices (e.g. ₹129/₹159):
 Look at the section heading and dish context to determine the correct labels:
 - "Gravy / Dry" section → labels are "Gravy" and "Dry"
 - "Small/Medium/Large" context → use those labels
-- "(Veg/Egg/Chicken)" written next to the dish name → three sizes with labels "Veg", "Egg", "Chicken"
 
 When using sizes, REMOVE the price field entirely:
 {
   "name": "Schezwan Noodles",
   "category": "Noodles",
   "veg": false,
-  "sizes": [{"label": "Veg", "price": "129"}, {"label": "Non-Veg", "price": "159"}],
+  "sizes": [{"label": "small", "price": "129"}, {"label": "medium", "price": "159"}, {"label": "large", "price": "209"}],
   "description": "",
   "ingredients": ""
 }
