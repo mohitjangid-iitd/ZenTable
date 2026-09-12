@@ -11,7 +11,7 @@ Run: pytest tests/test_billing.py -v
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 # ════════════════════════════════
@@ -25,15 +25,31 @@ class TestHasFeature:
     """
 
     def _has(self, sub, addons, feature_key):
-        """Helper — mock subscription + plan ke saath has_feature call karo"""
-        # has_feature() get_plan() se features padhta hai, subscription se nahi
-        mock_plan = {
-            "features": sub.get("features", {"included": [], "labels": {}})
+        """Helper — mock SQL result + clear cache ke saath has_feature call karo"""
+        from db.billing_db import has_feature, _feature_cache
+        _feature_cache.clear()
+
+        if sub is None:
+            mock_conn = MagicMock()
+            mock_conn.execute.return_value.fetchone.return_value = None
+            mock_get_db = MagicMock()
+            mock_get_db.__enter__.return_value = mock_conn
+            mock_get_db.__exit__.return_value = None
+            with patch("db.billing_db.get_db", return_value=mock_get_db):
+                return has_feature("test_resto", feature_key)
+
+        row = {
+            "status": sub.get("status"),
+            "plan_key": sub.get("plan_key"),
+            "plan_features": sub.get("features", {"included": [], "labels": {}}),
+            "addon_keys": [a["addon_key"] for a in addons if a.get("is_active", True)],
         }
-        with patch("db.billing_db.get_subscription", return_value=sub), \
-             patch("db.billing_db.get_subscription_addons", return_value=addons), \
-             patch("db.billing_db.get_plan", return_value=mock_plan):
-            from db.billing_db import has_feature
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = row
+        mock_get_db = MagicMock()
+        mock_get_db.__enter__.return_value = mock_conn
+        mock_get_db.__exit__.return_value = None
+        with patch("db.billing_db.get_db", return_value=mock_get_db):
             return has_feature("test_resto", feature_key)
 
     def test_trial_gets_all_features(self):
@@ -69,9 +85,7 @@ class TestHasFeature:
 
     def test_no_subscription_gets_nothing(self):
         """Subscription hi nahi — kuch nahi milna chahiye"""
-        with patch("db.billing_db.get_subscription", return_value=None):
-            from db.billing_db import has_feature
-            assert has_feature("ghost_client", "website") is False
+        assert self._has(None, [], "website") is False
 
     def test_basic_plan_features(self):
         """Basic plan — sirf basic features milne chahiye"""
@@ -195,37 +209,61 @@ class TestFeatureLockAPI:
 
     def test_features_me_shows_correct_access(self, owner_client):
         """/features/me — pro plan pe owner_analytics True hona chahiye"""
-        mock_plan = {"features": {"included": ["website", "qr_ordering", "owner_analytics", "ai_chatbot"], "labels": {}}}
-        with patch("db.billing_db.get_subscription", return_value=self.PRO_SUB), \
-             patch("db.billing_db.get_subscription_addons", return_value=[]), \
-             patch("db.billing_db.get_plan", return_value=mock_plan):
+        from db.billing_db import _feature_cache
+        _feature_cache["test_resto"] = {
+            "data": {
+                "status": "active",
+                "features": {"website", "qr_ordering", "owner_analytics", "ai_chatbot"}
+            },
+            "expires": 9999999999.0
+        }
+        try:
             r = owner_client.get("/api/billing/features/me")
             assert r.status_code == 200
             data = r.json()
             features = data["features"]
             assert features.get("owner_analytics") is True
             assert features.get("ar_menu") is False
+        finally:
+            _feature_cache.clear()
 
     def test_features_me_basic_plan_restricted(self, owner_client):
         """/features/me — basic plan pe owner_analytics False hona chahiye"""
-        with patch("db.billing_db.get_subscription", return_value=self.BASIC_SUB), \
-             patch("db.billing_db.get_subscription_addons", return_value=[]):
+        from db.billing_db import _feature_cache
+        _feature_cache["test_resto"] = {
+            "data": {
+                "status": "active",
+                "features": {"website", "qr_ordering"}
+            },
+            "expires": 9999999999.0
+        }
+        try:
             r = owner_client.get("/api/billing/features/me")
             assert r.status_code == 200
             data = r.json()
             assert data["features"].get("owner_analytics") is False
+        finally:
+            _feature_cache.clear()
 
     def test_expired_sub_features_all_false(self, owner_client):
         """/features/me — expired subscription pe sab False"""
-        expired_sub = {**self.PRO_SUB, "status": "expired", "ends_at": "2020-01-01"}
-        with patch("db.billing_db.get_subscription", return_value=expired_sub), \
-             patch("db.billing_db.get_subscription_addons", return_value=[]):
+        from db.billing_db import _feature_cache
+        _feature_cache["test_resto"] = {
+            "data": {
+                "status": "expired",
+                "features": {"website", "qr_ordering", "owner_analytics"}
+            },
+            "expires": 9999999999.0
+        }
+        try:
             r = owner_client.get("/api/billing/features/me")
             assert r.status_code == 200
             features = r.json()["features"]
             # Expired mein koi bhi True nahi hona chahiye
             assert all(v is False for v in features.values()), \
                 f"Expired sub mein ye features True hain: {[k for k,v in features.items() if v]}"
+        finally:
+            _feature_cache.clear()
 
 
 # ════════════════════════════════

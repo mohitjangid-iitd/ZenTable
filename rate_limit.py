@@ -63,7 +63,7 @@ def rate_limit_key(request: Request) -> str:
 limiter = Limiter(
     key_func=rate_limit_key,
     default_limits=["200/minute"],   # global safety net
-    headers_enabled=True,            # adds X-RateLimit-* response headers
+    headers_enabled=False,           # disabled so endpoints returning dicts don't crash
     swallow_errors=True,             # if limiter backend fails, don't 500 the app
 )
 
