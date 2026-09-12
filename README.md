@@ -61,6 +61,7 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 | AR                       | MindAR + Three.js r128                                                                                               |
 | AI                       | Google Gemini API (Chatbot, Photo-to-Menu, Help Bot)                                                                 |
 | Auth                     | bcrypt + JWT (cookie-based)                                                                                          |
+| Rate Limiting            | slowapi (Global 200/min & Route-specific limits)                                                                     |
 | File Storage             | Cloudflare R2 (production) / local (development)                                                                     |
 
 ---
@@ -211,6 +212,7 @@ zentable/
 ├── feature_registry.py          # Key-label registry for feature gating (Basic, Pro, Elite)
 ├── check_feature_gates.py       # Audit utility for restaurant feature access & subscription gates
 ├── auth.py                      # JWT logic — create/verify token, login functions
+├── rate_limit.py                # Rate limiting utility using SlowAPI
 ├── helpers.py                   # Shared helpers — get_client_data, require_auth, etc.
 ├── r2.py                        # Cloudflare R2 client + helper functions
 ├── glb_token.py                 # GLB signed token create/verify

@@ -57,6 +57,9 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 | GLB Pipeline | Auto-optimize + audit on upload via gltf-transform |
 | Trash System | Soft-delete with 30-day recovery, metadata in PostgreSQL |
 | Multi-branch | Fully implemented across staff, admin panels, and branch-specific QR code generator; public pages (`home`, `menu`, `ar_menu`) are branch-aware |
+| Rate Limiting | SlowAPI based request throttling (global 200/min, per-route overrides) |
+
+
 
 ---
 
