@@ -26,8 +26,8 @@ from routers.image_to_menu import router as image_to_menu_router
 from routers.blog import router as blog_router
 from routers.billing import router as billing_router
 from routers.customer_auth import router as customer_auth_router
-from db.blog_db import init_blog_tables, get_published_posts as get_blog_posts
-from db.billing_db import init_billing_tables, sync_plan_features, run_daily_billing_cron, get_all_plans, get_all_addons
+from db.blog_db import get_published_posts as get_blog_posts
+from db.billing_db import sync_plan_features, run_daily_billing_cron, get_all_plans, get_all_addons
 from templates_env import templates
 
 # ════════════════════════════════
@@ -37,9 +37,7 @@ from templates_env import templates
 @asynccontextmanager
 async def lifespan(app):
     init_all()
-    init_billing_tables()
     sync_plan_features()
-    init_blog_tables()
     purge_expired_trash()
     for r in get_all_restaurants_info():
         rdata = get_client_data(r["client_id"])
