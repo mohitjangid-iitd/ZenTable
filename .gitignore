@@ -35,6 +35,7 @@ data/*.db-shm
 
 # Assets
 static/assets/*
+static/blog/*
 private/
 
 # Coverage
