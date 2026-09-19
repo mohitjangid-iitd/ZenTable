@@ -26,12 +26,15 @@ API routes:
   DELETE /api/blog/{id}         → hard delete (admin only)
 """
 
+import os
 import re
-from fastapi import APIRouter, Request, HTTPException
+import uuid
+from fastapi import APIRouter, Request, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
 
+from r2 import USE_R2, r2_upload, r2_delete, r2_public_url, R2_PUBLIC_URL
 from helpers import get_current_user, get_client_data, has_feature
 from db import get_site_setting
 from templates_env import templates
@@ -93,6 +96,52 @@ def _can_edit(user: dict, post: dict) -> bool:
     if role == "blogger":
         return post.get("author_id") == user.get("staff_id")
     return False
+
+
+def delete_blog_image(image_url_or_path: Optional[str]):
+    """
+    Blog image ko local static/blog aur Cloudflare R2 dono se safely delete karta hai.
+    External URLs (jaise Unsplash) ko touch nahi karta.
+    """
+    if not image_url_or_path or not isinstance(image_url_or_path, str):
+        return
+
+    # Blog filename extract karo
+    filename = None
+    if "/static/blog/" in image_url_or_path:
+        filename = image_url_or_path.split("/static/blog/")[-1]
+    elif "static/blog/" in image_url_or_path:
+        filename = image_url_or_path.split("static/blog/")[-1]
+    elif "/blog/" in image_url_or_path:
+        filename = image_url_or_path.split("/blog/")[-1]
+    elif image_url_or_path.startswith("blog/"):
+        filename = image_url_or_path[len("blog/"):]
+
+    if not filename:
+        return
+
+    # Query string ya fragments strip karo
+    filename = filename.split("?")[0].split("#")[0].strip()
+    # Path traversal safety check
+    if not filename or ".." in filename or "/" in filename or "\\" in filename:
+        return
+
+    # 1. Local static/blog se delete karo
+    local_path = os.path.join("static", "blog", filename)
+    try:
+        if os.path.exists(local_path):
+            os.remove(local_path)
+            print(f"[BLOG] Deleted local image: {local_path}")
+    except Exception as e:
+        print(f"Error removing local blog image {local_path}: {e}")
+
+    # 2. Cloudflare R2 se delete karo
+    try:
+        if USE_R2:
+            r2_delete(f"blog/{filename}")
+            print(f"[BLOG] Deleted R2 image: blog/{filename}")
+    except Exception as e:
+        print(f"Error removing R2 blog image blog/{filename}: {e}")
 
 
 # ════════════════════════════════
@@ -378,7 +427,7 @@ async def api_create_post(request: Request, body: PostSaveBody):
         slug        = slug,
         client_id   = client_id,
         tags        = body.tags,
-        cover_image = body.cover_image,
+        cover_image = (body.cover_image.strip() or None) if body.cover_image else None,
         meta_desc   = body.meta_desc,
         status      = "draft",
     )
@@ -399,6 +448,13 @@ async def api_update_post(request: Request, post_id: int, body: PostUpdateBody):
         if slug_exists(body.slug):
             raise HTTPException(status_code=409, detail="Slug already taken")
 
+    # Cover image replace ya remove hone pe purani photo dono jagah (R2 & local) se delete karo
+    if body.cover_image is not None:
+        new_cover = body.cover_image.strip() or None
+        old_cover = post.get("cover_image")
+        if old_cover and old_cover != new_cover:
+            delete_blog_image(old_cover)
+
     update_blog_post(
         post_id,
         title       = body.title,
@@ -408,6 +464,69 @@ async def api_update_post(request: Request, post_id: int, body: PostUpdateBody):
         cover_image = body.cover_image,
         meta_desc   = body.meta_desc,
     )
+    return JSONResponse({"success": True})
+
+
+# ════════════════════════════════
+# API — IMAGE UPLOAD & CLEANUP
+# ════════════════════════════════
+
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_BLOG_IMAGE_SIZE = 15 * 1024 * 1024  # 15 MB
+
+@router.post("/api/blog/upload-image")
+async def api_upload_blog_image(request: Request, file: UploadFile = File(...)):
+    """
+    Blog cover image ya editor internal images upload endpoint.
+    - Prod me (USE_R2=True): Cloudflare R2 me 'blog/{filename}'
+    - Local me (USE_R2=False): Local 'static/blog/{filename}'
+    """
+    _require_blog_access(request)
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file format. Allowed: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
+        )
+
+    contents = await file.read()
+    if len(contents) > MAX_BLOG_IMAGE_SIZE:
+        raise HTTPException(status_code=400, detail="File size exceeds limit (max 15MB)")
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    raw_name = os.path.basename(file.filename or "image.jpg")
+    clean_name = re.sub(r"[^\w\-.]", "_", raw_name)
+    safe_name = f"blog_{uuid.uuid4().hex[:10]}_{clean_name}"
+
+    if USE_R2:
+        r2_upload(contents, f"blog/{safe_name}", safe_name)
+        url = r2_public_url(f"blog/{safe_name}")
+    else:
+        save_dir = os.path.join("static", "blog")
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, safe_name)
+        with open(save_path, "wb") as f:
+            f.write(contents)
+        url = f"/static/blog/{safe_name}"
+
+    return JSONResponse({
+        "success": True,
+        "url": url,
+        "filename": safe_name
+    })
+
+
+class DeleteImageBody(BaseModel):
+    url: str
+
+@router.post("/api/blog/delete-image")
+async def api_delete_blog_image(request: Request, body: DeleteImageBody):
+    """Uploaded image discard / remove hone pe storage cleanup"""
+    _require_blog_access(request)
+    if body.url:
+        delete_blog_image(body.url)
     return JSONResponse({"success": True})
 
 
@@ -466,5 +585,11 @@ async def api_unarchive_post(request: Request, post_id: int):
 @router.delete("/api/blog/{post_id}")
 async def api_delete_post(request: Request, post_id: int):
     _require_admin(request)
+    post = get_post_by_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    # Post delete hone par cover image dono jagah se delete karo
+    if post.get("cover_image"):
+        delete_blog_image(post["cover_image"])
     delete_post(post_id)
     return JSONResponse({"success": True})

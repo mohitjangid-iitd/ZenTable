@@ -25,6 +25,8 @@ except ImportError:
 
 # ── Env vars test ke liye (real values nahi chahiye) ──
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
+os.environ.setdefault("GLB_SECRET", "test-glb-secret")
+os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
 os.environ.setdefault("DATABASE_URL", "postgresql://fake:fake@fake/fake")
 os.environ.setdefault("ZENTABLE_UPI_ID", "test@upi")
 

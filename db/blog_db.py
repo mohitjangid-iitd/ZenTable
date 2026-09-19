@@ -131,7 +131,9 @@ def update_blog_post(
     if content     is not None: fields.append("content=%s");      params.append(content)
     if slug        is not None: fields.append("slug=%s");         params.append(slug)
     if tags        is not None: fields.append("tags=%s");         params.append(json.dumps(tags))
-    if cover_image is not None: fields.append("cover_image=%s");  params.append(cover_image)
+    if cover_image is not None:
+        fields.append("cover_image=%s")
+        params.append(None if cover_image == "" else cover_image)
     if meta_desc   is not None: fields.append("meta_desc=%s");    params.append(meta_desc)
 
     if not fields:

@@ -306,17 +306,104 @@
       font-family: var(--font-body);
     }
 
-    /* Cover image preview */
+    /* Cover image uploader styling */
+    .cover-upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 22px 12px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg);
+      transition: all .2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .cover-upload-zone:hover, .cover-upload-zone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+    .cover-upload-icon {
+      width: 32px;
+      height: 32px;
+      color: var(--muted);
+      margin-bottom: 2px;
+      transition: color .2s;
+    }
+    .cover-upload-zone:hover .cover-upload-icon {
+      color: var(--accent);
+    }
+    .cover-upload-text {
+      font-size: .82rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .cover-upload-sub {
+      font-size: .72rem;
+      color: var(--muted);
+    }
+    .cover-preview-container {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+    }
     .cover-preview {
       width: 100%;
-      height: 120px;
-      border-radius: calc(var(--radius) - 2px);
+      height: 140px;
       object-fit: cover;
-      display: none;
-      margin-bottom: 8px;
-      border: 1px solid var(--border);
+      display: block;
     }
-    .cover-preview.visible { display: block; }
+    .cover-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .cover-actions .btn {
+      flex: 1;
+      justify-content: center;
+      padding: 6px 10px;
+      font-size: .78rem;
+    }
+    .cover-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 24px 12px;
+      font-size: .82rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .toggle-url-link {
+      font-size: .75rem;
+      color: var(--muted);
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-block;
+      margin-top: 8px;
+      user-select: none;
+    }
+    .toggle-url-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
 
     /* Status badge */
     .status-badge {
@@ -500,11 +587,42 @@
     <div class="sidebar-section">
       <div class="sidebar-section-header">Cover Image</div>
       <div class="sidebar-section-body">
-        <img id="coverPreview" class="cover-preview" src="" alt="Cover" />
-        <div class="field">
-          <label>Image URL</label>
-          <input type="text" id="postCoverImage" value="{% if post %}{{ post.cover_image or '' }}{% endif %}" placeholder="https://... or /static/..." oninput="updateCoverPreview()" />
-          <div class="hint">Paste a URL or upload via admin panel then copy the path</div>
+        <input type="file" id="coverFileInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" onchange="handleCoverFileUpload(this.files[0])" />
+
+        <!-- Upload loading -->
+        <div id="coverLoading" class="cover-loading" style="display:none;">
+          <div class="spinner"></div>
+          <span>Uploading cover...</span>
+        </div>
+
+        <!-- Preview container (visible when image exists) -->
+        <div id="coverPreviewWrap" style="display:none;">
+          <div class="cover-preview-container">
+            <img id="coverPreview" class="cover-preview" src="" alt="Cover" />
+          </div>
+          <div class="cover-actions">
+            <button type="button" class="btn" onclick="document.getElementById('coverFileInput').click()">Change</button>
+            <button type="button" class="btn" style="color:var(--danger);border-color:#f5c5c1;" onclick="removeCoverImage()">Remove</button>
+          </div>
+        </div>
+
+        <!-- Upload dropzone (visible when no image) -->
+        <div id="coverDropZone" class="cover-upload-zone" onclick="document.getElementById('coverFileInput').click()">
+          <svg class="cover-upload-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <div class="cover-upload-text">Upload Cover Photo</div>
+          <div class="cover-upload-sub">PNG, JPG, WEBP (Max 15MB)</div>
+        </div>
+
+        <!-- Hidden / Toggleable URL field -->
+        <div style="margin-top:10px;">
+          <a class="toggle-url-link" onclick="toggleUrlField()">🔗 Or paste image URL</a>
+          <div id="urlFieldWrap" style="display:none;margin-top:8px;">
+            <div class="field" style="margin-bottom:0;">
+              <input type="text" id="postCoverImage" value="{% if post %}{{ post.cover_image or '' }}{% endif %}" placeholder="https://... or /static/blog/..." oninput="updateCoverPreview()" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -556,6 +674,42 @@
         ['clean']
       ]
     }
+  });
+
+  // Quill image toolbar custom handler — upload to /api/blog/upload-image instead of base64
+  quill.getModule('toolbar').addHandler('image', () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/png,image/jpeg,image/webp,image/gif');
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 15 * 1024 * 1024) {
+        showToast('Image size exceeds 15MB', 'error');
+        return;
+      }
+      showToast('Uploading image...', '');
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch('/api/blog/upload-image', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+          quill.insertEmbed(range.index, 'image', data.url);
+          quill.setSelection(range.index + 1);
+          showToast('Image inserted! ✓', 'success');
+        } else {
+          showToast(data.detail || 'Upload failed', 'error');
+        }
+      } catch (err) {
+        showToast('Error uploading image', 'error');
+      }
+    };
+    input.click();
   });
 
   // ── Quill toolbar tooltips ──
@@ -632,14 +786,124 @@
   }
   updateCharCount();
 
-  // ── Cover image preview ──
+  // ── Cover image logic ──
   function updateCoverPreview() {
     const url = document.getElementById('postCoverImage').value.trim();
     const img = document.getElementById('coverPreview');
-    if (url) { img.src = url; img.classList.add('visible'); }
-    else      { img.classList.remove('visible'); }
+    const wrap = document.getElementById('coverPreviewWrap');
+    const drop = document.getElementById('coverDropZone');
+    if (url) {
+      img.src = url;
+      wrap.style.display = 'block';
+      drop.style.display = 'none';
+    } else {
+      img.src = '';
+      wrap.style.display = 'none';
+      drop.style.display = 'flex';
+    }
   }
   updateCoverPreview();
+
+  function toggleUrlField() {
+    const wrap = document.getElementById('urlFieldWrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function handleCoverFileUpload(file) {
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) {
+      showToast('Allowed formats: JPG, PNG, WEBP, GIF', 'error');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Image exceeds 15MB limit', 'error');
+      return;
+    }
+
+    const loading = document.getElementById('coverLoading');
+    const dropZone = document.getElementById('coverDropZone');
+    const previewWrap = document.getElementById('coverPreviewWrap');
+
+    loading.style.display = 'flex';
+    dropZone.style.display = 'none';
+    previewWrap.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/blog/upload-image', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      loading.style.display = 'none';
+
+      if (data.success) {
+        // Delete previous session upload if any
+        const prevUrl = document.getElementById('postCoverImage').value.trim();
+        if (prevUrl && prevUrl !== data.url && (!POST_ID || prevUrl.includes('/static/blog/') || prevUrl.includes('/blog/'))) {
+          fetch('/api/blog/delete-image', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ url: prevUrl })
+          }).catch(() => {});
+        }
+
+        document.getElementById('postCoverImage').value = data.url;
+        updateCoverPreview();
+        showToast('Cover image uploaded! ✓', 'success');
+      } else {
+        showToast(data.detail || 'Upload failed', 'error');
+        updateCoverPreview();
+      }
+    } catch (e) {
+      loading.style.display = 'none';
+      showToast('Error uploading cover image', 'error');
+      updateCoverPreview();
+    }
+  }
+
+  async function removeCoverImage() {
+    const currentUrl = document.getElementById('postCoverImage').value.trim();
+    if (currentUrl) {
+      fetch('/api/blog/delete-image', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url: currentUrl })
+      }).catch(() => {});
+    }
+    document.getElementById('postCoverImage').value = '';
+    const fileInp = document.getElementById('coverFileInput');
+    if (fileInp) fileInp.value = '';
+    updateCoverPreview();
+    showToast('Cover image removed');
+  }
+
+  // Setup Drag & Drop for Cover Dropzone
+  const coverDrop = document.getElementById('coverDropZone');
+  if (coverDrop) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+      coverDrop.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        coverDrop.classList.add('dragover');
+      }, false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      coverDrop.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        coverDrop.classList.remove('dragover');
+      }, false);
+    });
+    coverDrop.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const file = dt && dt.files ? dt.files[0] : null;
+      if (file) handleCoverFileUpload(file);
+    });
+  }
 
   // ── Toast ──
   function showToast(msg, type = '') {
@@ -664,7 +928,7 @@
       content:     quill.root.innerHTML,
       slug:        document.getElementById('postSlug').value.trim(),
       tags:        tags,
-      cover_image: document.getElementById('postCoverImage').value.trim() || null,
+      cover_image: document.getElementById('postCoverImage').value.trim(),
       meta_desc:   document.getElementById('postMetaDesc').value.trim() || null,
       client_id:   CLIENT_ID || null,
     };
