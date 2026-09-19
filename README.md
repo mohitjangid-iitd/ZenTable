@@ -49,8 +49,8 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 
 | Layer                    | Technology                                                                                                           |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Backend                  | Python — FastAPI (with background keep-alive threads)                                                                |
-| Database                 | PostgreSQL (psycopg2, ThreadedConnectionPool, Neon DB keep-alive support)                                            |
+| Backend                  | Python — FastAPI                                                                                                     |
+| Database                 | PostgreSQL (psycopg2, ThreadedConnectionPool)                                                                        |
 | Restaurant Config        | PostgreSQL `restaurants` table (JSONB)                                                                               |
 | Subscriptions & Add-ons  | PostgreSQL `billing_plans`, `billing_addons`, `subscriptions`, `subscription_addons`, `payment_history`, `email_log` |
 | Blog Operations          | PostgreSQL `blog_posts` table                                                                                        |
@@ -74,7 +74,7 @@ A **multi-tenant restaurant management platform** with AR menus, real-time order
 - **Restaurant Management**: Full CRUD operations for menus, items, orders, staff, and restaurants.
 - **Admin Dashboard**: Global management for ZenTable platform.
 - **Multi-Branch Support**: Restaurants can have multiple branches with isolated data.
-- **Subscriptions & Billing**: Full billing lifecycle management with Stripe integration.
+- **Subscriptions & Billing**: Full billing lifecycle management with manual UPI payments and admin confirmation.
 - **Trash & Recovery System**: Smart trash management for files and database entries.
 - **Owner Self-Signup**: Integrated T&C/Privacy Policy compliance and approval flow.
 - **Security**: JWT-based auth, file security, subscription gating, and session management.
@@ -140,7 +140,7 @@ graph TB
 
     subgraph External ["🌐 External Integrations"]
         gemini["Google Gemini API"]
-        upi["Manual UPI Payment<br/>(Phase 3: Razorpay webhook-ready)"]
+        upi["Manual UPI Payment<br/>(Phase 3: Razorpay planned)"]
         smtp["Gmail SMTP"]
     end
 
@@ -438,7 +438,7 @@ Free model sources: Sketchfab, TurboSquid, CGTrader
 
 ## Testing
 
-ZenTable features over **140 API routes and endpoints**. It includes a robust suite of **~171 automated unit and behavioral tests (90%+ core coverage)**. All database queries and external resources are mocked out, allowing tests to run entirely offline in milliseconds.
+ZenTable features over **139 API routes and endpoints**. It includes a robust suite of **~179 automated unit and behavioral tests (90%+ core coverage)**. All database queries and external resources are mocked out, allowing tests to run entirely offline in milliseconds.
 
 To install test dependencies:
 

@@ -12,8 +12,10 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 | Feature | Details |
 |---|---|
 | AR Menu | Scan QR code, view dishes as 3D models in augmented reality |
+| Markerless AR | View 3D dishes directly in camera space without requiring physical markers |
 | Digital Menu | Mobile-optimized menu with categories, veg/non-veg filters, size variants |
 | Restaurant Home Page | Branded landing page with hero, featured dishes, contact info |
+| Customer Portal & OAuth | Google OAuth2 sign-in to view profile, active order tracking, and past order history |
 | No App Required | Works entirely in the browser |
 | Screenshot & Share | Capture and share AR experiences on social media |
 | AI Chatbot | Ask questions about menu, timings, and restaurant info |
@@ -38,28 +40,29 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 | 3D model management | Upload/manage `.glb` models per dish (owners cannot upload GLBs) |
 | Staff management | Create and manage staff accounts per restaurant |
 | Owner onboarding | Approve or reject owner self-signups |
+| Subscription & billing | Plan tier management (Basic, Pro, Elite), add-ons, and payment confirmation workflows with dynamic UPI QR generation |
 | Blogging platform | Centralized blogging system for ZenTable and connected restaurants |
 | File management | Upload images/models, trash + restore system (30-day recovery) |
 | Platform analytics | Revenue, orders, top dishes across all restaurants |
-| DB export | Full PostgreSQL export as ZIP |
+| DB export | Full PostgreSQL SQL database dump (`.sql`) export |
 
 ### Technical Foundation
 | Component | Details |
 |---|---|
 | Backend | Python — FastAPI (modular routers), background keep-alive threads |
-| Database | PostgreSQL (psycopg2, ThreadedConnectionPool), Neon DB keep-alive support |
-| Auth | bcrypt + JWT (cookie-based), role-scoped |
+| Database | PostgreSQL (psycopg2, ThreadedConnectionPool), Neon DB resilience & connection leak prevention |
+| Auth | bcrypt + JWT (cookie-based, role-scoped) & Google OAuth2 for customers |
 | Multi-tenant | client_id isolation across all DB tables |
 | Restaurant Config | JSONB stored in PostgreSQL `restaurants` table |
+| URL Security | Short HMAC-signed table tokens for secure, tamper-proof QR table sessions |
+| Feature Gating | In-memory cached subscription checks for sub-millisecond feature validation |
+| Rate Limiting | SlowAPI based request throttling (global 200/min safety net, granular per-route limits) |
 | AR | MindAR + Three.js r128 — no native app required |
 | AI | Google Gemini API — chatbot, photo-to-menu, help bot |
 | File Storage | Cloudflare R2 (production) / local (development) |
 | GLB Pipeline | Auto-optimize + audit on upload via gltf-transform |
 | Trash System | Soft-delete with 30-day recovery, metadata in PostgreSQL |
 | Multi-branch | Fully implemented across staff, admin panels, and branch-specific QR code generator; public pages (`home`, `menu`, `ar_menu`) are branch-aware |
-| Rate Limiting | SlowAPI based request throttling (global 200/min, per-route overrides) |
-
-
 
 ---
 
@@ -76,11 +79,13 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 - [x] Restaurant info management (name, logo, banner, social, contact, tables)
 - [x] Multi-tenant platform with ZenTable admin panel (admin.zentable.in)
 - [x] PostgreSQL backend with JSONB restaurant config
-- [x] Production Deployment — Hosted on Render with Neon Serverless PostgreSQL (featuring database pool auto-reconnects and cold start mitigation)
-- [x] JWT-based auth (cookie-based, role-scoped)
+- [x] Production Deployment — Hosted on Render with Neon Serverless PostgreSQL (featuring database pool auto-reconnects, connection leak prevention, and cold start mitigation)
+- [x] JWT-based auth (cookie-based, role-scoped) & Google OAuth2 for customer portal
 - [x] Cloudflare R2 integration for file storage
 - [x] GLB upload pipeline — auto-optimize + audit via gltf-transform
 - [x] GLB security — HMAC-signed short-lived token protection for 3D assets to prevent unauthorized model theft
+- [x] Short HMAC table URL signatures for tamper-proof table sessions
+- [x] Rate limiting infrastructure via SlowAPI (global safety nets + granular route limits + 429 JSON handling)
 - [x] Dynamic XML Sitemap (`/sitemap.xml`) for automated search engine discovery & SEO optimization
 - [x] Trash system — soft-delete with 30-day recovery
 - [x] AI chatbot for customers (Gemini)
@@ -90,11 +95,13 @@ ZenTable started as a simple AR menu viewer. It is now a full restaurant managem
 - [x] Owner self-signup with admin approval
 - [x] Full blogging platform integration
 - [x] Customer-facing order placement (QR → order directly, Delivery checkout flow with address details)
+- [x] Customer live order tracking & order history portal
 - [x] Direct delivery system (Delivery panel dashboard, rider order workflow, delivery filtering & color-coding in kitchen)
 - [x] Push notifications for staff (partial)
-- [x] Plan-based Feature Gating — Subscription tier restrictions (Basic vs Pro vs Elite) and custom add-on system
-- [x] Automated Testing Suite — Extensive unit and integration tests (admin, billing, menu, orders, owner, tables) powered by Pytest
+- [x] Plan-based Feature Gating — Subscription tier restrictions (Basic vs Pro vs Elite), custom add-on system, and in-memory caching
+- [x] Automated Testing Suite — Extensive unit, integration, and rate limiting tests powered by Pytest (100% green across all modules)
 - [x] Legal Compliance Pages — Terms & Conditions and Privacy Policy integrated into signup and customer auth flows
+- [x] Admin SQL database dump generation and export
 
 ### Phase 2 — Next
 - [ ] Delivery aggregator integration — Swiggy, Zomato
