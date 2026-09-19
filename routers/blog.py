@@ -378,21 +378,23 @@ async def admin_blog_management(request: Request, status: str = None):
 # ════════════════════════════════
 
 class PostSaveBody(BaseModel):
-    title:       str
-    content:     str
-    slug:        Optional[str] = None
-    tags:        Optional[list] = []
-    cover_image: Optional[str] = None
-    meta_desc:   Optional[str] = None
-    client_id:   Optional[str] = None   # override — admin ke liye
+    title:        str
+    content:      str
+    slug:         Optional[str] = None
+    tags:         Optional[list] = []
+    cover_image:  Optional[str] = None
+    meta_desc:    Optional[str] = None
+    client_id:    Optional[str] = None   # override — admin ke liye
+    line_spacing: Optional[str] = '1.7'
 
 class PostUpdateBody(BaseModel):
-    title:       Optional[str] = None
-    content:     Optional[str] = None
-    slug:        Optional[str] = None
-    tags:        Optional[list] = None
-    cover_image: Optional[str] = None
-    meta_desc:   Optional[str] = None
+    title:        Optional[str] = None
+    content:      Optional[str] = None
+    slug:         Optional[str] = None
+    tags:         Optional[list] = None
+    cover_image:  Optional[str] = None
+    meta_desc:    Optional[str] = None
+    line_spacing: Optional[str] = None
 
 class RejectBody(BaseModel):
     note: str
@@ -419,17 +421,18 @@ async def api_create_post(request: Request, body: PostSaveBody):
     author_name = user.get("name", "")
 
     post_id = create_blog_post(
-        title       = body.title,
-        content     = body.content,
-        author_id   = author_id,
-        author_type = author_type,
-        author_name = author_name,
-        slug        = slug,
-        client_id   = client_id,
-        tags        = body.tags,
-        cover_image = (body.cover_image.strip() or None) if body.cover_image else None,
-        meta_desc   = body.meta_desc,
-        status      = "draft",
+        title        = body.title,
+        content      = body.content,
+        author_id    = author_id,
+        author_type  = author_type,
+        author_name  = author_name,
+        slug         = slug,
+        client_id    = client_id,
+        tags         = body.tags,
+        cover_image  = (body.cover_image.strip() or None) if body.cover_image else None,
+        meta_desc    = body.meta_desc,
+        line_spacing = body.line_spacing or '1.7',
+        status       = "draft",
     )
     return JSONResponse({"success": True, "post_id": post_id, "slug": slug})
 
@@ -457,12 +460,13 @@ async def api_update_post(request: Request, post_id: int, body: PostUpdateBody):
 
     update_blog_post(
         post_id,
-        title       = body.title,
-        content     = body.content,
-        slug        = body.slug,
-        tags        = body.tags,
-        cover_image = body.cover_image,
-        meta_desc   = body.meta_desc,
+        title        = body.title,
+        content      = body.content,
+        slug         = body.slug,
+        tags         = body.tags,
+        cover_image  = body.cover_image,
+        meta_desc    = body.meta_desc,
+        line_spacing = body.line_spacing,
     )
     return JSONResponse({"success": True})
 

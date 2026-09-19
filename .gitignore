@@ -24,6 +24,7 @@ data/
 # images
 private/
 static/assets
+static/blog
 
 # test cache
 .pytest_cache/

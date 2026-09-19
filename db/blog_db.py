@@ -38,11 +38,18 @@ def init_blog_tables():
                 cover_image  TEXT,                    -- R2 URL ya local path
                 meta_desc    TEXT,                    -- SEO meta description (160 chars max)
                 reject_note  TEXT,                    -- admin ka rejection comment
+                line_spacing TEXT DEFAULT '1.7',      -- editor line spacing preference
                 created_at   TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
                 published_at TEXT,
                 updated_at   TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
             )
         """)
+
+        # Add line_spacing to existing tables (safe ALTER TABLE — idempotent)
+        try:
+            conn.execute("ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS line_spacing TEXT DEFAULT '1.7'")
+        except Exception:
+            pass
 
         print("✅ Blog tables initialized")
 
@@ -81,6 +88,7 @@ def create_blog_post(
     tags: list = None,
     cover_image: str = None,
     meta_desc: str = None,
+    line_spacing: str = '1.7',
     status: str = "draft",   # admin seedha 'published' bhi de sakta hai
 ) -> int:
     """
@@ -96,15 +104,15 @@ def create_blog_post(
         cur.execute("""
             INSERT INTO blog_posts
                 (title, content, author_id, author_type, author_name,
-                 slug, client_id, tags, cover_image, meta_desc,
+                 slug, client_id, tags, cover_image, meta_desc, line_spacing,
                  status, published_at, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             title, content, author_id, author_type, author_name,
             slug, client_id,
             json.dumps(tags or []),
-            cover_image, meta_desc,
+            cover_image, meta_desc, line_spacing or '1.7',
             status, published_at, now, now
         ))
         post_id = cur.fetchone()["id"]
@@ -119,6 +127,7 @@ def update_blog_post(
     tags: list = None,
     cover_image: str = None,
     meta_desc: str = None,
+    line_spacing: str = None,
 ) -> bool:
     """
     Draft/existing post update karo — sirf diye gaye fields update honge.
@@ -127,14 +136,15 @@ def update_blog_post(
     fields = []
     params = []
 
-    if title       is not None: fields.append("title=%s");        params.append(title)
-    if content     is not None: fields.append("content=%s");      params.append(content)
-    if slug        is not None: fields.append("slug=%s");         params.append(slug)
-    if tags        is not None: fields.append("tags=%s");         params.append(json.dumps(tags))
-    if cover_image is not None:
+    if title        is not None: fields.append("title=%s");         params.append(title)
+    if content      is not None: fields.append("content=%s");       params.append(content)
+    if slug         is not None: fields.append("slug=%s");          params.append(slug)
+    if tags         is not None: fields.append("tags=%s");          params.append(json.dumps(tags))
+    if cover_image  is not None:
         fields.append("cover_image=%s")
         params.append(None if cover_image == "" else cover_image)
-    if meta_desc   is not None: fields.append("meta_desc=%s");    params.append(meta_desc)
+    if meta_desc    is not None: fields.append("meta_desc=%s");     params.append(meta_desc)
+    if line_spacing is not None: fields.append("line_spacing=%s");  params.append(line_spacing)
 
     if not fields:
         return False
